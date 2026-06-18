@@ -1,5 +1,22 @@
 # Patch Notes
 
+## v0.20.0 - 2026-06-13
+
+### More platforming throughout the stages
+
+- **Bounce pads.** Springy green spores sit on the floor; step on one and you're launched into a
+  high arc (with your air double-jump still available). Introduced harmlessly in Stage 1-1 and
+  sprinkled through every sector as both traversal flair and a way to skip hazards.
+- **Hazard pools.** Sector-tinted corrosive strips (acid green / plasma red / crystal violet) sear
+  the player for damage while standing in them on the ground — jump over to stay safe. First
+  appears in the 1-3 boss run-up, then becomes common in sectors 2 and 3.
+- **Crumbling floor.** Cracked, loose tiles rattle and collapse into a real chasm a fraction of a
+  second after you stand on them, so you can't dawdle. Introduced in Stage 1-2.
+- **Richer gaps.** Sector 3 adds extra wide chasms that require a double-jump to clear.
+- All platforming is data-driven per stage via new optional `hazards` / `pads` / `crumble` fields
+  in [src/stages.ts](../src/stages.ts), tuned as a gentle ramp (Sector 1 stays introductory). The
+  hazard/pad/crumble visuals span the full floor depth band, matching the chasm footprint.
+
 ## v0.19.0 - 2026-06-09
 
 ### Hand-drawn sprite art

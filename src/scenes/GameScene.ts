@@ -3,6 +3,7 @@ import type { AttackId, BaseAtom, Difficulty, SectorId } from '../constants';
 import {
   ATTACK_ORDER,
   BASE_ATOMS,
+  CRUMBLE_DELAY_MS,
   DIFFICULTY_SCALE,
   ELEMENT_NAMES,
   FLOOR_CENTER_Y,
@@ -11,9 +12,11 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   GAP_FALL_DAMAGE,
+  HAZARD_DAMAGE,
   isFinaleStage,
   MAX_ELEMENT_LEVEL,
   MEG_MAX_LEVEL_QUIPS,
+  PLAYER_BOUNCE_VELOCITY,
   PLAYER_MAX_HP,
   SECTORS,
   SLOT_KEY_LABELS,
@@ -151,6 +154,15 @@ export default class GameScene extends Phaser.Scene {
   private _tutEnemy?: Enemy;
   private _tutDone = false;
   private _gaps: { x1: number; x2: number }[] = [];
+  // ── Platforming hazards (data-driven per stage in src/stages.ts) ──
+  private _hazards: { x1: number; x2: number }[] = [];
+  private _pads: { x: number; gfx: Phaser.GameObjects.Graphics }[] = [];
+  private _crumbles: {
+    x1: number;
+    x2: number;
+    gfx: Phaser.GameObjects.Graphics;
+    state: 'solid' | 'warning' | 'gone';
+  }[] = [];
   private readonly _tutAtomX = 900;
   private readonly _tutEnemyX = 1500;
   private readonly _gapX1 = 2080;
@@ -181,6 +193,9 @@ export default class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.stageCleared = false;
     this._gaps = [];
+    this._hazards = [];
+    this._pads = [];
+    this._crumbles = [];
     this._tutDone = false;
     this._exitOpen = false;
     this._exitPortal = undefined;
@@ -488,6 +503,16 @@ export default class GameScene extends Phaser.Scene {
     def.gaps.forEach(([a, b]) => {
       this._addGap(a, b);
     });
+    // Platforming hazards (all optional, see src/stages.ts)
+    def.hazards?.forEach(([a, b]) => {
+      this._addHazard(a, b);
+    });
+    def.pads?.forEach((x) => {
+      this._addPad(x);
+    });
+    def.crumble?.forEach(([a, b]) => {
+      this._addCrumble(a, b);
+    });
     const inGap = (x: number) => this._gaps.some((g) => x > g.x1 - 30 && x < g.x2 + 30);
 
     def.enemies.forEach((en) => {
@@ -635,6 +660,161 @@ export default class GameScene extends Phaser.Scene {
         break;
       }
     }
+  }
+
+  // ── Platforming hazards ───────────────────────────────────────────────────────
+
+  /** Sector-tinted corrosive-pool colors for hazard strips. */
+  private _hazardTheme(): { fill: number; surface: number } {
+    if (this.sector === 1) return { fill: 0x88dd33, surface: 0xccff66 };
+    if (this.sector === 2) return { fill: 0xdd3322, surface: 0xff7755 };
+    return { fill: 0xaa55dd, surface: 0xdd99ff };
+  }
+
+  /** Draw a bubbling corrosive pool and register it as a damaging floor strip. The pool fills the
+   *  whole walkable depth band (FLOOR_MIN_Y → bottom of screen), matching the chasm footprint. */
+  private _addHazard(x1: number, x2: number): void {
+    this._hazards.push({ x1, x2 });
+    const { fill, surface } = this._hazardTheme();
+    const w = x2 - x1;
+    const top = FLOOR_MIN_Y - 4;
+    const g = this.add.graphics().setDepth(-1.5);
+    g.fillStyle(fill, 0.4);
+    g.fillRect(x1, top, w, GAME_HEIGHT - top);
+    // A denser pool toward the front edge so it reads with depth, not as a flat mat.
+    g.fillStyle(fill, 0.22);
+    g.fillRect(x1, FLOOR_MAX_Y, w, GAME_HEIGHT - FLOOR_MAX_Y);
+    g.lineStyle(2.5, surface, 0.85);
+    g.lineBetween(x1, top, x2, top);
+    // Caustic bubbles scattered across the band the player actually walks through.
+    g.fillStyle(surface, 0.5);
+    const bubbles = Math.max(4, Math.round(w / 22));
+    for (let i = 0; i < bubbles; i++) {
+      g.fillCircle(
+        Phaser.Math.Between(x1 + 6, x2 - 6),
+        Phaser.Math.Between(FLOOR_MIN_Y, FLOOR_MAX_Y + 18),
+        Phaser.Math.FloatBetween(2, 4.5),
+      );
+    }
+  }
+
+  /** Step into acid/spikes on the ground and you sizzle; jumping over is safe. */
+  private _updateHazards(): void {
+    if (this._hazards.length === 0) return;
+    const p = this.player;
+    if (!p.alive || p.airborne) return;
+    const px = p.sprite.x;
+    for (const hz of this._hazards) {
+      if (px > hz.x1 && px < hz.x2) {
+        if (!p.isInvincible) {
+          p.takeDamage(HAZARD_DAMAGE);
+          SoundSystem.play(this.audioCtx, 'hazard');
+          this.spawnBurst(px, p.sprite.y + 16, this._hazardTheme().surface, {
+            count: 6,
+            speed: [40, 120],
+            angle: [200, 340],
+            lifespan: 300,
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  /** Draw a springy bounce-mat spanning the floor depth band. Drawn centered on FLOOR_CENTER_Y in
+   *  local coords so the squash tween (on bounce) compresses around its middle. */
+  private _addPad(x: number): void {
+    const halfH = (FLOOR_MAX_Y - FLOOR_MIN_Y) / 2 + 8; // covers the whole walk band
+    const g = this.add.graphics().setPosition(x, FLOOR_CENTER_Y).setDepth(-1.5);
+    g.fillStyle(0x1f7a4a, 0.45);
+    g.fillEllipse(0, halfH - 4, 60, 22); // base shadow at the front foot
+    g.fillStyle(0x39c97a, 1);
+    g.fillRoundedRect(-25, -halfH, 50, halfH * 2, 16); // springy body
+    g.lineStyle(2, 0x9bffc8, 0.85);
+    g.strokeRoundedRect(-25, -halfH, 50, halfH * 2, 16);
+    // Coil-spring highlights down the mat
+    g.lineStyle(2, 0xbfffd8, 0.5);
+    for (let cy = -halfH + 16; cy < halfH - 12; cy += 22) g.lineBetween(-15, cy, 15, cy + 8);
+    this._pads.push({ x, gfx: g });
+  }
+
+  /** Touch a pad on the ground and you're launched into a high arc. */
+  private _updatePads(): void {
+    if (this._pads.length === 0) return;
+    const p = this.player;
+    if (!p.alive || p.airborne) return;
+    const px = p.sprite.x;
+    for (const pad of this._pads) {
+      if (Math.abs(px - pad.x) < 30) {
+        p.superJump(PLAYER_BOUNCE_VELOCITY);
+        SoundSystem.play(this.audioCtx, 'bounce');
+        this.tweens.killTweensOf(pad.gfx);
+        pad.gfx.setScale(1);
+        this.tweens.add({ targets: pad.gfx, scaleX: 1.35, scaleY: 0.82, duration: 90, yoyo: true, ease: 'Quad.Out' });
+        this.spawnBurst(pad.x, p.sprite.y, 0xbfffd8, { count: 8, speed: [90, 200], angle: [210, 330], lifespan: 340 });
+        break;
+      }
+    }
+  }
+
+  /** Draw a cracked, loose floor tile that will give way once stood on. It covers the full depth
+   *  band so its footprint lines up with the chasm it leaves behind on collapse. */
+  private _addCrumble(x1: number, x2: number): void {
+    const w = x2 - x1;
+    const top = FLOOR_MIN_Y - 6;
+    const g = this.add.graphics().setDepth(-1.8);
+    g.fillStyle(0x6a5436, 0.55);
+    g.fillRect(x1, top, w, GAME_HEIGHT - top);
+    g.lineStyle(1.5, 0x2a2014, 0.85);
+    g.strokeRect(x1 + 1, top, w - 2, GAME_HEIGHT - top);
+    // Crack lines down the tile, hinting it's unstable.
+    g.lineStyle(1.2, 0x1a140c, 0.7);
+    for (let cx = x1 + 16; cx < x2 - 6; cx += 24) {
+      g.lineBetween(cx, top, cx + Phaser.Math.Between(-8, 8), FLOOR_MAX_Y + 20);
+    }
+    this._crumbles.push({ x1, x2, gfx: g, state: 'solid' });
+  }
+
+  /** Stand on a crumbling tile to start its countdown; it then collapses into a real chasm. */
+  private _updateCrumbles(): void {
+    if (this._crumbles.length === 0) return;
+    const p = this.player;
+    if (!p.alive || p.airborne) return;
+    const px = p.sprite.x;
+    for (const c of this._crumbles) {
+      if (c.state === 'solid' && px > c.x1 && px < c.x2) this._triggerCrumble(c);
+    }
+  }
+
+  private _triggerCrumble(c: { x1: number; x2: number; gfx: Phaser.GameObjects.Graphics; state: string }): void {
+    c.state = 'warning';
+    // Rattle + flash to telegraph the imminent collapse.
+    this.tweens.add({
+      targets: c.gfx,
+      alpha: 0.4,
+      duration: 90,
+      yoyo: true,
+      repeat: Math.floor(CRUMBLE_DELAY_MS / 180),
+      ease: 'Sine.InOut',
+    });
+    this.time.delayedCall(CRUMBLE_DELAY_MS, () => this._collapseCrumble(c));
+  }
+
+  private _collapseCrumble(c: { x1: number; x2: number; gfx: Phaser.GameObjects.Graphics; state: string }): void {
+    c.state = 'gone';
+    this.tweens.killTweensOf(c.gfx);
+    c.gfx.destroy();
+    // The tile drops away — from here on it's an ordinary chasm (haul-out + fall damage).
+    this._addGap(c.x1, c.x2);
+    SoundSystem.play(this.audioCtx, 'hazard');
+    this.shake(200, 0.008);
+    this.spawnBurst((c.x1 + c.x2) / 2, FLOOR_CENTER_Y, 0x8a6a3a, {
+      count: 14,
+      speed: [40, 170],
+      angle: [60, 120],
+      lifespan: 600,
+      scale: 1.1,
+    });
   }
 
   private _startTutorial(): void {
@@ -967,6 +1147,9 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this._updateGaps();
+    this._updateHazards();
+    this._updatePads();
+    this._updateCrumbles();
     if (this.isTutorial) this._tutorialUpdate(_time);
     else if (this._exitPortal) this._updateExit();
 

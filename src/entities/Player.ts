@@ -298,6 +298,16 @@ export default class Player {
     this.jumpCount++;
   }
 
+  /** Launched off a bounce pad: a high arc that still leaves the airborne double-jump available. */
+  superJump(velocity: number): void {
+    if (!this.alive) return;
+    this.isJumping = true;
+    this._jumpVelY = velocity;
+    this.jumpCount = 1; // the ground jump is spent, but one air jump remains
+    this.sprite.play('player_jump');
+    this.scene.tweens.add({ targets: this.sprite, scaleY: 1.22, scaleX: 0.82, duration: 120, yoyo: true });
+  }
+
   private _startRoll(): void {
     this._isRolling = true;
     this._rollTween?.remove();

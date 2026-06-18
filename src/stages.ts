@@ -26,6 +26,12 @@ export interface StageDef {
   enemies: StageEnemy[];
   /** Chasms to jump; an enemy that would spawn inside one is skipped. */
   gaps: [number, number][];
+  /** Acid pools / spike beds — floor strips that sear the player unless jumped over. */
+  hazards?: [number, number][];
+  /** Bounce-pad x-positions — step on a springy spore to launch a high arc. */
+  pads?: number[];
+  /** Crumbling floor tiles [x1, x2] — they collapse into a chasm shortly after you stand on one. */
+  crumble?: [number, number][];
   /** Boss finale (3rd stage of a sector). Mutually exclusive with `exitX`. */
   boss?: { variant: BossVariant; x: number };
   /** Non-boss stages clear by reaching this x — an exit portal sits here. */
@@ -56,6 +62,8 @@ export const STAGES: StageDef[] = [
       ...spread(2700, 3250, ['bacterium', 'dustbunny', 'virus']),
     ],
     gaps: [[1500, 1620]],
+    // First taste of platforming: a single springy spore to bop on, just past the gap.
+    pads: [2050],
     exitX: 3380,
   },
   // 1-2 — busier petri dish: a couple of gaps, the first real crowd.
@@ -77,6 +85,9 @@ export const STAGES: StageDef[] = [
       [1450, 1570],
       [2950, 3070],
     ],
+    pads: [800],
+    // First crumbling tile — stand too long and the agar gives way into a chasm.
+    crumble: [[3550, 3690]],
     exitX: 3980,
   },
   // 1-3 — Colony Core: the Super Bacterium finale.
@@ -99,6 +110,9 @@ export const STAGES: StageDef[] = [
       [1450, 1570],
       [3050, 3170],
     ],
+    // First hazard pool appears before the boss run-up; bop the pad to skip it cleanly.
+    hazards: [[2300, 2440]],
+    pads: [3650],
     boss: { variant: 'bacterium', x: 4500 },
   },
 
@@ -122,6 +136,9 @@ export const STAGES: StageDef[] = [
       [1450, 1580],
       [2950, 3080],
     ],
+    hazards: [[2050, 2200]],
+    pads: [800],
+    crumble: [[3550, 3700]],
     exitX: 3980,
   },
   // 2-2 — plasma currents: dense spore swarms threading amoeba tanks.
@@ -144,6 +161,12 @@ export const STAGES: StageDef[] = [
       [1500, 1640],
       [3150, 3290],
     ],
+    hazards: [
+      [900, 1040],
+      [2350, 2520],
+    ],
+    pads: [1900],
+    crumble: [[4050, 4200]],
     exitX: 4380,
   },
   // 2-3 — The Beating Heart: the Amoeba Titan finale.
@@ -166,6 +189,9 @@ export const STAGES: StageDef[] = [
       [1500, 1640],
       [3200, 3340],
     ],
+    hazards: [[2400, 2560]],
+    pads: [1000, 4100],
+    crumble: [[3650, 3800]],
     boss: { variant: 'amoeba', x: 4700 },
   },
 
@@ -189,7 +215,13 @@ export const STAGES: StageDef[] = [
     gaps: [
       [1450, 1590],
       [2700, 2840],
+      [3450, 3680], // wide — needs a double-jump to clear
     ],
+    hazards: [
+      [1000, 1160],
+      [2150, 2310],
+    ],
+    pads: [2600],
     exitX: 4180,
   },
   // 3-2 — bile salt barrens: three gaps, relentless mite + amoeba pressure.
@@ -213,7 +245,14 @@ export const STAGES: StageDef[] = [
       [1450, 1590],
       [2400, 2540],
       [3450, 3590],
+      [4000, 4220], // wide — needs a double-jump to clear
     ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3800],
+    crumble: [[2650, 2790]],
     exitX: 4580,
   },
   // 3-3 — Crystal Violet Throne: the Phage Lord, final boss of the experiment.
@@ -237,7 +276,14 @@ export const STAGES: StageDef[] = [
       [1450, 1590],
       [2400, 2540],
       [3500, 3640],
+      [4100, 4330], // wide — needs a double-jump to clear
     ],
+    hazards: [
+      [950, 1120],
+      [3000, 3180],
+    ],
+    pads: [1900, 4500],
+    crumble: [[2700, 2850]],
     boss: { variant: 'phage', x: 5000 },
   },
 ];

@@ -1,6 +1,13 @@
 import Settings from './Settings';
 
-export type SoundKey = 'punch' | 'atom_collect' | 'element_upgrade' | 'boss_roar' | 'player_death';
+export type SoundKey =
+  | 'punch'
+  | 'atom_collect'
+  | 'element_upgrade'
+  | 'boss_roar'
+  | 'player_death'
+  | 'bounce'
+  | 'hazard';
 
 export default class SoundSystem {
   // One master gain per AudioContext; every note routes through it so volume/mute apply globally.
@@ -37,6 +44,12 @@ export default class SoundSystem {
         break;
       case 'player_death':
         SoundSystem._playerDeath(ctx, now);
+        break;
+      case 'bounce':
+        SoundSystem._bounce(ctx, now);
+        break;
+      case 'hazard':
+        SoundSystem._hazard(ctx, now);
         break;
     }
   }
@@ -90,5 +103,16 @@ export default class SoundSystem {
   private static _playerDeath(ctx: AudioContext, now: number): void {
     SoundSystem._note(ctx, 'sine', 440, 110, now, 0.35, 0.3);
     SoundSystem._note(ctx, 'square', 220, 55, now, 0.35, 0.1);
+  }
+
+  // Quick upward "boing" — bounce-pad launch
+  private static _bounce(ctx: AudioContext, now: number): void {
+    SoundSystem._note(ctx, 'sine', 220, 660, now, 0.18, 0.3);
+  }
+
+  // Short noisy sizzle — stepping into acid / spikes
+  private static _hazard(ctx: AudioContext, now: number): void {
+    SoundSystem._note(ctx, 'sawtooth', 320, 90, now, 0.12, 0.22);
+    SoundSystem._note(ctx, 'square', 160, 60, now + 0.02, 0.1, 0.12);
   }
 }

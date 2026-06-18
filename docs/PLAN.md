@@ -33,6 +33,12 @@
   mite (crawler). **3 bosses**: Super Bacterium, Amoeba Titan, Phage Lord — one per sector.
 - **Gaps are a damage hazard**: stepping into a chasm on the ground (walking in or landing short)
   deals fall damage and bounces you back to the nearer lip; jumping clear is safe (`_updateGaps()`)
+- **Platforming hazards** (v0.20.0): data-driven optional `hazards` / `pads` / `crumble` fields in
+  `stages.ts`, all x-strip mechanics spanning the full floor depth band. **Hazard pools** (sector-
+  tinted) sear the player on the ground unless jumped over (`_updateHazards`); **bounce pads** launch
+  a high arc that keeps the air double-jump (`_updatePads` → `Player.superJump`); **crumbling tiles**
+  collapse into a real chasm shortly after you stand on one (`_updateCrumbles`). Sector 3 also adds
+  wide gaps that require a double-jump. Tuned as a gentle ramp (Sector 1 stays introductory)
 - **10 attacks** — H, O, C, N + 6 molecules, each restyled to its atom color
 - **Molecular tree**: every atom pickup is a branching choice; compounds use real stoichiometry
   (H₂O = 2H+1O, etc.); level = complete recipe copies. Sectors ramp the atom supply (4 → 6 → 9)

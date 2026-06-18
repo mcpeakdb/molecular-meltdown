@@ -107,6 +107,11 @@ export const PLAYER_JUMP_GRAVITY = 1600; // px/s²
 export const PLAYER_MAX_JUMPS = 2;
 export const GAP_FALL_DAMAGE = 15; // taken when the player lands inside a chasm instead of clearing it
 
+// Platforming hazards (added throughout the stages — see src/stages.ts)
+export const PLAYER_BOUNCE_VELOCITY = 840; // bounce-pad launch velocity (peak ≈ 220px)
+export const HAZARD_DAMAGE = 10; // per invincibility-throttled tick while standing in acid/spikes
+export const CRUMBLE_DELAY_MS = 620; // grace period after stepping on a crumbling tile before it drops
+
 export const MAX_ELEMENT_LEVEL = 3;
 
 // ── Attack registry (Phase 6: molecular tree + numpad arsenal) ──────────────
