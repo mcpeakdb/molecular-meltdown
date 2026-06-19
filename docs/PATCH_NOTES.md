@@ -1,5 +1,31 @@
 # Patch Notes
 
+## v0.25.2 - 2026-06-19
+
+### Lab-glassware leaderboard
+
+- **The leaderboard is now a row of graduated cylinders** on a lab bench, in the same spirit as the
+  test-tube stage select and the Bunsen-burner difficulty select. Each top-5 run is a measuring
+  cylinder filled in proportion to its score (#1 nearly full, descending), with tick marks, a pour
+  spout, meniscus, shine, and gentle rising bubbles. Liquid is tinted by the difficulty accent
+  (green / amber / red).
+- **Rank medals + details.** Gold / silver / bronze badges for the top three, then the difficulty
+  accent; the score, stage reached, atom path, and date sit under each cylinder. The difficulty tabs
+  gained an accent underline. Keyboard (←/→, ESC/Z) and tap controls are unchanged.
+
+## v0.25.1 - 2026-06-19
+
+### Periodic-table molecule reference
+
+- **The Molecule Tree is now a periodic table.** Uniform square cells, each with an atomic number /
+  catalogue index in the corner, a big symbol/formula, the element/compound name, and its molar mass —
+  styled like a real periodic cell with a coloured cap strip. The four base atoms sit in their true
+  periodic positions (H alone top-left; C/N/O on the right of period 2); the six compounds form a
+  second period below.
+- **Inspectable cells.** Arrow keys (or tap) move a selection ring between cells; a detail panel shows
+  the selected element's atomic number / recipe and its three tier attack names. Still fully
+  data-driven from the `ATTACKS` registry, and still reached from the title menu.
+
 ## v0.25.0 - 2026-06-19
 
 ### Procedural background music
