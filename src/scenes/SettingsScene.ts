@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import Settings from '../systems/Settings';
 import SoundSystem from '../systems/SoundSystem';
-import { attachTap } from '../systems/touchMenu';
+import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
 
 const MONO = 'monospace';
 const ROWS = ['Volume', 'Mute', 'Sound FX', 'Music', 'Screen Shake', 'Touch Controls', 'Fullscreen', 'BACK'] as const;
@@ -12,7 +12,7 @@ const ROW_DY = 36; // tightened so all 8 rows fit between the panel rules (110 /
 export default class SettingsScene extends Phaser.Scene {
   private cursor = 0;
   private rowTexts: Phaser.GameObjects.Text[] = [];
-  private cursorText!: Phaser.GameObjects.Text;
+  private cursorIcon!: Phaser.GameObjects.Image;
   /** Where to return on ESC/BACK — defaults to the title. */
   private from = 'TitleScene';
 
@@ -52,9 +52,7 @@ export default class SettingsScene extends Phaser.Scene {
     g.lineBetween(cx - 220, 110, cx + 220, 110);
     g.lineBetween(cx - 220, 440, cx + 220, 440);
 
-    this.cursorText = this.add
-      .text(cx - 200, ROW_TOP, '›', { fontSize: '22px', color: '#aaffaa', fontFamily: MONO })
-      .setOrigin(0, 0.5);
+    this.cursorIcon = makeCursorIcon(this, cx - 192, ROW_TOP);
 
     this.rowTexts = ROWS.map((_, i) => {
       const t = this.add
@@ -147,6 +145,11 @@ export default class SettingsScene extends Phaser.Scene {
   }
 
   private _confirm(): void {
+    // The avatar throws a punch, then the row's toggle/back fires.
+    punchCursorIcon(this, this.cursorIcon, () => this._activate());
+  }
+
+  private _activate(): void {
     if (this.cursor === ROWS.length - 1) {
       this._back();
       return;
@@ -227,6 +230,6 @@ export default class SettingsScene extends Phaser.Scene {
       t.setText(values[i]);
       t.setColor(selected ? '#ccffcc' : '#88bb88');
     });
-    this.cursorText.setY(ROW_TOP + this.cursor * ROW_DY);
+    this.cursorIcon.setY(ROW_TOP + this.cursor * ROW_DY);
   }
 }

@@ -17,6 +17,9 @@ export const DIFFICULTY_SCALE: Record<Difficulty, DifficultyScale> = {
 
 /** Keyboard keys bound to weapon slots 1..N (and the labels shown on the HUD chips + touch buttons). */
 export const SLOT_KEY_LABELS = ['Z', 'X', 'C'] as const;
+export const SLOT_KEY_TOUCH_LABELS = ['1', '2', '3'] as const;
+/** Slot key badges to display: keyboard keys (Z/X/C) normally, touch numbers (1/2/3) on touch devices. */
+export const slotKeyLabels = (touch: boolean): readonly string[] => (touch ? SLOT_KEY_TOUCH_LABELS : SLOT_KEY_LABELS);
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
@@ -155,7 +158,7 @@ export const NOBLE_GAS_BY_ID: Record<NobleGasId, NobleGasDef> = Object.fromEntri
   NOBLE_GASES.map((n) => [n.id, n]),
 ) as Record<NobleGasId, NobleGasDef>;
 export const NOBLE_GAS_COUNT = NOBLE_GASES.length;
-export const NOBLE_GAS_BONUS = 2500; // score awarded for collecting a noble gas
+export const NOBLE_GAS_BONUS = 500; // score awarded for collecting a noble gas
 
 // Every attack maps 1:1 to an element/compound. NONE has no attack; GOLD is a wildcard
 // pickup (it grants atoms rather than firing), so it is excluded too.
@@ -269,12 +272,12 @@ export const ATTACK_ORDER: AttackId[] = Object.values(ATTACKS)
 export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
   [ELEMENTS.HYDROGEN]: [
     'The lightest element — and ~75% of all ordinary matter in the universe.',
-    'Fuses in the Sun’s core, releasing the energy that lights the sky.',
-    'So light it escapes Earth’s gravity and drifts off into space.',
+    "Fuses in the Sun's core, releasing the energy that lights the sky.",
+    "So light it escapes Earth's gravity and drifts off into space.",
   ],
   [ELEMENTS.OXYGEN]: [
     'Makes up about 21% of the air you breathe.',
-    'The most abundant element in the Earth’s crust by mass.',
+    "The most abundant element in the Earth's crust by mass.",
     'Liquid oxygen is pale blue and faintly magnetic.',
   ],
   [ELEMENTS.CARBON]: [
@@ -284,7 +287,7 @@ export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
   ],
   [ELEMENTS.NITROGEN]: [
     'About 78% of the atmosphere is nitrogen gas.',
-    'Liquid nitrogen boils at a frigid −196°C.',
+    'Liquid nitrogen boils at a frigid -196°C.',
     'Essential to amino acids — the building blocks of proteins.',
   ],
   [ELEMENTS.WATER]: [
@@ -318,7 +321,7 @@ export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
     'A weak acid, but it slowly carves out limestone caves.',
   ],
   [ELEMENTS.GOLD]: [
-    'So unreactive it never tarnishes — gold stays shiny forever.',
+    'So nonreactive it never tarnishes — gold stays shiny forever.',
     'Dense and soft: a single gram can be hammered into a sheet a meter wide.',
     'Forged in the collisions of neutron stars.',
   ],
@@ -328,7 +331,7 @@ export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
 // Celebratory one-liners M.E.G. blurts out the first time you push an element or compound to its
 // top tier (Lv3). One is picked at random; `{el}` is replaced with the element/compound name.
 export const MEG_MAX_LEVEL_QUIPS: string[] = [
-  "Level 3! You're really in your element now!",
+  "Level 3 {el}! You're really in your element now!",
   'Whoa, {el} at full power! That is some peak reactivity!',
   'Max-level {el}! The periodic table salutes you.',
   '{el} at Lv3 — you have got chemistry, kid!',

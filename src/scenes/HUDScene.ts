@@ -139,13 +139,16 @@ export default class HUDScene extends Phaser.Scene {
     const startX = (GAME_WIDTH - totalW) / 2;
     // Top-centre of the HUD — clear of the HP/molecule readout (left) and score/combo (right).
     const barY = PAD + CHIP_H / 2;
+    // On touch there are no keyboard keys, and the on-screen buttons carry the element labels — so the
+    // chip key badges (Z/X/C) are hidden to keep the HUD clean.
+    const touch = Settings.touchActive();
     this.chips = [];
     for (let i = 0; i < CHIP_COUNT; i++) {
       const x = startX + i * (CHIP_W + CHIP_GAP) + CHIP_W / 2;
       const container = this.add.container(x, barY).setScrollFactor(0).setDepth(210).setVisible(false);
 
       const bg = this.add.rectangle(0, 0, CHIP_W, CHIP_H, 0x0a140a, 0.92).setStrokeStyle(2, 0x335533);
-      // key badge — Z / X / C for the (up to 3) weapon slots
+      // key badge — Z / X / C for the (up to 3) weapon slots. Hidden on touch (no keyboard keys).
       const keyLabel = SLOT_KEY_LABELS[i] ?? `${i + 1}`;
       const keyText = this.add
         .text(-CHIP_W / 2 + 6, -CHIP_H / 2 + 4, keyLabel, {
@@ -154,7 +157,8 @@ export default class HUDScene extends Phaser.Scene {
           fontFamily: MONO,
           fontStyle: 'bold',
         })
-        .setOrigin(0, 0);
+        .setOrigin(0, 0)
+        .setVisible(!touch);
       const symbolText = this.add
         .text(4, -6, '', { fontSize: '17px', color: '#ffffff', fontFamily: MONO, fontStyle: 'bold' })
         .setOrigin(0.5, 0.5);
@@ -382,12 +386,17 @@ export default class HUDScene extends Phaser.Scene {
       chip.container.setAlpha(entry.empty ? 0.45 : frac > 0 ? 0.62 : 1);
     }
 
-    // Keep the on-screen attack buttons (Z/X/C) in sync with the weapon slots they fire.
+    // Keep the on-screen attack buttons in sync with the weapon slots they fire.
     if (this.touch) {
       for (let i = 0; i < SLOT_KEY_LABELS.length; i++) {
         const e = display[i];
         const frac = e && e.cooldownMs > 0 ? Phaser.Math.Clamp(e.cooldownRemaining / e.cooldownMs, 0, 1) : 0;
-        this.touch.setAttackSlot(i, { visible: !!e, color: e?.color ?? 0x556655, cooldownFrac: frac });
+        this.touch.setAttackSlot(i, {
+          visible: !!e,
+          color: e?.color ?? 0x556655,
+          cooldownFrac: frac,
+          symbol: e?.symbol ?? '',
+        });
       }
     }
   }

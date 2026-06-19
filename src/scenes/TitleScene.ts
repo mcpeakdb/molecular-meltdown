@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import MusicSystem from '../systems/MusicSystem';
 import Settings from '../systems/Settings';
-import { attachTap } from '../systems/touchMenu';
+import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
 
 const MONO = 'monospace';
 const ITEMS = ['START', 'MOLECULE TREE', 'LEADERBOARD', 'CONTROLS', 'SETTINGS'] as const;
@@ -12,7 +12,7 @@ const MENU_DY = 38; // vertical spacing between menu items
 export default class TitleScene extends Phaser.Scene {
   private cursor = 0;
   private itemTexts: Phaser.GameObjects.Text[] = [];
-  private cursorText!: Phaser.GameObjects.Text;
+  private cursorIcon!: Phaser.GameObjects.Image;
   private electrons: Phaser.GameObjects.Arc[] = [];
   // Drifting background flair: germs and atoms floating around behind the menu.
   private decor: { go: Phaser.GameObjects.Sprite; vx: number; vy: number; spin: number }[] = [];
@@ -89,9 +89,7 @@ export default class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.cursorText = this.add
-      .text(cx - 130, MENU_TOP, '›', { fontSize: '20px', color: '#aaffaa', fontFamily: MONO })
-      .setOrigin(0, 0.5);
+    this.cursorIcon = makeCursorIcon(this, cx - 122, MENU_TOP);
 
     this.itemTexts = ITEMS.map((label, i) => {
       const t = this.add
@@ -188,10 +186,15 @@ export default class TitleScene extends Phaser.Scene {
     this.itemTexts.forEach((t, i) => {
       t.setColor(i === this.cursor ? '#ccffcc' : '#88bb88');
     });
-    this.cursorText.setY(MENU_TOP + this.cursor * MENU_DY);
+    this.cursorIcon.setY(MENU_TOP + this.cursor * MENU_DY);
   }
 
   private _confirm(): void {
+    // The avatar throws a punch, then the selection fires.
+    punchCursorIcon(this, this.cursorIcon, () => this._activate());
+  }
+
+  private _activate(): void {
     switch (this.cursor) {
       case 0: // START
         if (Settings.get().tutorialDone) this.scene.start('DifficultyScene');

@@ -25,9 +25,9 @@ import {
   PLAYER_BOUNCE_VELOCITY,
   PLAYER_MAX_HP,
   SECTORS,
-  SLOT_KEY_LABELS,
   STAGE_COUNT,
   sectorOf,
+  slotKeyLabels,
   WORLD_WIDTH,
 } from '../constants';
 import Atom from '../entities/Atom';
@@ -982,10 +982,10 @@ export default class GameScene extends Phaser.Scene {
 
     this._say(
       [
-        "Whoa — the shrink-ray backfired! You've been shrunk to the molecular scale!",
-        "I'm M.E.G., your Main Element Guide. Deep breaths — we'll get you home.",
+        "Whoa — the shrinky-dink ray-ifier backfired! You've been shrunk down to molecular scale!",
+        "I'm your faithful lab assistant, Main Element Guide. You can call me M.E.G.!",
         'To grow back to normal size you must gather elements and fight your way out.',
-        "Let's run a quick drill. Head right (D / → or the stick) and I'll explain as we go.",
+        "Deep breaths — we'll get you home. Head right (D / → or the stick) and I'll explain as we go.",
       ],
       () => {
         this.isPaused = false;
@@ -1012,7 +1012,7 @@ export default class GameScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const cy = 158;
     const pw = 620;
-    const ph = 104;
+    const ph = 120; // tall enough for a 4-line wrapped tip without spilling out the bottom
     this._dlgBg = this.add
       .rectangle(cx, cy, pw, ph, 0x081018, 0.93)
       .setScrollFactor(0)
@@ -1025,7 +1025,7 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(481)
       .setVisible(false);
     this._dlgName = this.add
-      .text(cx - pw / 2 + 84, cy - 36, 'M.E.G.', {
+      .text(cx - pw / 2 + 84, cy - 44, 'M.E.G.', {
         fontSize: '16px',
         color: '#66ddff',
         fontFamily: 'monospace',
@@ -1035,7 +1035,7 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(481)
       .setVisible(false);
     this._dlgText = this.add
-      .text(cx - pw / 2 + 84, cy - 12, '', {
+      .text(cx - pw / 2 + 84, cy - 26, '', {
         fontSize: '15px',
         color: '#eef6ff',
         fontFamily: 'monospace',
@@ -1084,7 +1084,7 @@ export default class GameScene extends Phaser.Scene {
     const n = this.player.elementSystem.getSlotCount();
     return [
       `Nice work — that's more compounds than your harness can hold! You've only got ${n} weapon key${n === 1 ? '' : 's'}.`,
-      `Pause anytime (Esc) and open COMPOUND SELECTION to choose which compounds ride on ${SLOT_KEY_LABELS.slice(0, n).join(' / ')}.`,
+      `Pause anytime and open COMPOUND SELECTION to choose which compounds ride on ${slotKeyLabels(Settings.touchActive()).slice(0, n).join(' / ')}.`,
       'Swap your loadout whenever you like — bring the right reactions to each fight!',
     ];
   }
@@ -1188,18 +1188,21 @@ export default class GameScene extends Phaser.Scene {
 
     // Proximity tips
     if (this._tutAtom?.active && Math.abs(px - this._tutAtomX) < 230) {
-      this._tip('element', 'See that glowing atom? Walk into it, then pick an element to ARM an attack.');
+      this._tip(
+        'element',
+        'Hey, do you see that floating atom? If you walk into it, you pick an element to collect and arm an attack.',
+      );
     }
     if (this._tutEnemy?.sprite.active && Math.abs(px - this._tutEnemyX) < 300) {
       this._tip(
         'enemy',
-        'A germ ahead! Press Z (or tap the Z button) to attack — a punch, or your element once armed.',
+        'Watch out! Germs will drain your health and leave you feeling terrible. Use your attack key (or tap an attack button) to fight — a punch, or your element once armed.',
       );
     }
     if (px > this._gapX1 - 240 && px < this._gapX1) {
       this._tip(
         'gap',
-        "A gap in the floor! You can't walk it — press SPACE to JUMP. Tap again mid-air to double-jump.",
+        'It might seem scary, but you can jump right over gaps in the floor. Press SPACE to JUMP and tap again mid-air to double-jump.',
       );
     }
     if (px > this._tutEndX && !this._tutDone) this._completeTutorial();
@@ -1210,8 +1213,8 @@ export default class GameScene extends Phaser.Scene {
     this.stageCleared = true;
     this._say(
       [
-        'Outstanding! Collect, fight, jump — you have the essentials down.',
-        'Now go find the elements and grow back to full size. Good luck out there!',
+        "Nice work! Collect, fight, jump... I think you're ready for the real thing.",
+        'Now go find the elements and figure out how to get back to normal size. Good luck!',
       ],
       () => this._exitToDifficulty(),
     );

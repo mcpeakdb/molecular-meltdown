@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, SLOT_KEY_LABELS } from '../constants';
+import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import type { TouchInputState } from '../types';
 
 // Layout (in the 960×540 design space — the HUD camera never scrolls, so these are screen coords).
@@ -94,12 +94,13 @@ export default class TouchControls {
     });
     this._makeFixedButton(PAUSE.x, PAUSE.y, PAUSE.r, 0x33405a, 0xaaccff, '❚❚', () => this.onPause?.());
 
-    // 3 attack buttons arcing up-left of the jump button, labelled Z / X / C.
-    for (let i = 0; i < SLOT_KEY_LABELS.length; i++) {
+    // Attack buttons arcing up-left of the jump button. Each is labelled with the element/compound
+    // it currently fires (set live by the HUD via setAttackSlot), not a key — touch has no keyboard.
+    for (let i = 0; i < ATTACK_ANGLES_DEG.length; i++) {
       const a = Phaser.Math.DegToRad(ATTACK_ANGLES_DEG[i]);
       const x = JUMP.x + Math.cos(a) * ATTACK_ARC_RADIUS;
       const y = JUMP.y + Math.sin(a) * ATTACK_ARC_RADIUS;
-      this._makeAttackButton(i, x, y, SLOT_KEY_LABELS[i]);
+      this._makeAttackButton(i, x, y);
     }
   }
 
@@ -137,7 +138,7 @@ export default class TouchControls {
   }
 
   /** An attack button that fires weapon slot `index`; colour/cooldown are driven by the HUD. */
-  private _makeAttackButton(index: number, x: number, y: number, glyph: string): void {
+  private _makeAttackButton(index: number, x: number, y: number): void {
     const circle = this.scene.add
       .circle(x, y, ATTACK_R, 0x444444, 0.4)
       .setStrokeStyle(3, 0xaaaaaa, 0.8)
@@ -146,7 +147,7 @@ export default class TouchControls {
       .setVisible(false)
       .setInteractive({ useHandCursor: true });
     const label = this.scene.add
-      .text(x, y, glyph, {
+      .text(x, y, '', {
         fontSize: `${Math.round(ATTACK_R * 0.9)}px`,
         color: '#ffffff',
         fontFamily: 'monospace',
@@ -169,8 +170,9 @@ export default class TouchControls {
     this.attackButtons.push(btn);
   }
 
-  /** Sync an attack button to its weapon slot (called by the HUD each arsenal update). */
-  setAttackSlot(index: number, opts: { visible: boolean; color: number; cooldownFrac: number }): void {
+  /** Sync an attack button to its weapon slot (called by the HUD each arsenal update). The label is
+   *  the element/compound symbol the slot fires (e.g. "H", "H₂O", "✊"), sized to fit the button. */
+  setAttackSlot(index: number, opts: { visible: boolean; color: number; cooldownFrac: number; symbol: string }): void {
     const btn = this.attackButtons[index];
     if (!btn) return;
     btn.wantVisible = opts.visible;
@@ -179,6 +181,11 @@ export default class TouchControls {
     const alpha = cooling ? 0.45 : 1;
     btn.circle.setAlpha(alpha);
     btn.label.setAlpha(alpha);
+    if (btn.label.text !== opts.symbol) {
+      btn.label.setText(opts.symbol);
+      // Shrink the font for longer formulas (e.g. H₂CO₃) so they stay inside the button.
+      btn.label.setFontSize(Math.min(Math.round(ATTACK_R * 0.9), Math.round(93 / Math.max(1, opts.symbol.length))));
+    }
     const show = this.enabled && opts.visible;
     btn.circle.setVisible(show);
     btn.label.setVisible(show);

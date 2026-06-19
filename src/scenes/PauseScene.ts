@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { type AttackId, ELEMENT_NAMES, GAME_HEIGHT, GAME_WIDTH } from '../constants';
-import { attachTap } from '../systems/touchMenu';
+import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
 import type GameScene from './GameScene';
 
 const MONO = 'monospace';
@@ -17,15 +17,15 @@ export default class PauseScene extends Phaser.Scene {
   private options: string[] = [];
   private cursor = 0;
   private optionTexts: Phaser.GameObjects.Text[] = [];
-  private cursorText!: Phaser.GameObjects.Text;
+  private cursorIcon!: Phaser.GameObjects.Image;
   private title!: Phaser.GameObjects.Text;
-  private menuObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Graphics)[] = [];
+  private menuObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Graphics | Phaser.GameObjects.Image)[] = [];
 
   // ── Compound Selection ──
   private compoundCursor = 0;
-  private compoundObjs: Phaser.GameObjects.Text[] = [];
+  private compoundObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
   private slotRows: Phaser.GameObjects.Text[] = [];
-  private compoundCursorText!: Phaser.GameObjects.Text;
+  private compoundCursorIcon!: Phaser.GameObjects.Image;
 
   private upKey!: Phaser.Input.Keyboard.Key;
   private downKey!: Phaser.Input.Keyboard.Key;
@@ -96,12 +96,10 @@ export default class PauseScene extends Phaser.Scene {
     g.lineBetween(cx - 140, lastY + 24, cx + 140, lastY + 24);
     this.menuObjs.push(g);
 
-    this.cursorText = this.add
-      .text(cx - 122, cy - 30, '›', { fontSize: '20px', color: '#aaffaa', fontFamily: MONO })
-      .setOrigin(0, 0.5)
+    this.cursorIcon = makeCursorIcon(this, cx - 114, cy - 30)
       .setScrollFactor(0)
       .setDepth(502);
-    this.menuObjs.push(this.cursorText);
+    this.menuObjs.push(this.cursorIcon);
 
     this.optionTexts = this.options.map((label, i) => {
       const t = this.add
@@ -135,13 +133,18 @@ export default class PauseScene extends Phaser.Scene {
 
   private _refreshCursor(): void {
     const cy = GAME_HEIGHT / 2;
-    this.cursorText.setY(cy - 30 + this.cursor * 34);
+    this.cursorIcon.setY(cy - 30 + this.cursor * 34);
     this.optionTexts.forEach((t, i) => {
       t.setColor(i === this.cursor ? '#ccffcc' : '#669966');
     });
   }
 
   private _confirm(): void {
+    // The avatar throws a punch, then the menu action fires.
+    punchCursorIcon(this, this.cursorIcon, () => this._activate());
+  }
+
+  private _activate(): void {
     switch (this.options[this.cursor]) {
       case 'RESUME':
         this._resume();
@@ -191,12 +194,10 @@ export default class PauseScene extends Phaser.Scene {
       .setDepth(502);
     this.compoundObjs.push(help);
 
-    this.compoundCursorText = this.add
-      .text(cx - 168, cy - 10, '›', { fontSize: '20px', color: '#aaffaa', fontFamily: MONO })
-      .setOrigin(0, 0.5)
+    this.compoundCursorIcon = makeCursorIcon(this, cx - 160, cy - 10)
       .setScrollFactor(0)
       .setDepth(502);
-    this.compoundObjs.push(this.compoundCursorText);
+    this.compoundObjs.push(this.compoundCursorIcon);
 
     this.slotRows = [];
     for (let i = 0; i < slotCount; i++) {
@@ -264,7 +265,7 @@ export default class PauseScene extends Phaser.Scene {
       row.setText(`${i + 1}   ‹ ${label} ›`);
       row.setColor(i === this.compoundCursor ? '#ccffcc' : '#669966');
     });
-    this.compoundCursorText.setY(GAME_HEIGHT / 2 - 10 + this.compoundCursor * 34);
+    this.compoundCursorIcon.setY(GAME_HEIGHT / 2 - 10 + this.compoundCursor * 34);
   }
 
   // ── Mode switching ───────────────────────────────────────────────────────────

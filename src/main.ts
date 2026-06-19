@@ -43,6 +43,9 @@ const game = new Phaser.Game({
   },
 });
 
+// @ts-expect-error debug hook
+window.__game = game;
+
 // Mobile browsers keep showing the URL bar over a non-scrolling page. Going fullscreen on the
 // first user tap hides it. Fullscreen must be requested from a gesture, so we listen for one tap
 // (best-effort: iPhone Safari has no element fullscreen — there the home-screen web-app meta wins).
