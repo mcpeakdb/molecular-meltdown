@@ -4,7 +4,6 @@ import {
   BASE_ATOMS,
   type BaseAtom,
   ELEMENT_COLORS,
-  GAME_HEIGHT,
   GAME_WIDTH,
   MAX_ELEMENT_LEVEL,
   PLAYER_MAX_HP,
@@ -137,7 +136,8 @@ export default class HUDScene extends Phaser.Scene {
     // ── ATTACK BAR (numpad arsenal) ───────────────────────────────────────────
     const totalW = CHIP_COUNT * CHIP_W + (CHIP_COUNT - 1) * CHIP_GAP;
     const startX = (GAME_WIDTH - totalW) / 2;
-    const barY = GAME_HEIGHT - 70;
+    // Top-centre of the HUD — clear of the HP/molecule readout (left) and score/combo (right).
+    const barY = PAD + CHIP_H / 2;
     this.chips = [];
     for (let i = 0; i < CHIP_COUNT; i++) {
       const x = startX + i * (CHIP_W + CHIP_GAP) + CHIP_W / 2;
