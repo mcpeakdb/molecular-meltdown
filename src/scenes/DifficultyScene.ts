@@ -99,9 +99,9 @@ export default class DifficultyScene extends Phaser.Scene {
     // A shared lab bench the burners stand on.
     const bench = this.add.graphics();
     bench.fillStyle(0x241a10, 1);
-    bench.fillRect(120, BURNER_BOTTOM_Y, GAME_WIDTH - 240, 10);
+    bench.fillRect(100, BURNER_BOTTOM_Y, GAME_WIDTH - 200, 10);
     bench.fillStyle(0x33271a, 1);
-    bench.fillRect(120, BURNER_BOTTOM_Y, GAME_WIDTH - 240, 3);
+    bench.fillRect(100, BURNER_BOTTOM_Y, GAME_WIDTH - 200, 3);
 
     OPTIONS.forEach((opt, i) => {
       const x = CARD_CX[i];
@@ -117,11 +117,19 @@ export default class DifficultyScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
 
+      // Retort stand: the rod + base go behind everything (so the flask/burner sit in front of
+      // them); the clamp that grips the neck is drawn later, on top of the glass.
+      const standBack = this.add.graphics();
+      this._drawStandBack(standBack, x);
+
       // Flame sits behind the glass; the glass/liquid is drawn on top.
       const flame = this.add.graphics();
       this.flames.push(flame);
       const body = this.add.graphics();
       this.bodies.push(body);
+
+      const standClamp = this.add.graphics();
+      this._drawStandClamp(standClamp, x);
 
       this.add
         .text(x, BODY_BOTTOM_Y - 84, opt.desc, {
@@ -192,9 +200,14 @@ export default class DifficultyScene extends Phaser.Scene {
   }
 
   update(time: number): void {
-    // Flames flicker continuously; redraw them every frame.
+    // Only the highlighted flask's burner is lit — its flame flickers (and surges while confirming);
+    // the others stay dark. Redraw every frame for the flicker, clear the unlit ones.
     OPTIONS.forEach((opt, i) => {
-      const surge = this.reacting && i === this.cursor ? this.reactSurge : 0;
+      if (i !== this.cursor) {
+        this.flames[i].clear();
+        return;
+      }
+      const surge = this.reacting ? this.reactSurge : 0;
       this._drawFlame(this.flames[i], CARD_CX[i], opt, time, surge);
     });
 
@@ -331,14 +344,77 @@ export default class DifficultyScene extends Phaser.Scene {
     }
   }
 
-  /** Spawn rising bubbles in each flask, more in hotter ones (and a torrent while confirming). */
+  // Retort-stand geometry (relative to a card's center x). The rod stands to the right of the flask
+  // so it never overlaps the glass; the clamp arm reaches left to grip the neck.
+  private _rodX(x: number): number {
+    return x + BODY_HALF + 20;
+  }
+  private static readonly CLAMP_Y = (MOUTH_Y + NECK_BOTTOM_Y) / 2;
+  private static readonly STEEL = 0x6a747a;
+  private static readonly STEEL_DARK = 0x40484d;
+  private static readonly STEEL_LITE = 0x99a4aa;
+
+  /** Heavy base + vertical rod, drawn behind the flask and burner so they appear to rest on it. */
+  private _drawStandBack(g: Phaser.GameObjects.Graphics, x: number): void {
+    g.clear();
+    const rodX = this._rodX(x);
+    const rodW = 7;
+    const baseBottom = BURNER_BOTTOM_Y;
+    const baseTop = baseBottom - 9;
+    const rodTop = MOUTH_Y - 20;
+
+    // Vertical rod (dark fill + left-edge sheen + rounded cap).
+    g.fillStyle(DifficultyScene.STEEL_DARK, 1);
+    g.fillRect(rodX - rodW / 2, rodTop, rodW, baseTop - rodTop + 3);
+    g.fillStyle(DifficultyScene.STEEL, 1);
+    g.fillRect(rodX - rodW / 2, rodTop, 3, baseTop - rodTop + 3);
+    g.fillStyle(DifficultyScene.STEEL_LITE, 1);
+    g.fillCircle(rodX, rodTop, rodW / 2 + 1);
+
+    // Cast base plate, extending left under the burner for stability.
+    const bx = x - 30;
+    const bw = rodX + 14 - bx;
+    g.fillStyle(DifficultyScene.STEEL_DARK, 1);
+    g.fillRoundedRect(bx, baseTop, bw, baseBottom - baseTop, 3);
+    g.fillStyle(DifficultyScene.STEEL, 1);
+    g.fillRoundedRect(bx, baseTop, bw, 4, 3);
+  }
+
+  /** Clamp boss on the rod + arm + jaws gripping the flask neck, drawn on top of the glass. */
+  private _drawStandClamp(g: Phaser.GameObjects.Graphics, x: number): void {
+    g.clear();
+    const rodX = this._rodX(x);
+    const cy = DifficultyScene.CLAMP_Y;
+
+    // Boss that clamps onto the rod, with a thumb-screw knob.
+    g.fillStyle(DifficultyScene.STEEL_DARK, 1);
+    g.fillRoundedRect(rodX - 8, cy - 10, 14, 20, 3);
+    g.fillStyle(DifficultyScene.STEEL_LITE, 1);
+    g.fillCircle(rodX + 5, cy, 4);
+
+    // Horizontal arm reaching from the rod to the neck.
+    const armLeft = x + NECK_HALF - 2;
+    g.fillStyle(DifficultyScene.STEEL, 1);
+    g.fillRect(armLeft, cy - 3, rodX - armLeft, 6);
+    g.fillStyle(DifficultyScene.STEEL_LITE, 1);
+    g.fillRect(armLeft, cy - 3, rodX - armLeft, 2);
+
+    // Upper + lower jaws wrapping the neck.
+    g.fillStyle(DifficultyScene.STEEL_DARK, 1);
+    g.fillRoundedRect(x - NECK_HALF - 4, cy - 12, NECK_HALF * 2 + 8, 5, 2);
+    g.fillRoundedRect(x - NECK_HALF - 4, cy + 7, NECK_HALF * 2 + 8, 5, 2);
+    g.fillStyle(DifficultyScene.STEEL, 1);
+    g.fillRect(x - NECK_HALF - 4, cy - 12, NECK_HALF * 2 + 8, 2);
+  }
+
+  /** Only the highlighted (lit) flask boils — hotter difficulties bubble harder, a torrent while
+   *  confirming. The unlit flasks sit still. */
   private _tickBubbles(): void {
-    OPTIONS.forEach((opt, i) => {
-      const surging = this.reacting && i === this.cursor;
-      const rate = opt.heat + (surging ? 2 : 0);
-      const count = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
-      for (let n = 0; n < count; n++) this._spawnBubble(CARD_CX[i], opt.color);
-    });
+    const i = this.cursor;
+    const opt = OPTIONS[i];
+    const rate = opt.heat + (this.reacting ? 2 : 0);
+    const count = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+    for (let n = 0; n < count; n++) this._spawnBubble(CARD_CX[i], opt.color);
   }
 
   private _spawnBubble(x: number, color: number): void {
