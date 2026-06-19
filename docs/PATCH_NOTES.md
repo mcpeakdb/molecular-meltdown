@@ -1,5 +1,83 @@
 # Patch Notes
 
+## v0.24.1 - 2026-06-19
+
+### Fixed
+
+- **Unreachable noble gases.** Helium (1-2), Xenon (3-1), and Radon (3-3) sat on staircases whose
+  steps were too far apart — reaching them needed chained, frame-perfect double jumps, so in practice
+  they were impossible (Helium was even the first, unguarded gem). Their approach ledges were re-laid
+  as gentle staircases where every step is a comfortable single jump, verified against the actual jump
+  physics (peak ≈144px, speed 220px/s). All six gems are now reachable with single jumps; the double
+  jump is margin, not a requirement. The other three gems (Neon, Argon, Krypton) were already fine.
+
+## v0.24.0 - 2026-06-19
+
+### Bunsen-burner difficulty select + streamlined menu
+
+- **Stage Select left the main menu.** The title menu is now START / MOLECULE TREE / LEADERBOARD /
+  CONTROLS / SETTINGS. Stage Select is reached the natural way — START → choose a difficulty → pick a
+  stage — so the two picker screens form one flow instead of two entry points.
+- **Difficulty select is now a Bunsen-burner lab bench.** Each difficulty is an Erlenmeyer flask
+  bubbling over a Bunsen burner. The flame's height and fury and the liquid's boil rate escalate with
+  difficulty — a calm green simmer for Normal, an amber rolling boil for Hard, a roaring red
+  "critical meltdown" for Extreme — so the danger reads at a glance.
+- **Confirming cranks the burner.** Picking a flask makes its flame roar up and the contents boil
+  over — foam ring, escaping droplets, screen flash + shake, and the bubbling reaction SFX — before
+  Stage Select loads. Matches the test-tube reaction on the stage picker.
+
+## v0.23.0 - 2026-06-19
+
+### Noble-gas collectibles + way more platforms
+
+- **Far more platforms.** Every stage now has a rich set of jump-up ledges (`platforms` in
+  [src/stages.ts](../src/stages.ts)) — climbable staircases, perches, and routes — on top of the
+  mid-gap stepping stones, turning each level into real vertical traversal rather than a flat lane.
+- **Noble gases — a hidden collection.** One of each of the six noble gases (Helium, Neon, Argon,
+  Krypton, Xenon, Radon) is tucked into the levels as a faceted, glowing gem. They're inert (no
+  compound building) and exist to be found: each sits on a high, hard-to-reach perch and most are
+  guarded by a strong germ (amoeba / spore / mite). Grabbing one is a **+2,500 score bonus** with a
+  flashy burst and a M.E.G. shout-out.
+- **Permanent collection meta.** First-time finds are saved (`SaveSystem`), and the death / clear
+  summaries now show your noble-gas collection (`He Ne · · · ·  (2/6)`). The bonus is awarded every
+  run, so they stay worth chasing.
+
+## v0.22.0 - 2026-06-19
+
+### Test-tube stage select
+
+- **The stage picker is now a rack of test tubes.** The nine stages are nine glass tubes slotted
+  into a wooden rack, grouped three-per-sector and tinted with each sector's color. Each tube holds
+  a column of liquid (low and dim for locked stages, fuller and brighter when open), with a glass
+  mouth, meniscus highlight, and shine streak. The highlighted tube bubbles gently while you browse,
+  and a detail panel below the rack shows the stage name, best score, and passcode.
+- **Choosing a stage triggers a chemical reaction.** Confirming a tube makes its liquid surge up the
+  glass and heat from the sector color toward an incandescent flash while effervescence builds, then
+  it erupts — foam ring, flying droplets, screen flash + shake, and a new bubbling "reaction" sound
+  effect — before the stage loads. Navigation is frozen during the reaction.
+- Navigation is unchanged in spirit: ←/→ move between tubes, ↑/↓ jump a sector group, Z/Enter plays.
+
+## v0.21.0 - 2026-06-18
+
+### 2D beat-'em-up / platformer hybrid
+
+- **The movement model is now a true 2D side view.** The old 2.5D depth band is gone: the Y axis is
+  real height under arcade gravity, the floor is a solid surface with real holes, and jumping is
+  physics-driven. The camera stays vertically locked (lane + ledges). Up/W also jumps.
+- **Solid floor + jump-up ledges.** The ground is built from static colliders (with gaps cut out),
+  and stages now place `platforms` (`[xLeft, yTop, width]` in [src/stages.ts](../src/stages.ts)) to
+  hop onto — including mid-gap stepping stones in the wide Sector-3 chasms.
+- **Pits replace the old haul-out gaps.** Walk off a ledge or miss a jump and you fall; drop below
+  the screen and you take fall damage and respawn on the last safe ledge (forgiving, not instant
+  death). Bounce pads, hazard pools, and crumbling tiles from v0.20.0 are re-grounded onto the real
+  floor surface — crumble tiles now plug a real hole that opens when they collapse.
+- **Enemies split into ground vs. flyers.** Bacterium / dustbunny / amoeba / mite walk and rest on
+  the floor & ledges under gravity (hoppers do real jumps); virus / spore / pollen hover and chase
+  the player's height. An enemy that falls into a pit dies (counts toward the clear). Bosses hover
+  just above the floor so melee builds can still reach them.
+- **More dramatic double jump.** The airborne second jump re-boosts higher, snaps through a faster
+  flip, and kicks off a downward burst + shockwave ring + flash with a satisfying "boing."
+
 ## v0.20.0 - 2026-06-13
 
 ### More platforming throughout the stages

@@ -58,7 +58,61 @@ export default class BootScene extends Phaser.Scene {
     this._makePlayerAnims();
     this._makeBackground();
     this._makeVignette();
+    this._makeNobleGem();
     this.scene.start('TitleScene');
+  }
+
+  // A faceted gem for noble-gas pickups, drawn in white/greys so it tints to each gas's color.
+  private _makeNobleGem(): void {
+    const g = this._g();
+    const pts = (arr: [number, number][]) => arr.map(([x, y]) => ({ x, y })) as Phaser.Math.Vector2[];
+    // Hexagonal gem body
+    g.fillStyle(0xededed, 1);
+    g.fillPoints(
+      pts([
+        [13, 1],
+        [24, 8],
+        [24, 18],
+        [13, 25],
+        [2, 18],
+        [2, 8],
+      ]),
+      true,
+    );
+    // Crown facet (top, brightest)
+    g.fillStyle(0xffffff, 1);
+    g.fillPoints(
+      pts([
+        [13, 1],
+        [24, 8],
+        [13, 13],
+        [2, 8],
+      ]),
+      true,
+    );
+    // Left/right pavilion facets (shaded for depth)
+    g.fillStyle(0xbdbdbd, 1);
+    g.fillPoints(
+      pts([
+        [2, 8],
+        [13, 13],
+        [13, 25],
+      ]),
+      true,
+    );
+    g.fillStyle(0xd6d6d6, 1);
+    g.fillPoints(
+      pts([
+        [24, 8],
+        [13, 13],
+        [13, 25],
+      ]),
+      true,
+    );
+    // Sparkle highlight
+    g.fillStyle(0xffffff, 0.95);
+    g.fillCircle(9, 6, 1.6);
+    g._done('atom_noble', 26, 26);
   }
 
   // Graphics helper for the remaining procedural stage maps.

@@ -12,25 +12,42 @@ import {
 import { STAGES } from '../stages';
 import { passcodeFor, resolvePasscode } from '../systems/Passcode';
 import SaveSystem from '../systems/SaveSystem';
+import SoundSystem from '../systems/SoundSystem';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
-const COL_X = [200, 480, 760] as const; // one column per sector
-const ROW_Y = [150, 268, 386] as const; // three stages per sector
-const CARD_W = 250;
-const CARD_H = 104;
+
+// ── Test-tube rack geometry ────────────────────────────────────────────────────
+// The nine stages are nine test tubes in a rack, grouped three-per-sector. Tube x is derived
+// from the sector (group) and the substage (position within the group); see `_tubeX`.
+const TUBE_PITCH = 70; // center-to-center within a sector group
+const GROUP_GAP = 56; // extra space between sector groups
+const FIRST_X = 214; // x of the first tube (sector 1, stage 1), centers the rack at GAME_WIDTH/2
+const TUBE_W = 40; // outer glass width
+const TUBE_TOP = 150; // y of the glass mouth
+const TUBE_H = 214; // glass height (bottom at TUBE_TOP + TUBE_H)
+
+const FILL_LOCKED = 0.24;
+const FILL_OPEN = 0.66;
+const FILL_SELECTED = 0.74;
 
 const SECTOR_COLOR: Record<SectorId, number> = {
-  1: 0x88bb55,
-  2: 0xdd6644,
-  3: 0x6677ee,
+  1: 0x66cc55,
+  2: 0xdd5544,
+  3: 0x6688ee,
 };
 
 export default class StageSelectScene extends Phaser.Scene {
   private difficulty: Difficulty = 'normal';
   private unlocked = 1;
   private cursor = 0; // 0..STAGE_COUNT-1  (stage = cursor + 1)
-  private cards: Phaser.GameObjects.Graphics[] = [];
+  private tubes: Phaser.GameObjects.Graphics[] = [];
+  private reacting = false;
+
+  // Detail panel (info for the currently-highlighted tube).
+  private detailTitle!: Phaser.GameObjects.Text;
+  private detailName!: Phaser.GameObjects.Text;
+  private detailMeta!: Phaser.GameObjects.Text;
 
   private leftKey!: Phaser.Input.Keyboard.Key;
   private rightKey!: Phaser.Input.Keyboard.Key;
@@ -57,7 +74,8 @@ export default class StageSelectScene extends Phaser.Scene {
   create(): void {
     this.difficulty = (this.registry.get('difficulty') as Difficulty | undefined) ?? 'normal';
     this.unlocked = SaveSystem.getUnlockedStage(this.difficulty);
-    this.cards = [];
+    this.tubes = [];
+    this.reacting = false;
     // The scene instance is reused across restarts — clear any stale modal state.
     this.entering = false;
     this.overlay = null;
@@ -80,12 +98,21 @@ export default class StageSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Sector column headers
+    // The wooden rack rail the tubes slot into.
+    const railY = TUBE_TOP + TUBE_H - 26;
+    const rail = this.add.graphics();
+    rail.fillStyle(0x2a1c10, 1);
+    rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 30, 6);
+    rail.fillStyle(0x3c2a18, 1);
+    rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 8, 4);
+
+    // Sector group headers, centered over each trio of tubes.
     for (let s = 0; s < 3; s++) {
       const sector = (s + 1) as SectorId;
+      const midX = this._tubeX(s * 3 + 2); // middle tube of the group
       this.add
-        .text(COL_X[s], 96, SECTORS[sector].name, {
-          fontSize: '15px',
+        .text(midX, 108, SECTORS[sector].name, {
+          fontSize: '14px',
           color: `#${SECTOR_COLOR[sector].toString(16).padStart(6, '0')}`,
           fontFamily: MONO,
           fontStyle: 'bold',
@@ -93,13 +120,30 @@ export default class StageSelectScene extends Phaser.Scene {
         .setOrigin(0.5);
     }
 
-    // Stage cards
+    // Build the nine tubes.
     for (let stage = 1; stage <= STAGE_COUNT; stage++) {
-      this._buildCard(stage);
+      this._buildTube(stage);
     }
 
+    // Detail panel below the rack.
+    const panelY = 408;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x0c160c, 0.9);
+    panel.fillRoundedRect(cx - 320, panelY, 640, 70, 8);
+    panel.lineStyle(1, 0x335533, 0.8);
+    panel.strokeRoundedRect(cx - 320, panelY, 640, 70, 8);
+    this.detailTitle = this.add
+      .text(cx, panelY + 16, '', { fontSize: '16px', color: '#cfe6cf', fontFamily: MONO, fontStyle: 'bold' })
+      .setOrigin(0.5);
+    this.detailName = this.add
+      .text(cx, panelY + 38, '', { fontSize: '13px', color: '#9fc89f', fontFamily: MONO })
+      .setOrigin(0.5);
+    this.detailMeta = this.add
+      .text(cx, panelY + 56, '', { fontSize: '12px', color: '#7f9a7f', fontFamily: MONO })
+      .setOrigin(0.5);
+
     this.add
-      .text(cx, GAME_HEIGHT - 24, '← → ↑ ↓ navigate   Z/Enter play   P code   L leaderboard   ESC back', {
+      .text(cx, GAME_HEIGHT - 22, '← → ↑ ↓ navigate   Z/Enter play   P code   L leaderboard   ESC back', {
         fontSize: '13px',
         color: '#668866',
         fontFamily: MONO,
@@ -112,7 +156,7 @@ export default class StageSelectScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     attachTap(
       back,
-      () => this.scene.start('DifficultyScene'),
+      () => !this.reacting && this.scene.start('DifficultyScene'),
       () => back.setColor('#ccffcc'),
     );
     back.on('pointerout', () => back.setColor('#88bb88'));
@@ -122,7 +166,9 @@ export default class StageSelectScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
     attachTap(
       board,
-      () => this.scene.start('LeaderboardScene', { from: 'StageSelectScene', difficulty: this.difficulty }),
+      () =>
+        !this.reacting &&
+        this.scene.start('LeaderboardScene', { from: 'StageSelectScene', difficulty: this.difficulty }),
       () => board.setColor('#ccffcc'),
     );
     board.on('pointerout', () => board.setColor('#88bb88'));
@@ -140,6 +186,19 @@ export default class StageSelectScene extends Phaser.Scene {
 
     this._refresh();
 
+    // Idle effervescence: a slow stream of bubbles in the currently-highlighted (unlocked) tube
+    // makes the selection feel alive without committing to it.
+    this.time.addEvent({
+      delay: 320,
+      loop: true,
+      callback: () => {
+        if (this.reacting || this.entering) return;
+        const stage = this.cursor + 1;
+        if (stage > this.unlocked) return;
+        this._spawnBubble(stage, SECTOR_COLOR[sectorOf(stage)], FILL_SELECTED);
+      },
+    });
+
     // biome-ignore lint/style/noNonNullAssertion: keyboard always present
     const kb = this.input.keyboard!;
     this.leftKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
@@ -153,82 +212,123 @@ export default class StageSelectScene extends Phaser.Scene {
     this.codeKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.P);
   }
 
-  private _cardPos(stage: number): { x: number; y: number } {
-    const col = sectorOf(stage) - 1; // 0..2
-    const row = (stage - 1) % 3; // 0..2
-    return { x: COL_X[col], y: ROW_Y[row] };
+  /** x of a tube's center for the given stage (1-based). */
+  private _tubeX(stage: number): number {
+    const group = sectorOf(stage) - 1; // 0..2
+    const sub = (stage - 1) % 3; // 0..2
+    return FIRST_X + group * (2 * TUBE_PITCH + GROUP_GAP) + sub * TUBE_PITCH;
   }
 
-  private _buildCard(stage: number): void {
-    const { x, y } = this._cardPos(stage);
-    const def = STAGES[stage - 1];
+  private _buildTube(stage: number): void {
+    const x = this._tubeX(stage);
+    const g = this.add.graphics();
+    this.tubes.push(g); // index = stage - 1
+
+    // Stage number etched above the mouth.
+    const accent = SECTOR_COLOR[sectorOf(stage)];
     const locked = stage > this.unlocked;
-    const sector = sectorOf(stage);
-    const accent = SECTOR_COLOR[sector];
-    const top = y - CARD_H / 2;
+    this.add
+      .text(x, TUBE_TOP - 18, `${stage}${isFinaleStage(stage) ? '☣' : ''}`, {
+        fontSize: '13px',
+        color: locked ? '#556055' : `#${accent.toString(16).padStart(6, '0')}`,
+        fontFamily: MONO,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
-    const border = this.add.graphics();
-    this.cards.push(border); // index = stage - 1
-
-    // Touch: a transparent hit zone over the card. Tap to select; tap the selected card to play.
-    const zone = this.add.rectangle(x, y, CARD_W, CARD_H, 0x000000, 0).setOrigin(0.5);
+    // Touch: a hit zone over the whole tube. Tap to highlight; tap the highlighted tube to play.
+    const zone = this.add.rectangle(x, TUBE_TOP + TUBE_H / 2, TUBE_W + 18, TUBE_H + 24, 0x000000, 0).setOrigin(0.5);
     attachTap(zone, () => {
+      if (this.reacting) return;
       if (this.cursor === stage - 1) this._confirm();
       else {
         this.cursor = stage - 1;
         this._refresh();
       }
     });
+  }
 
-    const titleColor = locked ? '#555f55' : `#${accent.toString(16).padStart(6, '0')}`;
-    this.add
-      .text(x - CARD_W / 2 + 14, top + 12, `Stage ${stage}${isFinaleStage(stage) ? '  ☣ BOSS' : ''}`, {
-        fontSize: '14px',
-        color: titleColor,
-        fontFamily: MONO,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0, 0);
+  /** Draw a single tube. `fill`/`color` override the resting state during the reaction animation. */
+  private _drawStage(stage: number, fill?: number, color?: number, jitter = 0): void {
+    const g = this.tubes[stage - 1];
+    g.clear();
 
-    this.add
-      .text(x - CARD_W / 2 + 14, top + 38, locked ? '🔒 LOCKED' : def.name, {
-        fontSize: '13px',
-        color: locked ? '#556055' : '#cfe6cf',
-        fontFamily: MONO,
-        wordWrap: { width: CARD_W - 28 },
-      })
-      .setOrigin(0, 0);
+    const baseX = this._tubeX(stage);
+    const x = baseX + (jitter ? Phaser.Math.Between(-jitter, jitter) : 0);
+    const selected = stage - 1 === this.cursor;
+    const locked = stage > this.unlocked;
+    const accent = SECTOR_COLOR[sectorOf(stage)];
 
-    const best = SaveSystem.getBestScore(this.difficulty, stage);
-    this.add
-      .text(x - CARD_W / 2 + 14, top + CARD_H - 22, locked ? '' : `Best: ${best > 0 ? best.toLocaleString() : '—'}`, {
-        fontSize: '12px',
-        color: '#7f9a7f',
-        fontFamily: MONO,
-      })
-      .setOrigin(0, 0);
+    const left = x - TUBE_W / 2;
+    const r = TUBE_W / 2;
+    const fill01 = Phaser.Math.Clamp(fill ?? (locked ? FILL_LOCKED : selected ? FILL_SELECTED : FILL_OPEN), 0, 1);
+    const liquidColor = color ?? (locked ? 0x2f3a33 : accent);
 
-    // Earned passcode: shown on the bottom-right of every unlocked stage past the first
-    // (stage 1 has no code). Lets the player jot it down to resume on a fresh device.
-    if (!locked && stage > 1) {
-      this.add
-        .text(x + CARD_W / 2 - 14, top + CARD_H - 22, `Code ${passcodeFor(stage, this.difficulty)}`, {
-          fontSize: '12px',
-          color: '#6f8a6f',
-          fontFamily: MONO,
-        })
-        .setOrigin(1, 0);
+    // Selection halo behind the glass.
+    if (selected && !locked) {
+      g.lineStyle(4, accent, 0.28);
+      g.strokeRoundedRect(left - 4, TUBE_TOP - 4, TUBE_W + 8, TUBE_H + 8, { tl: 8, tr: 8, bl: r + 4, br: r + 4 });
     }
+
+    // Liquid.
+    const fillH = Math.max(fill01 * TUBE_H, r + 2);
+    const liquidTop = TUBE_TOP + TUBE_H - fillH;
+    const lx = left + 3;
+    const lw = TUBE_W - 6;
+    const lr = lw / 2;
+    g.fillStyle(liquidColor, locked ? 0.5 : 0.85);
+    g.fillRoundedRect(lx, liquidTop, lw, fillH, { tl: 3, tr: 3, bl: lr, br: lr });
+    // Brighter meniscus band at the surface.
+    g.fillStyle(this._lerpColor(liquidColor, 0xffffff, 0.45), locked ? 0.4 : 0.8);
+    g.fillEllipse(x, liquidTop, lw, 7);
+
+    // Glass body + mouth.
+    g.lineStyle(2, locked ? 0x4a5a4a : 0x9fd0c8, 0.85);
+    g.strokeRoundedRect(left, TUBE_TOP, TUBE_W, TUBE_H, { tl: 5, tr: 5, bl: r, br: r });
+    g.lineStyle(2, locked ? 0x4a5a4a : 0xbfe6df, 0.9);
+    g.strokeRoundedRect(x - (TUBE_W + 10) / 2, TUBE_TOP - 6, TUBE_W + 10, 9, 3);
+    // Vertical shine streak.
+    g.fillStyle(0xffffff, 0.1);
+    g.fillRoundedRect(left + 6, TUBE_TOP + 12, 5, TUBE_H - 48, 3);
+  }
+
+  private _lerpColor(a: number, b: number, t: number): number {
+    const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.ValueToColor(a),
+      Phaser.Display.Color.ValueToColor(b),
+      100,
+      Phaser.Math.Clamp(t, 0, 1) * 100,
+    );
+    return Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+  }
+
+  /** A single rising, fading bubble inside a tube's liquid. */
+  private _spawnBubble(stage: number, color: number, fill: number): void {
+    const x = this._tubeX(stage);
+    const lr = (TUBE_W - 6) / 2;
+    const bx = x + Phaser.Math.Between(-lr + 4, lr - 4);
+    const surfaceY = TUBE_TOP + TUBE_H - fill * TUBE_H;
+    const startY = TUBE_TOP + TUBE_H - 16;
+    const b = this.add
+      .circle(bx, startY, Phaser.Math.Between(2, 4), this._lerpColor(color, 0xffffff, 0.5), 0.8)
+      .setDepth(50);
+    this.tweens.add({
+      targets: b,
+      y: surfaceY + Phaser.Math.Between(-4, 4),
+      alpha: 0,
+      duration: Phaser.Math.Between(700, 1200),
+      ease: 'Sine.easeIn',
+      onComplete: () => b.destroy(),
+    });
   }
 
   update(): void {
-    // While the passcode modal is open, navigation is frozen — entry keys are handled by
-    // the scoped keydown listener attached in _openCodeEntry.
-    if (this.entering) return;
-    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) this._move(-3);
-    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) this._move(3);
-    if (Phaser.Input.Keyboard.JustDown(this.upKey)) this._move(-1);
-    if (Phaser.Input.Keyboard.JustDown(this.downKey)) this._move(1);
+    // While the passcode modal is open or a reaction is playing, navigation is frozen.
+    if (this.entering || this.reacting) return;
+    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) this._move(-1);
+    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) this._move(1);
+    if (Phaser.Input.Keyboard.JustDown(this.upKey)) this._move(-3);
+    if (Phaser.Input.Keyboard.JustDown(this.downKey)) this._move(3);
     if (Phaser.Input.Keyboard.JustDown(this.confirmKey) || Phaser.Input.Keyboard.JustDown(this.confirmKey2)) {
       this._confirm();
     }
@@ -240,51 +340,139 @@ export default class StageSelectScene extends Phaser.Scene {
   }
 
   private _move(delta: number): void {
-    // ±1 moves within a sector column (row); ±3 jumps between sector columns.
-    if (Math.abs(delta) === 1) {
-      const col = Math.floor(this.cursor / 3);
-      const row = Phaser.Math.Clamp((this.cursor % 3) + delta, 0, 2);
-      this.cursor = col * 3 + row;
-    } else {
-      this.cursor = Phaser.Math.Clamp(this.cursor + delta, 0, STAGE_COUNT - 1);
-    }
+    this.cursor = Phaser.Math.Clamp(this.cursor + delta, 0, STAGE_COUNT - 1);
     this._refresh();
   }
 
   private _refresh(): void {
-    for (let stage = 1; stage <= STAGE_COUNT; stage++) {
-      const { x, y } = this._cardPos(stage);
-      const selected = stage - 1 === this.cursor;
-      const locked = stage > this.unlocked;
-      const accent = SECTOR_COLOR[sectorOf(stage)];
-      const g = this.cards[stage - 1];
-      g.clear();
-      g.fillStyle(accent, selected ? 0.16 : 0.05);
-      g.fillRect(x - CARD_W / 2, y - CARD_H / 2, CARD_W, CARD_H);
-      g.lineStyle(selected ? 2 : 1, locked ? 0x445544 : accent, selected ? 0.95 : 0.3);
-      g.strokeRect(x - CARD_W / 2, y - CARD_H / 2, CARD_W, CARD_H);
+    for (let stage = 1; stage <= STAGE_COUNT; stage++) this._drawStage(stage);
+    this._refreshDetail();
+  }
+
+  private _refreshDetail(): void {
+    const stage = this.cursor + 1;
+    const def = STAGES[stage - 1];
+    const locked = stage > this.unlocked;
+    const accent = SECTOR_COLOR[sectorOf(stage)];
+
+    this.detailTitle.setText(`STAGE ${stage}${isFinaleStage(stage) ? '   ☣ BOSS' : ''}`);
+    this.detailTitle.setColor(locked ? '#778877' : `#${accent.toString(16).padStart(6, '0')}`);
+    this.detailName.setText(locked ? '🔒 LOCKED — clear the previous stage to unlock' : def.name);
+    this.detailName.setColor(locked ? '#667066' : '#cfe6cf');
+
+    if (locked) {
+      this.detailMeta.setText('');
+    } else {
+      const best = SaveSystem.getBestScore(this.difficulty, stage);
+      const bestStr = `Best: ${best > 0 ? best.toLocaleString() : '—'}`;
+      const codeStr = stage > 1 ? `     Code ${passcodeFor(stage, this.difficulty)}` : '';
+      this.detailMeta.setText(bestStr + codeStr);
     }
   }
 
   private _confirm(): void {
+    if (this.reacting) return;
     const stage = this.cursor + 1;
     if (stage > this.unlocked) {
-      // Locked — quick red flash on the card to signal it's not available yet.
-      const { x, y } = this._cardPos(stage);
-      const g = this.cards[stage - 1];
+      // Locked — quick red flash on the tube to signal it's not available yet.
+      const g = this.tubes[stage - 1];
+      const x = this._tubeX(stage);
       g.lineStyle(2, 0xff4444, 0.9);
-      g.strokeRect(x - CARD_W / 2, y - CARD_H / 2, CARD_W, CARD_H);
+      g.strokeRoundedRect(x - TUBE_W / 2, TUBE_TOP, TUBE_W, TUBE_H, { tl: 5, tr: 5, bl: TUBE_W / 2, br: TUBE_W / 2 });
       this.cameras.main.shake(120, 0.004);
       return;
     }
+    this._react(stage);
+  }
+
+  /** The chemical-reaction flourish that plays when a stage is chosen, then launches it. */
+  private _react(stage: number): void {
+    this.reacting = true;
+    const accent = SECTOR_COLOR[sectorOf(stage)];
+    const x = this._tubeX(stage);
+
+    try {
+      const ctx = (this.sound as Phaser.Sound.WebAudioSoundManager).context;
+      SoundSystem.play(ctx, 'reaction');
+    } catch {
+      // No audio context — the visual reaction still plays.
+    }
+
+    // Rapid effervescence as the reaction builds.
+    const fizz = this.time.addEvent({
+      delay: 40,
+      loop: true,
+      callback: () => this._spawnBubble(stage, this._lerpColor(accent, 0xffffff, 0.3), 0.95),
+    });
+
+    // The liquid surges up the glass, heating from its sector color toward an incandescent flash.
+    const state = { v: 0 };
+    this.tweens.add({
+      targets: state,
+      v: 1,
+      duration: 650,
+      ease: 'Sine.easeIn',
+      onUpdate: () => {
+        const fill = FILL_SELECTED + state.v * (1 - FILL_SELECTED);
+        const color = this._lerpColor(accent, 0xfff2c0, state.v);
+        this._drawStage(stage, fill, color, state.v > 0.5 ? Math.round(state.v * 3) : 0);
+      },
+      onComplete: () => {
+        fizz.remove();
+        this._erupt(stage, x, accent);
+      },
+    });
+  }
+
+  /** Eruption: foam and droplets burst from the tube mouth, the screen flashes, then GameScene loads. */
+  private _erupt(stage: number, x: number, accent: number): void {
+    const flash = this._lerpColor(accent, 0xffffff, 0.5);
+    const fc = Phaser.Display.Color.ValueToColor(flash);
+    this.cameras.main.flash(260, fc.red, fc.green, fc.blue);
+    this.cameras.main.shake(280, 0.006);
+
+    // Expanding foam ring at the mouth.
+    const ring = this.add.circle(x, TUBE_TOP, 6, 0xffffff, 0.5).setDepth(60);
+    this.tweens.add({
+      targets: ring,
+      radius: 46,
+      alpha: 0,
+      duration: 420,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    // Droplets fly up and out of the glass.
+    for (let i = 0; i < 26; i++) {
+      const d = this.add
+        .circle(
+          x + Phaser.Math.Between(-8, 8),
+          TUBE_TOP,
+          Phaser.Math.Between(3, 7),
+          this._lerpColor(accent, 0xffffff, 0.4),
+          0.95,
+        )
+        .setDepth(60);
+      this.tweens.add({
+        targets: d,
+        x: x + Phaser.Math.Between(-140, 140),
+        y: TUBE_TOP - Phaser.Math.Between(70, 210),
+        alpha: 0,
+        scale: 0.2,
+        duration: Phaser.Math.Between(500, 900),
+        ease: 'Quad.easeOut',
+        onComplete: () => d.destroy(),
+      });
+    }
+
     this.registry.set('runScore', 0); // a freshly selected stage begins a new run
-    this.scene.start('GameScene', { stage, difficulty: this.difficulty });
+    this.time.delayedCall(520, () => this.scene.start('GameScene', { stage, difficulty: this.difficulty }));
   }
 
   // ── Passcode entry modal ──────────────────────────────────────────────────────
 
   private _openCodeEntry(): void {
-    if (this.entering) return;
+    if (this.entering || this.reacting) return;
     this.entering = true;
     this.codeBuf = '';
 
@@ -423,7 +611,7 @@ export default class StageSelectScene extends Phaser.Scene {
     }
     SaveSystem.unlockUpToStage(this.difficulty, stage);
     this._closeCodeEntry();
-    // Rebuild every card against the new unlock state; create() re-reads the save and
+    // Rebuild every tube against the new unlock state; create() re-reads the save and
     // snaps the cursor to the furthest unlocked stage.
     this.scene.restart();
   }

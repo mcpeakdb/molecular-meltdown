@@ -1,4 +1,4 @@
-import type { BaseAtom } from './constants';
+import type { BaseAtom, NobleGasId } from './constants';
 import type { BossVariant } from './entities/Boss';
 import type { EnemyType } from './entities/Enemy';
 
@@ -20,18 +20,22 @@ export interface StageDef {
   name: string;
   /** Total walkable width of this stage (camera + physics bounds). */
   width: number;
-  /** Atom pickups — each a branching choice node. */
-  atoms: { x: number; choices: BaseAtom[] }[];
+  /** Atom pickups — each a branching choice node. `y` perches it on a ledge (defaults to floating). */
+  atoms: { x: number; y?: number; choices: BaseAtom[] }[];
   /** Enemy placements (y is randomized within the floor band at spawn). */
   enemies: StageEnemy[];
   /** Chasms to jump; an enemy that would spawn inside one is skipped. */
   gaps: [number, number][];
+  /** Solid ledges to jump onto: [xLeft, yTop, width]. The floor surface sits at GROUND_TOP_Y (470). */
+  platforms?: [number, number, number][];
   /** Acid pools / spike beds — floor strips that sear the player unless jumped over. */
   hazards?: [number, number][];
   /** Bounce-pad x-positions — step on a springy spore to launch a high arc. */
   pads?: number[];
   /** Crumbling floor tiles [x1, x2] — they collapse into a chasm shortly after you stand on one. */
   crumble?: [number, number][];
+  /** A hidden noble-gas bonus pickup — usually perched high or guarded by a strong germ. */
+  noble?: { x: number; y: number; gas: NobleGasId; guard?: EnemyType };
   /** Boss finale (3rd stage of a sector). Mutually exclusive with `exitX`. */
   boss?: { variant: BossVariant; x: number };
   /** Non-boss stages clear by reaching this x — an exit portal sits here. */
@@ -62,6 +66,15 @@ export const STAGES: StageDef[] = [
       ...spread(2700, 3250, ['bacterium', 'dustbunny', 'virus']),
     ],
     gaps: [[1500, 1620]],
+    // Gentle introduction to jumping onto ledges — a low, climbable row.
+    platforms: [
+      [700, 410, 120],
+      [1080, 360, 140],
+      [1840, 390, 150],
+      [2250, 350, 130],
+      [2700, 400, 150],
+      [3050, 360, 140],
+    ],
     // First taste of platforming: a single springy spore to bop on, just past the gap.
     pads: [2050],
     exitX: 3380,
@@ -85,6 +98,18 @@ export const STAGES: StageDef[] = [
       [1450, 1570],
       [2950, 3070],
     ],
+    platforms: [
+      [600, 400, 120],
+      [1000, 350, 140],
+      [1750, 380, 140],
+      [2150, 360, 140], // staircase up to the Helium gem — each step is a single hop
+      [2330, 300, 130],
+      [2480, 250, 140], // Helium gem ledge
+      [2900, 360, 150],
+      [3250, 320, 130],
+    ],
+    // Helium — up a gentle single-jump staircase mid-stage (unguarded, the easiest find).
+    noble: { x: 2550, y: 212, gas: 'helium' },
     pads: [800],
     // First crumbling tile — stand too long and the agar gives way into a chasm.
     crumble: [[3550, 3690]],
@@ -110,6 +135,18 @@ export const STAGES: StageDef[] = [
       [1450, 1570],
       [3050, 3170],
     ],
+    platforms: [
+      [700, 400, 130],
+      [1100, 350, 140],
+      [1900, 380, 150],
+      [2000, 300, 120], // step up toward the Neon gem
+      [2150, 240, 130], // Neon gem ledge (high, guarded below)
+      [2750, 360, 150],
+      [3300, 330, 160],
+      [3900, 380, 140],
+    ],
+    // Neon — high up, with an amoeba standing guard at the base of the climb.
+    noble: { x: 2215, y: 202, gas: 'neon', guard: 'amoeba' },
     // First hazard pool appears before the boss run-up; bop the pad to skip it cleanly.
     hazards: [[2300, 2440]],
     pads: [3650],
@@ -136,6 +173,15 @@ export const STAGES: StageDef[] = [
       [1450, 1580],
       [2950, 3080],
     ],
+    platforms: [
+      [650, 400, 120],
+      [1100, 350, 140],
+      [1550, 320, 130],
+      [2050, 380, 140],
+      [2600, 330, 150],
+      [3150, 360, 140],
+      [3650, 320, 150],
+    ],
     hazards: [[2050, 2200]],
     pads: [800],
     crumble: [[3550, 3700]],
@@ -161,6 +207,18 @@ export const STAGES: StageDef[] = [
       [1500, 1640],
       [3150, 3290],
     ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 340, 130],
+      [1400, 290, 120],
+      [2000, 370, 140],
+      [2600, 330, 140],
+      [2850, 260, 130], // Argon gem ledge (high, over solid ground)
+      [3500, 330, 150],
+      [3950, 360, 140],
+    ],
+    // Argon — up high over the plasma; a hovering spore makes the climb dangerous.
+    noble: { x: 2910, y: 222, gas: 'argon', guard: 'spore' },
     hazards: [
       [900, 1040],
       [2350, 2520],
@@ -189,6 +247,18 @@ export const STAGES: StageDef[] = [
       [1500, 1640],
       [3200, 3340],
     ],
+    platforms: [
+      [700, 400, 130],
+      [1150, 350, 140],
+      [1500, 300, 130],
+      [2100, 370, 140],
+      [2400, 330, 140], // step toward the Krypton gem
+      [2650, 250, 130], // Krypton gem ledge (high, over solid ground)
+      [3500, 330, 150],
+      [3950, 360, 150],
+    ],
+    // Krypton — a high perch between the chasms, with an amoeba guarding the approach.
+    noble: { x: 2710, y: 212, gas: 'krypton', guard: 'amoeba' },
     hazards: [[2400, 2560]],
     pads: [1000, 4100],
     crumble: [[3650, 3800]],
@@ -215,8 +285,21 @@ export const STAGES: StageDef[] = [
     gaps: [
       [1450, 1590],
       [2700, 2840],
-      [3450, 3680], // wide — needs a double-jump to clear
+      [3450, 3680], // wide — clear it via the mid-gap stepping stone or a double-jump
     ],
+    platforms: [
+      [650, 390, 120],
+      [1200, 350, 130],
+      [1430, 300, 130], // staircase up to the Xenon gem — single hops, partly over the chasm
+      [1650, 250, 130],
+      [1820, 210, 130], // Xenon gem ledge (high, guarded)
+      [2300, 360, 140],
+      [3000, 320, 140],
+      [3520, 410, 90], // stepping stone in the wide gap
+      [3850, 330, 150],
+    ],
+    // Xenon — tucked high above the marshes, guarded by a mite.
+    noble: { x: 1885, y: 172, gas: 'xenon', guard: 'mite' },
     hazards: [
       [1000, 1160],
       [2150, 2310],
@@ -245,7 +328,17 @@ export const STAGES: StageDef[] = [
       [1450, 1590],
       [2400, 2540],
       [3450, 3590],
-      [4000, 4220], // wide — needs a double-jump to clear
+      [4000, 4220], // wide — clear it via the mid-gap stepping stone or a double-jump
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 340, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2900, 330, 140],
+      [3150, 270, 120],
+      [3600, 330, 150],
+      [4060, 410, 100], // stepping stone in the wide gap
     ],
     hazards: [
       [900, 1080],
@@ -276,8 +369,22 @@ export const STAGES: StageDef[] = [
       [1450, 1590],
       [2400, 2540],
       [3500, 3640],
-      [4100, 4330], // wide — needs a double-jump to clear
+      [4100, 4330], // wide — clear it via the mid-gap stepping stone or a double-jump
     ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1360, 300, 140], // staircase up to the Radon gem — single hops, partly over the chasm
+      [1580, 255, 140],
+      [1800, 215, 140],
+      [2030, 180, 150], // Radon gem ledge (the highest perch in the game)
+      [2900, 350, 140],
+      [3600, 320, 150],
+      [4170, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 150],
+    ],
+    // Radon — the final, hardest find: highest perch in the game, guarded by an amoeba.
+    noble: { x: 2105, y: 142, gas: 'radon', guard: 'amoeba' },
     hazards: [
       [950, 1120],
       [3000, 3180],

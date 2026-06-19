@@ -31,14 +31,26 @@
   portal** that opens once all enemies are defeated. Banners: STAGE / SECTOR / EXPERIMENT COMPLETE.
 - **7 enemy types**: bacterium, virus, dustbunny, pollen + new amoeba (tank), spore (fast hover),
   mite (crawler). **3 bosses**: Super Bacterium, Amoeba Titan, Phage Lord — one per sector.
-- **Gaps are a damage hazard**: stepping into a chasm on the ground (walking in or landing short)
-  deals fall damage and bounces you back to the nearer lip; jumping clear is safe (`_updateGaps()`)
-- **Platforming hazards** (v0.20.0): data-driven optional `hazards` / `pads` / `crumble` fields in
-  `stages.ts`, all x-strip mechanics spanning the full floor depth band. **Hazard pools** (sector-
+- **2D side-view movement** (v0.21.0): real arcade gravity, a solid floor of static colliders with
+  real holes for gaps, and physics-driven jumping (camera vertically locked — lane + ledges). The old
+  2.5D depth band / fake `jumpOffset` is gone. `GROUND_TOP_Y` is the floor surface; `DEPTH` sorts by
+  role, not Y. Stages place lots of `platforms` (`[xLeft, yTop, width]`) — climbable staircases,
+  perches, and routes — to jump onto (v0.23.0 expanded these heavily).
+- **Noble gases** (v0.23.0): one of each of the six (`NOBLE_GASES` in `constants.ts`) is hidden as a
+  glowing gem on a high/guarded perch (`noble: { x, y, gas, guard? }` in `stages.ts`). Inert (no
+  compounds) — collecting one is a +`NOBLE_GAS_BONUS` score bonus (`_collectNoble`) and a permanent
+  find (`SaveSystem.markNobleFound`); the run summaries show the `n/6` collection.
+- **Pits**: walk off a ledge or miss a jump and you fall; drop below the screen → fall damage +
+  respawn on the last safe ledge (`_updatePitFall`, reusing `GAP_FALL_DAMAGE`).
+- **Enemies**: ground types (bacterium/dustbunny/amoeba/mite) walk & rest on floor/ledges under
+  gravity (hoppers real-jump); flyers (virus/spore/pollen) hover and chase the player's height; an
+  enemy that falls into a pit dies. Bosses hover just above the floor so melee can reach them.
+- **Platforming hazards** (v0.20.0, re-grounded in v0.21.0): data-driven optional `hazards` / `pads` /
+  `crumble` fields in `stages.ts`, now surface objects on the real floor. **Hazard pools** (sector-
   tinted) sear the player on the ground unless jumped over (`_updateHazards`); **bounce pads** launch
   a high arc that keeps the air double-jump (`_updatePads` → `Player.superJump`); **crumbling tiles**
-  collapse into a real chasm shortly after you stand on one (`_updateCrumbles`). Sector 3 also adds
-  wide gaps that require a double-jump. Tuned as a gentle ramp (Sector 1 stays introductory)
+  plug a real hole that opens when they collapse (`_updateCrumbles`). Sector 3 adds wide gaps cleared
+  via a mid-gap stepping stone or a double-jump. Tuned as a gentle ramp (Sector 1 stays introductory)
 - **10 attacks** — H, O, C, N + 6 molecules, each restyled to its atom color
 - **Molecular tree**: every atom pickup is a branching choice; compounds use real stoichiometry
   (H₂O = 2H+1O, etc.); level = complete recipe copies. Sectors ramp the atom supply (4 → 6 → 9)

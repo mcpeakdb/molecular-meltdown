@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
-import { FLOOR_MAX_Y, FLOOR_MIN_Y } from '../constants';
+import { DEPTH, FLYER_MAX_Y, FLYER_MIN_Y, GAME_HEIGHT, GRAVITY } from '../constants';
 import type GameScene from '../scenes/GameScene';
 import type { EnemySprite } from '../types';
+
+/** Per-type vertical jump impulse for hopping ground enemies (real arcade jump now). */
+const HOP_VELOCITY = 520;
 
 const STATES = {
   PATROL: 'patrol',
@@ -21,17 +24,19 @@ interface EnemyConfig {
   attackRate: number;
   texture: string;
   scale: number;
+  /** Flyers hover in the air (no gravity); ground types fall and walk on the floor/ledges. */
+  fly: boolean;
 }
 
 const CONFIGS: Record<EnemyType, EnemyConfig> = {
-  bacterium: { hp: 35, speed: 90, damage: 10, attackRate: 1600, texture: 'bacterium', scale: 1.0 },
-  virus: { hp: 22, speed: 130, damage: 8, attackRate: 1200, texture: 'virus', scale: 1.0 },
-  dustbunny: { hp: 50, speed: 60, damage: 14, attackRate: 2000, texture: 'dustbunny', scale: 1.0 },
-  pollen: { hp: 18, speed: 160, damage: 6, attackRate: 900, texture: 'pollen', scale: 1.0 },
+  bacterium: { hp: 35, speed: 90, damage: 10, attackRate: 1600, texture: 'bacterium', scale: 1.0, fly: false },
+  virus: { hp: 22, speed: 130, damage: 8, attackRate: 1200, texture: 'virus', scale: 1.0, fly: true },
+  dustbunny: { hp: 50, speed: 60, damage: 14, attackRate: 2000, texture: 'dustbunny', scale: 1.0, fly: false },
+  pollen: { hp: 18, speed: 160, damage: 6, attackRate: 900, texture: 'pollen', scale: 1.0, fly: true },
   // Sector 2+ newcomers
-  amoeba: { hp: 80, speed: 48, damage: 16, attackRate: 2200, texture: 'amoeba', scale: 1.15 }, // slow tank
-  spore: { hp: 14, speed: 180, damage: 7, attackRate: 800, texture: 'spore', scale: 0.9 }, // fast, hovers
-  mite: { hp: 30, speed: 115, damage: 11, attackRate: 1300, texture: 'mite', scale: 0.9 }, // erratic crawler, hops
+  amoeba: { hp: 80, speed: 48, damage: 16, attackRate: 2200, texture: 'amoeba', scale: 1.15, fly: false }, // slow tank
+  spore: { hp: 14, speed: 180, damage: 7, attackRate: 800, texture: 'spore', scale: 0.9, fly: true }, // fast, hovers
+  mite: { hp: 30, speed: 115, damage: 11, attackRate: 1300, texture: 'mite', scale: 0.9, fly: false }, // crawler, hops
 };
 
 const DETECT_RANGE = 320;
@@ -46,6 +51,7 @@ export default class Enemy {
   damage: number;
   attackRate: number;
   isBoss = false;
+  readonly fly: boolean;
 
   sprite: EnemySprite;
   state: EnemyState = STATES.PATROL;
@@ -58,7 +64,6 @@ export default class Enemy {
   bleedDamage = 0;
   private bleedTickTimer = 0;
   private hopTimer = 0;
-  private hopPhase: 'idle' | 'up' | 'down' = 'idle';
   private hoverTime = 0;
   // Stays false until the enemy has scrolled into the camera view; attacks can't reach it before then
   private hasEnteredView = false;
@@ -73,20 +78,30 @@ export default class Enemy {
     this.speed = cfg.speed;
     this.damage = cfg.damage;
     this.attackRate = cfg.attackRate;
+    this.fly = cfg.fly;
 
     const base = scene.physics.add.sprite(x, y, cfg.texture) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
     base.setScale(cfg.scale);
-    base.setDepth(y);
+    base.setDepth(DEPTH.ENEMY);
     base.body.setSize(30, 40);
     base.body.setCollideWorldBounds(true);
+    // Flyers hover (no gravity); ground types fall onto the floor/ledges (collider added by GameScene).
+    if (cfg.fly) base.body.setAllowGravity(false);
+    else base.body.setGravityY(GRAVITY);
     this.sprite = base as EnemySprite;
     this.sprite.enemyRef = this;
     if (type === 'dustbunny' || type === 'mite') this.hopTimer = Phaser.Math.Between(300, 700);
-    if (type === 'virus' || type === 'spore') this.hoverTime = Math.random() * Math.PI * 2;
+    if (cfg.fly) this.hoverTime = Math.random() * Math.PI * 2;
   }
 
   update(time: number, delta: number, playerSprite: Phaser.Physics.Arcade.Sprite): void {
     if (!this.sprite.active || this.state === STATES.DEAD) return;
+
+    // Walked off a ledge into a pit — perish (counts toward the clear instead of getting stuck offscreen).
+    if (this.sprite.y > GAME_HEIGHT + 40) {
+      this._die();
+      return;
+    }
 
     if (!this.hasEnteredView) {
       const view = this.scene.cameras.main.worldView;
@@ -139,15 +154,15 @@ export default class Enemy {
     }
 
     if (this.type === 'dustbunny' || this.type === 'mite') this._applyHop(delta);
-    if (this.type === 'virus' || this.type === 'spore') this._applyHover(delta);
+    if (this.fly) this._applyHover(delta);
     this._applyIdleAnim(time, delta);
 
     if (this.state === STATES.CHASE && dist < ATTACK_RANGE) this.state = STATES.ATTACK;
     if (this.state === STATES.ATTACK && dist > ATTACK_RANGE * 1.4) this.state = STATES.CHASE;
 
     this.sprite.setFlipX(this.sprite.body.velocity.x < 0);
-    this.sprite.setDepth(this.sprite.y);
-    this.sprite.y = Phaser.Math.Clamp(this.sprite.y, FLOOR_MIN_Y, FLOOR_MAX_Y);
+    // Flyers stay within the hover band; ground types are held on the floor/ledges by gravity + colliders.
+    if (this.fly) this.sprite.y = Phaser.Math.Clamp(this.sprite.y, FLYER_MIN_Y, FLYER_MAX_Y);
 
     // Once an enemy has joined the fight, confine it to the visible arena. Without this a
     // patrolling germ can drift off to an unreachable corner, leaving the exit sealed with
@@ -166,16 +181,20 @@ export default class Enemy {
       this.patrolDir = Math.random() < 0.5 ? 1 : -1;
       this.patrolTimer = Phaser.Math.Between(1200, 2800);
     }
-    this.sprite.body.setVelocity(this.patrolDir * speed * 0.4, 0);
+    // Horizontal drift only; gravity (ground) or hover (flyer) owns the vertical axis.
+    this.sprite.body.setVelocityX(this.patrolDir * speed * 0.4);
   }
 
   private _chase(dx: number, dy: number, dist: number, speed: number): void {
     if (dist < 1) return;
-    this.sprite.body.setVelocity((dx / dist) * speed, (dy / dist) * speed * 0.5);
+    this.sprite.body.setVelocityX((dx / dist) * speed);
+    // Flyers also climb/dive toward the player's height; ground types leave Y to gravity.
+    if (this.fly) this.sprite.body.setVelocityY((dy / dist) * speed * 0.6);
   }
 
   private _tryAttack(_playerSprite: Phaser.Physics.Arcade.Sprite): void {
-    this.sprite.body.setVelocity(0, 0);
+    this.sprite.body.setVelocityX(0);
+    if (this.fly) this.sprite.body.setVelocityY(0);
     if (this.attackTimer <= 0) {
       this.attackTimer = this.attackRate;
       // Player leaping cleanly over this enemy dodges the contact hit
@@ -244,8 +263,8 @@ export default class Enemy {
         this.sprite.rotation += delta * 0.0006;
         break;
       case 'dustbunny':
-        // Squash/stretch breathing between hops
-        if (this.hopPhase === 'idle') {
+        // Squash/stretch breathing while grounded between hops
+        if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.003) * 0.04;
           this.sprite.setScale(1 + s, 1 - s);
         }
@@ -261,8 +280,8 @@ export default class Enemy {
         this.sprite.rotation += delta * 0.0016;
         break;
       case 'mite':
-        // Squash/stretch breathing between hops (lighter than dustbunny)
-        if (this.hopPhase === 'idle') {
+        // Squash/stretch breathing while grounded between hops (lighter than dustbunny)
+        if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.004) * 0.05;
           this.sprite.setScale(0.9 * (1 + s), 0.9 * (1 - s));
         }
@@ -272,50 +291,34 @@ export default class Enemy {
 
   private _applyHover(delta: number): void {
     if (this.state === STATES.HURT || this.state === STATES.DEAD) return;
+    // While chasing, _chase steers the flyer toward the player's height; only bob otherwise.
+    if (this.state === STATES.CHASE) return;
     this.hoverTime += delta / 1000;
     this.sprite.body.setVelocityY(80 * Math.cos(this.hoverTime * 2.6));
   }
 
+  /** Real arcade hop — when grounded and the timer fires, kick off a vertical jump; gravity lands it. */
   private _applyHop(delta: number): void {
     if (this.state === STATES.HURT || this.state === STATES.DEAD) return;
+    if (!this.sprite.body.onFloor()) return; // mid-hop — let it arc and land
     this.hopTimer -= delta;
-
-    if (this.hopPhase === 'idle' && this.hopTimer <= 0) {
-      this.hopPhase = 'up';
-      this.hopTimer = 260;
+    if (this.hopTimer <= 0) {
+      this.hopTimer = Phaser.Math.Between(500, 1100);
+      this.sprite.body.setVelocityY(-HOP_VELOCITY);
+      // Takeoff stretch
+      this.scene.tweens.killTweensOf(this.sprite);
       this.scene.tweens.add({
         targets: this.sprite,
         scaleX: 0.78,
         scaleY: 1.3,
-        duration: 70,
+        duration: 90,
         ease: 'Power2',
         yoyo: true,
         onComplete: () => {
-          if (this.sprite.active) this.sprite.setScale(1);
-        },
-      });
-    } else if (this.hopPhase === 'up' && this.hopTimer <= 0) {
-      this.hopPhase = 'down';
-      this.hopTimer = 260;
-    } else if (this.hopPhase === 'down' && this.hopTimer <= 0) {
-      this.hopPhase = 'idle';
-      this.hopTimer = Phaser.Math.Between(500, 1100);
-      this.scene.tweens.killTweensOf(this.sprite);
-      this.scene.tweens.add({
-        targets: this.sprite,
-        scaleX: 1.35,
-        scaleY: 0.68,
-        duration: 70,
-        ease: 'Power2',
-        yoyo: true,
-        onComplete: () => {
-          if (this.sprite.active) this.sprite.setScale(1);
+          if (this.sprite.active) this.sprite.setScale(this.type === 'mite' ? 0.9 : 1);
         },
       });
     }
-
-    const vy = this.hopPhase === 'up' ? -150 : this.hopPhase === 'down' ? 150 : 0;
-    this.sprite.body.setVelocityY(vy);
   }
 
   private _die(): void {

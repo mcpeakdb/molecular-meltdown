@@ -2,16 +2,16 @@ import Phaser from 'phaser';
 import {
   ATTACKS,
   type AttackId,
+  DEPTH,
   ELEMENT_COLORS,
   ELEMENTS,
-  FLOOR_MAX_Y,
-  FLOOR_MIN_Y,
   GAME_HEIGHT,
   GAME_WIDTH,
+  GRAVITY,
+  GROUND_TOP_Y,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_DOUBLE_JUMP_VELOCITY,
   PLAYER_INVINCIBILITY_MS,
-  PLAYER_JUMP_GRAVITY,
   PLAYER_JUMP_VELOCITY,
   PLAYER_MAX_HP,
   PLAYER_MAX_JUMPS,
@@ -45,13 +45,11 @@ export default class Player {
   private _cooldowns = new Map<AttackId, number>();
   private invincibleTimer = 0;
   private _hitFlash = false;
-  private jumpOffset = 0;
-  private isJumping = false;
   private jumpCount = 0;
-  private _jumpVelY = 0;
+  private _onGround = false;
+  private _wasOnGround = false;
   private _isRolling = false;
   private _rollTween: Phaser.Tweens.Tween | null = null;
-  private _groundY = 0;
   private _jumpShadow!: Phaser.GameObjects.Graphics;
   private _jumpKey!: Phaser.Input.Keyboard.Key;
   private _speedBoost = 1.0;
@@ -64,27 +62,32 @@ export default class Player {
 
   constructor(scene: GameScene, x: number, y: number) {
     this.scene = scene;
-    this._groundY = y;
     this.sprite = scene.physics.add.sprite(x, y, 'player_0') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-    this.sprite.setDepth(y);
+    this.sprite.setDepth(DEPTH.PLAYER);
     this.sprite.body.setSize(28, 44);
     this.sprite.body.setOffset(6, 8);
     this.sprite.body.setCollideWorldBounds(true);
+    this.sprite.body.setGravityY(GRAVITY);
     this.sprite.play('player_idle');
-    this._jumpShadow = scene.add.graphics().setDepth(y);
+    this._jumpShadow = scene.add.graphics().setDepth(DEPTH.PLAYER - 1);
     this._armsGraphic = scene.add.graphics();
     this._jumpKey = scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE) as Phaser.Input.Keyboard.Key;
     scene.events.on('postupdate', this._updateArms, this);
   }
 
-  /** Airborne high enough to clear an enemy's body — lets a well-timed jump leap clean over contact attacks (projectiles still hit). */
+  /** Airborne and not plummeting — a well-timed jump leaps clean over contact attacks (projectiles still hit). */
   get isClearingEnemy(): boolean {
-    return this.isJumping && this.jumpOffset > 30;
+    return !this._onGround && this.sprite.body.velocity.y < 120;
   }
 
-  /** True whenever the player is off the ground (used by the tutorial gap). */
+  /** True whenever the player is off the ground. */
   get airborne(): boolean {
-    return this.isJumping;
+    return !this._onGround;
+  }
+
+  /** Y of the player's feet — the local "ground level" for ground-targeted FX. */
+  private get _feetY(): number {
+    return this.sprite.y + 22;
   }
 
   /** True while the post-hit invincibility window is active (no further damage will land). */
@@ -111,8 +114,12 @@ export default class Player {
     const { cursors, wasd, slotKeys, touch } = keys;
     const left = cursors.left.isDown || wasd.A.isDown;
     const right = cursors.right.isDown || wasd.D.isDown;
-    const up = cursors.up.isDown || wasd.W.isDown;
-    const down = cursors.down.isDown || wasd.S.isDown;
+
+    // Grounded state drives jumping, animation, and the shadow (real arcade physics now).
+    this._onGround = this.sprite.body.onFloor();
+    if (this._onGround && this.sprite.body.velocity.y >= 0) this.jumpCount = 0;
+    if (this._onGround && !this._wasOnGround) this._onLand();
+    this._wasOnGround = this._onGround;
 
     if (this._speedBoostTimer > 0) {
       this._speedBoostTimer -= delta;
@@ -126,12 +133,10 @@ export default class Player {
     }
 
     const spd = PLAYER_SPEED * this._speedBoost;
-    let vx = 0,
-      vy = 0;
-    if (touch && (touch.moveX !== 0 || touch.moveY !== 0)) {
-      // Analog thumbstick: magnitude is already clamped to 1, so scale straight to speed.
+    let vx = 0;
+    if (touch && touch.moveX !== 0) {
+      // Analog thumbstick — horizontal only now (depth movement is gone in the 2D side view).
       vx = touch.moveX * spd;
-      vy = touch.moveY * spd * 0.65;
       if (touch.moveX < -0.05) this.facingRight = false;
       else if (touch.moveX > 0.05) this.facingRight = true;
     } else {
@@ -143,43 +148,27 @@ export default class Player {
         vx = spd;
         this.facingRight = true;
       }
-      if (up) vy = -spd * 0.65;
-      if (down) vy = spd * 0.65;
-      if (vx !== 0 && vy !== 0) {
-        vx *= Math.SQRT1_2;
-        vy *= Math.SQRT1_2;
-      }
     }
 
-    // X via physics; Y integrated manually so jumpOffset can offset the visual independently
+    // Horizontal via physics; vertical is owned by gravity + jump impulses.
     this.sprite.body.setVelocityX(vx);
-    this.sprite.body.setVelocityY(0);
-    this._groundY = Phaser.Math.Clamp(this._groundY + vy * (delta / 1000), FLOOR_MIN_Y, FLOOR_MAX_Y);
-
-    // Vertical jump arc — integrate velocity under gravity, land when back on the ground
-    if (this.isJumping) {
-      const dt = delta / 1000;
-      this._jumpVelY -= PLAYER_JUMP_GRAVITY * dt;
-      this.jumpOffset += this._jumpVelY * dt;
-      if (this.jumpOffset <= 0) this._land();
-    }
-
-    this.sprite.y = this._groundY - this.jumpOffset;
-    this.sprite.setDepth(this._groundY);
     this.sprite.setFlipX(!this.facingRight);
 
-    // Walk/idle on the ground; the jump pose is held by _doJump while airborne
-    if (!this.isJumping) {
-      const isMoving = vx !== 0 || vy !== 0;
+    // Walk/idle on the ground; the jump pose is held while airborne
+    if (this._onGround) {
       const currentAnim = this.sprite.anims.currentAnim?.key;
-      if (isMoving && currentAnim !== 'player_walk') this.sprite.play('player_walk');
-      else if (!isMoving && currentAnim !== 'player_idle') this.sprite.play('player_idle');
+      if (vx !== 0 && currentAnim !== 'player_walk') this.sprite.play('player_walk');
+      else if (vx === 0 && currentAnim !== 'player_idle') this.sprite.play('player_idle');
+    } else if (this.sprite.anims.currentAnim?.key !== 'player_jump') {
+      this.sprite.play('player_jump');
     }
 
-    // Ground shadow that stays at floor level while the player is airborne
-    if (this.jumpOffset > 0) {
-      const t = Math.min(1, this.jumpOffset / 160);
-      this._jumpShadow.setPosition(this.sprite.x, this._groundY + 4).setDepth(this._groundY - 1);
+    // Drop shadow projected onto the main floor, fading/shrinking with height above it.
+    const feetY = this.sprite.y + 22;
+    const heightAbove = GROUND_TOP_Y - feetY;
+    if (heightAbove > 6) {
+      const t = Math.min(1, heightAbove / 200);
+      this._jumpShadow.setPosition(this.sprite.x, GROUND_TOP_Y + 4);
       this._jumpShadow.clear();
       this._jumpShadow.fillStyle(0x000000, 0.4 * (1 - t * 0.7));
       this._jumpShadow.fillEllipse(0, 0, 32 * (1 - t * 0.3), 10 * (1 - t * 0.3));
@@ -197,10 +186,16 @@ export default class Player {
     }
 
     if (this._speedBoostAura) {
-      this._speedBoostAura.setPosition(this.sprite.x, this._groundY).setDepth(this._groundY - 2);
+      this._speedBoostAura.setPosition(this.sprite.x, this.sprite.y).setDepth(DEPTH.PLAYER - 2);
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this._jumpKey) || touch?.jump) this._doJump();
+    // Jump on Space, Up/W, or the touch jump button.
+    const jumpPressed =
+      Phaser.Input.Keyboard.JustDown(this._jumpKey) ||
+      Phaser.Input.Keyboard.JustDown(cursors.up) ||
+      Phaser.Input.Keyboard.JustDown(wasd.W) ||
+      (touch?.jump ?? false);
+    if (jumpPressed) this._doJump();
     const bindings = this.elementSystem.getBindings();
     for (let i = 0; i < slotKeys.length; i++) {
       const pressed = slotKeys[i].some((k) => Phaser.Input.Keyboard.JustDown(k)) || (touch?.slots.includes(i) ?? false);
@@ -275,12 +270,12 @@ export default class Player {
   }
 
   private _doJump(): void {
-    if (!this.alive || this.jumpCount >= PLAYER_MAX_JUMPS) return;
+    if (!this.alive) return;
 
-    if (this.jumpCount === 0) {
-      // First jump — simple hop with a takeoff stretch
-      this.isJumping = true;
-      this._jumpVelY = PLAYER_JUMP_VELOCITY;
+    if (this._onGround) {
+      // First jump — upward impulse with a takeoff stretch
+      this.sprite.body.setVelocityY(-PLAYER_JUMP_VELOCITY);
+      this.jumpCount = 1;
       this.sprite.play('player_jump');
       this.scene.tweens.add({
         targets: this.sprite,
@@ -289,20 +284,30 @@ export default class Player {
         duration: 110,
         yoyo: true,
       });
-    } else {
-      // Second jump — re-boost upward and do a front roll in the air
-      this._jumpVelY = PLAYER_DOUBLE_JUMP_VELOCITY;
+    } else if (this.jumpCount < PLAYER_MAX_JUMPS) {
+      // Air jump — a dramatic re-boost with a snappy flip and a kick-off flourish.
+      this.sprite.body.setVelocityY(-PLAYER_DOUBLE_JUMP_VELOCITY);
+      this.jumpCount = Math.max(this.jumpCount, 1) + 1;
       this._startRoll();
+      this._doubleJumpFx();
     }
+  }
 
-    this.jumpCount++;
+  /** Mid-air flourish for the double jump: a downward kick-off puff, shockwave ring, flash + boing. */
+  private _doubleJumpFx(): void {
+    const x = this.sprite.x;
+    const y = this.sprite.y + 14;
+    SoundSystem.play(this.scene.audioCtx, 'bounce');
+    this.scene.spawnNova(x, y, 0x88ccff, 72, { rings: 2, life: 18, lineWidth: 3 });
+    this.scene.spawnBurst(x, y, 0xcfe6ff, { count: 14, speed: [90, 240], angle: [55, 125], lifespan: 360, scale: 1.0 });
+    this.scene.spawnHitFlash(x, y, 0xaad4ff, 38);
+    this.scene.shake(90, 0.005);
   }
 
   /** Launched off a bounce pad: a high arc that still leaves the airborne double-jump available. */
   superJump(velocity: number): void {
     if (!this.alive) return;
-    this.isJumping = true;
-    this._jumpVelY = velocity;
+    this.sprite.body.setVelocityY(-velocity);
     this.jumpCount = 1; // the ground jump is spent, but one air jump remains
     this.sprite.play('player_jump');
     this.scene.tweens.add({ targets: this.sprite, scaleY: 1.22, scaleX: 0.82, duration: 120, yoyo: true });
@@ -317,8 +322,8 @@ export default class Player {
     this._rollTween = this.scene.tweens.add({
       targets: this.sprite,
       rotation: dir * Math.PI * 2,
-      duration: 420,
-      ease: 'Linear',
+      duration: 300,
+      ease: 'Cubic.Out',
       onComplete: () => this._endRoll(),
     });
   }
@@ -331,10 +336,8 @@ export default class Player {
     this.sprite.setRotation(0);
   }
 
-  private _land(): void {
-    this.jumpOffset = 0;
-    this._jumpVelY = 0;
-    this.isJumping = false;
+  /** Touched down after being airborne — squash and clear the air roll. */
+  private _onLand(): void {
     this.jumpCount = 0;
     this._endRoll();
     // Landing squash
@@ -364,7 +367,7 @@ export default class Player {
       if (!s.active || !s.enemyRef) return;
       const dx = s.x - cx,
         dy = s.y - cy;
-      if (Math.abs(dx) < PLAYER_MELEE_RANGE && Math.abs(dy) < 55) {
+      if (Math.abs(dx) < PLAYER_MELEE_RANGE && Math.abs(dy) < 80) {
         s.enemyRef.takeDamage(Math.round(PLAYER_MELEE_DAMAGE * this.comboMultiplier), dir);
         hitSomething = true;
       }
@@ -631,7 +634,7 @@ export default class Player {
       // Absolute Zero — the whole screen flash-freezes
       this.scene.shake(500, 0.015);
       this.scene.cameras.main.flash(220, 180, 230, 255);
-      this.scene.spawnNova(x, this._groundY, 0x88eeff, 420, { rings: 3, life: 34, lineWidth: 4 });
+      this.scene.spawnNova(x, this._feetY, 0x88eeff, 420, { rings: 3, life: 34, lineWidth: 4 });
       let hit = false;
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
@@ -787,9 +790,9 @@ export default class Player {
     this._speedBoostTimer = durations[level - 1];
 
     // Reactive flare as the radical buff kicks in
-    this.scene.spawnHitFlash(this.sprite.x, this._groundY, 0xdd44aa, 70);
-    this.scene.spawnNova(this.sprite.x, this._groundY, 0xff66cc, 90, { rings: 2, life: 20 });
-    this.scene.spawnBurst(this.sprite.x, this._groundY, 0xff88dd, { count: 16, speed: [120, 280], lifespan: 480 });
+    this.scene.spawnHitFlash(this.sprite.x, this._feetY, 0xdd44aa, 70);
+    this.scene.spawnNova(this.sprite.x, this._feetY, 0xff66cc, 90, { rings: 2, life: 20 });
+    this.scene.spawnBurst(this.sprite.x, this._feetY, 0xff88dd, { count: 16, speed: [120, 280], lifespan: 480 });
 
     if (this._speedBoostAura) this._speedBoostAura.destroy();
     this._speedBoostAura = this.scene.add.graphics().setDepth(this.sprite.depth - 1);
@@ -813,7 +816,7 @@ export default class Player {
       repeat: Math.floor(durations[level - 1] / tick) - 1,
       callback: () => {
         if (!this.alive || !this.isRadicalActive) return;
-        this._damageRadius(this.sprite.x, this._groundY, auraR, PLAYER_MELEE_DAMAGE * 0.35);
+        this._damageRadius(this.sprite.x, this._feetY, auraR, PLAYER_MELEE_DAMAGE * 0.35);
       },
     });
   }
@@ -821,11 +824,12 @@ export default class Player {
   private _specialCarbonicAcid(level: number, dir: number): void {
     const count = level === 1 ? 5 : level === 2 ? 9 : 0;
     const spreadX = level === 1 ? 120 : 200;
+    const groundY = this._feetY; // stable ground line for this cast (drops land here)
 
     if (level < 3) {
       for (let i = 0; i < count; i++) {
         const tx = this.sprite.x + dir * Phaser.Math.FloatBetween(30, spreadX);
-        const ty = this._groundY - Phaser.Math.FloatBetween(80, 160);
+        const ty = groundY - Phaser.Math.FloatBetween(80, 160);
         const delay = i * 80;
         this.scene.time.delayedCall(delay, () => {
           if (!this.alive) return;
@@ -838,19 +842,19 @@ export default class Player {
             duration: 300,
             ease: 'Quad.In',
             onComplete: () => {
-              this.scene.spawnHitFlash(tx, this._groundY, 0x33aadd, 20);
-              this.scene.spawnBurst(tx, this._groundY, 0x66ccee, {
+              this.scene.spawnHitFlash(tx, groundY, 0x33aadd, 20);
+              this.scene.spawnBurst(tx, groundY, 0x66ccee, {
                 count: 6,
                 speed: [40, 130],
                 angle: [200, 340],
                 lifespan: 320,
               });
-              this.scene.spawnCloud(tx, this._groundY, 26, 0x33aadd, 700, { blobs: 3, alpha: 0.22 });
-              this._damageRadius(tx, this._groundY, 35, PLAYER_MELEE_DAMAGE * 1.2);
+              this.scene.spawnCloud(tx, groundY, 26, 0x33aadd, 700, { blobs: 3, alpha: 0.22 });
+              this._damageRadius(tx, groundY, 35, PLAYER_MELEE_DAMAGE * 1.2);
               if (level === 2) {
                 this.scene.enemyGroup.getChildren().forEach((go) => {
                   const s = go as EnemySprite;
-                  if (s.active && s.enemyRef && Phaser.Math.Distance.Between(tx, this._groundY, s.x, s.y) < 35)
+                  if (s.active && s.enemyRef && Phaser.Math.Distance.Between(tx, groundY, s.x, s.y) < 35)
                     s.enemyRef.applyBleed(2, 1500);
                 });
               }

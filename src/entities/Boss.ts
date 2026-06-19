@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FLOOR_CENTER_Y, FLOOR_MAX_Y, FLOOR_MIN_Y } from '../constants';
+import { DEPTH, GROUND_TOP_Y } from '../constants';
 import type GameScene from '../scenes/GameScene';
 import SoundSystem from '../systems/SoundSystem';
 import type { EnemySprite } from '../types';
@@ -15,9 +15,9 @@ type BossPhase = (typeof PHASES)[keyof typeof PHASES];
 
 type AttackKind = 'volley' | 'radial' | 'barrage' | 'sweep';
 
-// Boss hovers around its anchor at this height — inside the walkable band so melee builds
-// can still reach it, but high enough to read as "looming" over the player.
-const HOVER_Y = FLOOR_CENTER_Y - 15;
+// Boss hovers around its anchor at this height — low enough that a grounded player's melee can still
+// reach it, but high enough to loom. (Player center sits ≈ GROUND_TOP_Y − 22 when standing.)
+const HOVER_Y = GROUND_TOP_Y - 80;
 
 export type BossVariant = 'bacterium' | 'amoeba' | 'phage';
 
@@ -136,10 +136,11 @@ export default class Boss {
 
     const base = scene.physics.add.sprite(x, y, cfg.texture) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
     base.setScale(cfg.scale);
-    base.setDepth(y + 10);
+    base.setDepth(DEPTH.BOSS);
     base.body.setSize(cfg.bodySize[0], cfg.bodySize[1]);
     base.body.setOffset(cfg.bodyOffset[0], cfg.bodyOffset[1]);
     base.body.setCollideWorldBounds(true);
+    base.body.setAllowGravity(false); // bosses hover under their own velocity, not gravity
     this.sprite = base as EnemySprite;
     this.sprite.enemyRef = this;
 
@@ -228,7 +229,7 @@ export default class Boss {
     if (this.contactCd <= 0 && !this.scene.player.isClearingEnemy) {
       const pdx = playerSprite.x - this.sprite.x;
       const pdy = playerSprite.y - this.sprite.y;
-      if (Math.abs(pdx) < 56 && Math.abs(pdy) < 56) {
+      if (Math.abs(pdx) < 56 && Math.abs(pdy) < 80) {
         this.scene.player.takeDamage(Math.round(this.damage * 0.5));
         this.contactCd = 800;
       }
@@ -238,8 +239,7 @@ export default class Boss {
     this.sprite.setScale(this.scale + Math.sin(time * 0.0007) * 0.05);
 
     this.sprite.setFlipX(dx < 0);
-    this.sprite.setDepth(this.sprite.y + 10);
-    this.sprite.y = Phaser.Math.Clamp(this.sprite.y, FLOOR_MIN_Y + 20, FLOOR_MAX_Y);
+    this.sprite.y = Phaser.Math.Clamp(this.sprite.y, 120, GROUND_TOP_Y - 60);
     this._updateHPBar();
   }
 

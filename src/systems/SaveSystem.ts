@@ -1,4 +1,4 @@
-import type { BaseAtom, Difficulty } from '../constants';
+import type { BaseAtom, Difficulty, NobleGasId } from '../constants';
 import { STAGE_COUNT } from '../constants';
 
 // ── Meta persistence ──────────────────────────────────────────────────────────
@@ -33,7 +33,13 @@ interface DifficultySave {
   leaderboard: RunRecord[];
 }
 
-type SaveData = Record<Difficulty, DifficultySave>;
+interface SaveData {
+  normal: DifficultySave;
+  hard: DifficultySave;
+  extreme: DifficultySave;
+  /** Noble gases ever collected, across all runs — a permanent collection meta. */
+  nobleGasesFound: NobleGasId[];
+}
 
 const DIFFICULTIES: Difficulty[] = ['normal', 'hard', 'extreme'];
 
@@ -42,7 +48,12 @@ function emptyDifficulty(): DifficultySave {
 }
 
 function emptySave(): SaveData {
-  return { normal: emptyDifficulty(), hard: emptyDifficulty(), extreme: emptyDifficulty() };
+  return {
+    normal: emptyDifficulty(),
+    hard: emptyDifficulty(),
+    extreme: emptyDifficulty(),
+    nobleGasesFound: [],
+  };
 }
 
 export default class SaveSystem {
@@ -62,6 +73,7 @@ export default class SaveSystem {
           leaderboard: Array.isArray(slot.leaderboard) ? slot.leaderboard.slice(0, LEADERBOARD_SIZE) : [],
         };
       }
+      if (Array.isArray(parsed.nobleGasesFound)) base.nobleGasesFound = parsed.nobleGasesFound;
     } catch {
       // Corrupt or unavailable storage — start fresh rather than crash.
       return emptySave();
@@ -149,6 +161,20 @@ export default class SaveSystem {
 
   static getLeaderboard(difficulty: Difficulty): RunRecord[] {
     return SaveSystem.load()[difficulty].leaderboard;
+  }
+
+  /** All noble gases the player has ever collected (permanent collection meta). */
+  static getNoblesFound(): NobleGasId[] {
+    return SaveSystem.load().nobleGasesFound;
+  }
+
+  /** Record a noble gas as discovered. Returns true if it was a first-time find. */
+  static markNobleFound(id: NobleGasId): boolean {
+    const data = SaveSystem.load();
+    if (data.nobleGasesFound.includes(id)) return false;
+    data.nobleGasesFound.push(id);
+    SaveSystem._save(data);
+    return true;
   }
 }
 

@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
-import { type Difficulty, GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
-const ITEMS = ['START', 'STAGE SELECT', 'MOLECULE TREE', 'LEADERBOARD', 'CONTROLS', 'SETTINGS'] as const;
+const ITEMS = ['START', 'MOLECULE TREE', 'LEADERBOARD', 'CONTROLS', 'SETTINGS'] as const;
 const MENU_TOP = 286; // y of the first menu item
 const MENU_DY = 38; // vertical spacing between menu items
 
@@ -192,21 +192,16 @@ export default class TitleScene extends Phaser.Scene {
         if (Settings.get().tutorialDone) this.scene.start('DifficultyScene');
         else this.scene.start('GameScene', { tutorial: true });
         break;
-      case 1: // STAGE SELECT
-        // StageSelect reads difficulty from the registry; seed a default if none chosen yet.
-        if (!this.registry.get('difficulty')) this.registry.set('difficulty', 'normal' as Difficulty);
-        this.scene.start('StageSelectScene');
-        break;
-      case 2: // MOLECULE TREE
+      case 1: // MOLECULE TREE
         this.scene.start('MoleculeTreeScene', { from: 'TitleScene' });
         break;
-      case 3: // LEADERBOARD
+      case 2: // LEADERBOARD
         this.scene.start('LeaderboardScene', { from: 'TitleScene' });
         break;
-      case 4: // CONTROLS
+      case 3: // CONTROLS
         this.scene.start('HelpScene', { from: 'TitleScene' });
         break;
-      case 5: // SETTINGS
+      case 4: // SETTINGS
         this.scene.start('SettingsScene', { from: 'TitleScene' });
         break;
     }

@@ -1,21 +1,27 @@
 import Phaser from 'phaser';
-import type { AttackId, BaseAtom, Difficulty, SectorId } from '../constants';
+import type { AttackId, BaseAtom, Difficulty, NobleGasId, SectorId } from '../constants';
 import {
   ATTACK_ORDER,
   BASE_ATOMS,
   CRUMBLE_DELAY_MS,
+  DEPTH,
   DIFFICULTY_SCALE,
   ELEMENT_NAMES,
-  FLOOR_CENTER_Y,
-  FLOOR_MAX_Y,
-  FLOOR_MIN_Y,
+  FLYER_MAX_Y,
+  FLYER_MIN_Y,
   GAME_HEIGHT,
   GAME_WIDTH,
   GAP_FALL_DAMAGE,
+  GRAVITY,
+  GROUND_TOP_Y,
   HAZARD_DAMAGE,
   isFinaleStage,
   MAX_ELEMENT_LEVEL,
   MEG_MAX_LEVEL_QUIPS,
+  NOBLE_GAS_BONUS,
+  NOBLE_GAS_BY_ID,
+  NOBLE_GAS_COUNT,
+  NOBLE_GASES,
   PLAYER_BOUNCE_VELOCITY,
   PLAYER_MAX_HP,
   SECTORS,
@@ -26,7 +32,7 @@ import {
 } from '../constants';
 import Atom from '../entities/Atom';
 import Boss from '../entities/Boss';
-import Enemy from '../entities/Enemy';
+import Enemy, { type EnemyType } from '../entities/Enemy';
 import Player from '../entities/Player';
 import { STAGES, type StageDef } from '../stages';
 import SaveSystem, { type RunRecord } from '../systems/SaveSystem';
@@ -39,6 +45,18 @@ type ProjectileSprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody & {
   damage: number;
   knockback: number;
   piercing: boolean;
+};
+
+/** Enemy types that fly (hover, no gravity) rather than walking the floor. */
+const FLYER_TYPES = new Set<EnemyType>(['virus', 'spore', 'pollen']);
+
+/** A crumbling floor tile: its plug collider fills a hole in the base floor until it collapses. */
+type CrumbleTile = {
+  x1: number;
+  x2: number;
+  gfx: Phaser.GameObjects.Graphics;
+  collider?: Phaser.Physics.Arcade.Sprite;
+  state: 'solid' | 'warning' | 'gone';
 };
 
 const SECTOR_THEMES: Record<
@@ -153,16 +171,17 @@ export default class GameScene extends Phaser.Scene {
   private _tutAtom?: AtomSprite;
   private _tutEnemy?: Enemy;
   private _tutDone = false;
-  private _gaps: { x1: number; x2: number }[] = [];
+  // ── 2D platforming state ──────────────────────────────────────────────────
+  /** Static colliders for the ground segments, ledges, and (until they fall) crumble tiles. */
+  private platformGroup!: Phaser.Physics.Arcade.StaticGroup;
+  /** Holes in the floor (gaps + crumble ranges) — used to skip enemy spawns and exclude unsafe footing. */
+  private _holes: { x1: number; x2: number }[] = [];
+  /** Last x where the player stood on solid ground away from a hole — pit-fall respawn point. */
+  private _lastSafeX = 120;
   // ── Platforming hazards (data-driven per stage in src/stages.ts) ──
   private _hazards: { x1: number; x2: number }[] = [];
   private _pads: { x: number; gfx: Phaser.GameObjects.Graphics }[] = [];
-  private _crumbles: {
-    x1: number;
-    x2: number;
-    gfx: Phaser.GameObjects.Graphics;
-    state: 'solid' | 'warning' | 'gone';
-  }[] = [];
+  private _crumbles: CrumbleTile[] = [];
   private readonly _tutAtomX = 900;
   private readonly _tutEnemyX = 1500;
   private readonly _gapX1 = 2080;
@@ -192,7 +211,8 @@ export default class GameScene extends Phaser.Scene {
     // Reset per-run state (the scene instance is reused across restarts)
     this.isPaused = false;
     this.stageCleared = false;
-    this._gaps = [];
+    this._holes = [];
+    this._lastSafeX = 120;
     this._hazards = [];
     this._pads = [];
     this._crumbles = [];
@@ -224,10 +244,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.physics.world.setBounds(0, 0, this.worldWidth, GAME_HEIGHT);
+    // Real gravity now. The physics world is taller than the view so the player can fall into
+    // pits below the screen (we respawn them); the camera bounds stay one screen tall, which keeps
+    // the camera vertically locked (lane + ledges).
+    this.physics.world.gravity.y = GRAVITY;
+    this.physics.world.setBounds(0, 0, this.worldWidth, GAME_HEIGHT + 300);
     this.cameras.main.setBounds(0, 0, this.worldWidth, GAME_HEIGHT);
     this.audioCtx = (this.sound as Phaser.Sound.WebAudioSoundManager).context;
 
+    this.platformGroup = this.physics.add.staticGroup();
     this._buildWorld();
 
     this.enemyGroup = this.physics.add.group();
@@ -238,9 +263,10 @@ export default class GameScene extends Phaser.Scene {
     if (this.isTutorial) this._spawnTutorial();
     else this._spawnStage();
 
-    this.player = new Player(this, 120, FLOOR_CENTER_Y);
+    this.player = new Player(this, 120, GROUND_TOP_Y - 40);
     this.player.invincibilityMs = DIFFICULTY_SCALE[this.difficulty].invincMs;
     this.player.elementSystem.setSlotCount(DIFFICULTY_SCALE[this.difficulty].weaponSlots);
+    this.physics.add.collider(this.player.sprite, this.platformGroup);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08);
 
     this.physics.add.overlap(this.player.sprite, this.atomGroup, (_p, atomSprite) =>
@@ -376,25 +402,31 @@ export default class GameScene extends Phaser.Scene {
 
     this.add.tileSprite(0, 0, w, GAME_HEIGHT, `bg_tile_${sector}`).setOrigin(0, 0).setScrollFactor(0.3).setDepth(-10);
     this.add
-      .tileSprite(0, FLOOR_MIN_Y, w, GAME_HEIGHT - FLOOR_MIN_Y, `ground_tile_${sector}`)
+      .tileSprite(0, GROUND_TOP_Y, w, GAME_HEIGHT - GROUND_TOP_Y, `ground_tile_${sector}`)
       .setOrigin(0, 0)
-      .setDepth(-5);
+      .setDepth(DEPTH.GROUND);
 
-    const gLine = this.add.graphics().setDepth(-4);
+    const gLine = this.add.graphics().setDepth(DEPTH.GROUND + 1);
     gLine.lineStyle(3, theme.floorLine, 0.65);
-    gLine.lineBetween(0, FLOOR_MIN_Y, w, FLOOR_MIN_Y);
+    gLine.lineBetween(0, GROUND_TOP_Y, w, GROUND_TOP_Y);
     gLine.lineStyle(1, theme.tick, 0.5);
     for (let tx = 0; tx <= w; tx += 100) {
-      gLine.lineBetween(tx, FLOOR_MIN_Y, tx, FLOOR_MIN_Y - (tx % 500 === 0 ? 14 : 7));
+      gLine.lineBetween(tx, GROUND_TOP_Y, tx, GROUND_TOP_Y - (tx % 500 === 0 ? 14 : 7));
     }
 
-    this.add.rectangle(w / 2, FLOOR_MIN_Y - 30, w, 60, theme.shadow, 0.9).setDepth(-6);
+    this.add.rectangle(w / 2, GROUND_TOP_Y - 18, w, 36, theme.shadow, 0.9).setDepth(DEPTH.GROUND - 1);
+
+    // Solid floor colliders, with real holes where gaps / crumble tiles sit.
+    const holes: [number, number][] = this.isTutorial
+      ? [[this._gapX1, this._gapX2]]
+      : [...(this.stageDef.gaps ?? []), ...(this.stageDef.crumble ?? [])];
+    this._buildFloorColliders(holes, w);
 
     for (let i = 0; i < 80; i++) {
       const g = this.add.graphics().setDepth(-3);
       const color = theme.particles[i % theme.particles.length];
       const x = Phaser.Math.Between(0, w);
-      const y = Phaser.Math.Between(50, FLOOR_MIN_Y - 20);
+      const y = Phaser.Math.Between(50, GROUND_TOP_Y - 20);
       if (i % 3 === 0) {
         // Cell debris ring
         g.lineStyle(0.8, color, Phaser.Math.FloatBetween(0.08, 0.2));
@@ -416,13 +448,59 @@ export default class GameScene extends Phaser.Scene {
 
     const label = this.isTutorial ? '— TRAINING SECTOR —' : `— ${SECTORS[sector].name} · ${this.stageDef.name} —`;
     this.add
-      .text(300, FLOOR_MIN_Y - 50, label, {
+      .text(300, GROUND_TOP_Y - 60, label, {
         fontSize: '18px',
         color: theme.label,
         fontStyle: 'italic',
       })
       .setDepth(5)
       .setAlpha(0.65);
+  }
+
+  /** Build the static floor: one solid collider per gap-free span, plus visible ledge platforms. */
+  private _buildFloorColliders(holes: [number, number][], worldW: number): void {
+    const sorted = [...holes].sort((a, b) => a[0] - b[0]);
+    let cursor = 0;
+    for (const [hx1, hx2] of sorted) {
+      if (hx1 > cursor) this._addSolid(cursor, hx1);
+      cursor = Math.max(cursor, hx2);
+    }
+    if (cursor < worldW) this._addSolid(cursor, worldW);
+  }
+
+  /** An invisible static floor/ground collider spanning [x1, x2] with its top at GROUND_TOP_Y. */
+  private _addSolid(x1: number, x2: number): Phaser.Physics.Arcade.Sprite {
+    const w = Math.max(1, x2 - x1);
+    const h = GAME_HEIGHT + 200 - GROUND_TOP_Y;
+    const r = this.platformGroup.create(
+      (x1 + x2) / 2,
+      GROUND_TOP_Y + h / 2,
+      'particle',
+    ) as Phaser.Physics.Arcade.Sprite;
+    r.setVisible(false);
+    r.displayWidth = w;
+    r.displayHeight = h;
+    r.refreshBody();
+    return r;
+  }
+
+  /** A visible, solid ledge the player can jump onto: [xLeft, yTop, width]. */
+  private _addPlatform(xLeft: number, yTop: number, w: number): void {
+    const theme = SECTOR_THEMES[this.sector];
+    const thickness = 18;
+    const cx = xLeft + w / 2;
+    const g = this.add.graphics().setDepth(DEPTH.PLATFORM);
+    g.fillStyle(theme.shadow, 0.9);
+    g.fillRect(xLeft, yTop, w, thickness + 6);
+    g.fillStyle(theme.tick, 0.9);
+    g.fillRect(xLeft, yTop, w, thickness);
+    g.lineStyle(3, theme.floorLine, 0.8);
+    g.lineBetween(xLeft, yTop, xLeft + w, yTop);
+    const r = this.platformGroup.create(cx, yTop + thickness / 2, 'particle') as Phaser.Physics.Arcade.Sprite;
+    r.setVisible(false);
+    r.displayWidth = w;
+    r.displayHeight = thickness;
+    r.refreshBody();
   }
 
   /** Decorative, per-sector procedural scenery: faint background structures + a horizon prop row. */
@@ -435,7 +513,7 @@ export default class GameScene extends Phaser.Scene {
     for (let i = 0; i < bgCount; i++) {
       const g = this.add.graphics().setScrollFactor(0.6).setDepth(-8);
       const x = (i + 0.5) * (w / bgCount) + rand(-120, 120);
-      const y = rand(60, FLOOR_MIN_Y - 70);
+      const y = rand(60, GROUND_TOP_Y - 70);
       const color = palette[i % palette.length];
       const s = rand(0.8, 1.6);
       if (sector === 1) {
@@ -466,7 +544,7 @@ export default class GameScene extends Phaser.Scene {
     for (let i = 0; i < propCount; i++) {
       const g = this.add.graphics().setDepth(-3.5);
       const x = (i + 0.5) * (w / propCount) + rand(-40, 40);
-      const y = FLOOR_MIN_Y + rand(-2, 8);
+      const y = GROUND_TOP_Y + rand(-2, 8);
       const color = palette[(i + 1) % palette.length];
       const s = rand(0.7, 1.3);
       if (sector === 1) {
@@ -488,17 +566,21 @@ export default class GameScene extends Phaser.Scene {
 
   private _spawnStage(): void {
     const def = this.stageDef;
-    const rY = () => Phaser.Math.Between(FLOOR_MIN_Y + 40, FLOOR_MAX_Y - 15);
     const scale = DIFFICULTY_SCALE[this.difficulty];
 
-    // Atoms — branching choice nodes (see src/stages.ts for the per-stage ramp).
+    // Atoms — branching choice nodes (see src/stages.ts for the per-stage ramp). They float at a
+    // reachable height, or at an authored `y` when perched on a ledge.
     // A rare 1% roll turns a node into a Gold wildcard (pick any base atom, +2).
     def.atoms.forEach((a) => {
       const gold = Math.random() < 0.01;
-      const atom = new Atom(this, a.x, FLOOR_CENTER_Y - 80, gold ? [...BASE_ATOMS] : a.choices, gold);
+      const atom = new Atom(this, a.x, a.y ?? GROUND_TOP_Y - 36, gold ? [...BASE_ATOMS] : a.choices, gold);
       this.atomGroup.add(atom.sprite);
     });
 
+    // Ledge platforms to jump onto.
+    def.platforms?.forEach(([x, y, w]) => {
+      this._addPlatform(x, y, w);
+    });
     // Gaps first so an enemy overlapping a chasm can be skipped
     def.gaps.forEach(([a, b]) => {
       this._addGap(a, b);
@@ -513,20 +595,26 @@ export default class GameScene extends Phaser.Scene {
     def.crumble?.forEach(([a, b]) => {
       this._addCrumble(a, b);
     });
-    const inGap = (x: number) => this._gaps.some((g) => x > g.x1 - 30 && x < g.x2 + 30);
+    const inHole = (x: number) => this._holes.some((g) => x > g.x1 - 30 && x < g.x2 + 30);
 
     def.enemies.forEach((en) => {
-      if (inGap(en.x)) return;
-      const e = new Enemy(this, en.x, rY(), en.type);
-      e.hp = Math.round(e.hp * scale.enemyHp);
-      e.maxHp = Math.round(e.maxHp * scale.enemyHp);
-      e.speed *= scale.enemySpeed;
-      this.enemyGroup.add(e.sprite);
+      if (inHole(en.x)) return;
+      this._spawnEnemy(en.x, this._spawnYFor(en.type), en.type);
     });
+
+    // Noble-gas bonus pickup — a rare inert gem, usually perched high and/or guarded. It awards a
+    // score bonus every run; the first grab also records a permanent find (see _collectNoble).
+    if (def.noble) {
+      const n = def.noble;
+      const gem = new Atom(this, n.x, n.y, [], false, n.gas);
+      this.atomGroup.add(gem.sprite);
+      // Guard spawns right at the gem — a ground type drops onto its ledge, a flyer hovers there.
+      if (n.guard) this._spawnEnemy(n.x, n.y, n.guard);
+    }
 
     if (def.boss) {
       // Sector finale — the boss closes out the level
-      const boss = new Boss(this, def.boss.x, FLOOR_CENTER_Y, def.boss.variant);
+      const boss = new Boss(this, def.boss.x, GROUND_TOP_Y - 80, def.boss.variant);
       boss.hp = Math.round(boss.hp * scale.enemyHp);
       boss.maxHp = Math.round(boss.maxHp * scale.enemyHp);
       boss.speed *= scale.enemySpeed;
@@ -541,21 +629,39 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Spawn height by enemy type: flyers in the hover band, ground types just above the floor. */
+  private _spawnYFor(type: EnemyType): number {
+    return FLYER_TYPES.has(type) ? Phaser.Math.Between(FLYER_MIN_Y + 20, FLYER_MAX_Y - 60) : GROUND_TOP_Y - 30;
+  }
+
+  /** Create an enemy, apply the difficulty scale, wire its floor collider (ground types), and register it. */
+  private _spawnEnemy(x: number, y: number, type: EnemyType): Enemy {
+    const scale = DIFFICULTY_SCALE[this.difficulty];
+    const e = new Enemy(this, x, y, type);
+    e.hp = Math.round(e.hp * scale.enemyHp);
+    e.maxHp = Math.round(e.maxHp * scale.enemyHp);
+    e.speed *= scale.enemySpeed;
+    this.enemyGroup.add(e.sprite);
+    // Ground enemies stand on the floor/ledges; flyers hover (no collider).
+    if (!e.fly) this.physics.add.collider(e.sprite, this.platformGroup);
+    return e;
+  }
+
   // ── Exit portal (non-boss stage clear) ───────────────────────────────────────
 
   /** A membrane gateway at the stage end; it stays sealed until every germ is gone. */
   private _spawnExitPortal(x: number): void {
     const theme = SECTOR_THEMES[this.sector];
-    const cy = FLOOR_CENTER_Y - 6;
+    const cy = GROUND_TOP_Y - 56;
     const ring = this.add.graphics();
     const glow = this.add.graphics();
-    const portal = this.add.container(x, cy, [glow, ring]).setDepth(cy - 2);
+    const portal = this.add.container(x, cy, [glow, ring]).setDepth(DEPTH.ENEMY - 1);
     portal.setData('ring', ring);
     portal.setData('glow', glow);
     this._exitPortal = portal;
 
     this._exitHint = this.add
-      .text(x, FLOOR_MIN_Y - 24, 'SEALED — clear the area', {
+      .text(x, GROUND_TOP_Y - 140, 'SEALED — clear the area', {
         fontSize: '13px',
         color: theme.label,
         fontStyle: 'italic',
@@ -563,7 +669,7 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 3,
       })
       .setOrigin(0.5)
-      .setDepth(cy + 60)
+      .setDepth(DEPTH.PLAYER + 10)
       .setAlpha(0.85);
 
     this._drawExitPortal(false);
@@ -608,57 +714,61 @@ export default class GameScene extends Phaser.Scene {
 
   private _spawnTutorial(): void {
     // One element to collect
-    const atom = new Atom(this, this._tutAtomX, FLOOR_CENTER_Y - 80, ['hydrogen', 'oxygen']);
+    const atom = new Atom(this, this._tutAtomX, GROUND_TOP_Y - 36, ['hydrogen', 'oxygen']);
     this.atomGroup.add(atom.sprite);
     this._tutAtom = atom.sprite;
 
     // One weakened bad guy
-    const e = new Enemy(this, this._tutEnemyX, FLOOR_CENTER_Y, 'bacterium');
+    const e = new Enemy(this, this._tutEnemyX, GROUND_TOP_Y - 30, 'bacterium');
     e.hp = 18;
     e.maxHp = 18;
     e.speed *= 0.7;
     this.enemyGroup.add(e.sprite);
+    this.physics.add.collider(e.sprite, this.platformGroup);
     this._tutEnemy = e;
 
-    // One gap to jump over
+    // One gap to jump over (the floor collider already has the hole — see _buildWorld)
     this._addGap(this._gapX1, this._gapX2);
   }
 
-  /** Draw a chasm in the floor and register it as a no-walk gap (must be jumped). */
+  /** Paint a chasm down the floor and register the x-range as a hole (must be jumped). */
   private _addGap(x1: number, x2: number): void {
-    this._gaps.push({ x1, x2 });
-    const g = this.add.graphics().setDepth(-2);
+    this._holes.push({ x1, x2 });
+    this._drawChasm(x1, x2);
+  }
+
+  /** The visual for a hole in the floor: a dark pit from the surface down past the screen. */
+  private _drawChasm(x1: number, x2: number): void {
+    const g = this.add.graphics().setDepth(DEPTH.GAP);
     const w = x2 - x1;
+    const top = GROUND_TOP_Y - 8;
     g.fillStyle(0x05080a, 1);
-    g.fillRect(x1, FLOOR_MIN_Y - 8, w, GAME_HEIGHT - (FLOOR_MIN_Y - 8));
+    g.fillRect(x1, top, w, GAME_HEIGHT - top);
     g.lineStyle(2, 0x2a3a2a, 0.7);
-    g.lineBetween(x1, FLOOR_MIN_Y - 8, x1, GAME_HEIGHT);
-    g.lineBetween(x2, FLOOR_MIN_Y - 8, x2, GAME_HEIGHT);
+    g.lineBetween(x1, top, x1, GAME_HEIGHT);
+    g.lineBetween(x2, top, x2, GAME_HEIGHT);
     g.fillStyle(0x0d1a12, 0.6);
-    for (let yy = FLOOR_MIN_Y + 14; yy < GAME_HEIGHT; yy += 22) g.fillRect(x1 + 4, yy, w - 8, 3);
+    for (let yy = GROUND_TOP_Y + 14; yy < GAME_HEIGHT; yy += 22) g.fillRect(x1 + 4, yy, w - 8, 3);
   }
 
   /**
-   * Gaps must be jumped. Step into one on the ground — whether by walking in or landing short —
-   * and you plunge: take fall damage and get hauled back out to the nearer edge.
+   * Pits must be jumped. Walk off a ledge or miss a jump and the player simply falls under gravity;
+   * once they drop below the screen, deal fall damage and respawn them on the last safe ledge.
    */
-  private _updateGaps(): void {
-    if (this._gaps.length === 0) return;
+  private _updatePitFall(): void {
     const p = this.player;
-    if (!p.alive || p.airborne) return;
+    if (!p.alive) return;
     const px = p.sprite.x;
-    for (const gap of this._gaps) {
-      if (px > gap.x1 && px < gap.x2) {
-        // Haul them back to whichever lip is closer.
-        p.sprite.x = px - gap.x1 < gap.x2 - px ? gap.x1 : gap.x2;
-        // Feedback fires only when the hit actually lands (invincibility frames throttle repeats).
-        if (!p.isInvincible) {
-          p.takeDamage(GAP_FALL_DAMAGE);
-          SoundSystem.play(this.audioCtx, 'punch');
-          this.shake(260, 0.012);
-        }
-        break;
-      }
+    // Remember the last solid footing that isn't a hole, so respawns land somewhere stable.
+    if (p.sprite.body.onFloor() && !this._holes.some((h) => px > h.x1 - 10 && px < h.x2 + 10)) {
+      this._lastSafeX = px;
+    }
+    if (p.sprite.y > GAME_HEIGHT + 60) {
+      p.sprite.body.setVelocity(0, 0);
+      p.sprite.setPosition(this._lastSafeX, GROUND_TOP_Y - 60);
+      SoundSystem.play(this.audioCtx, 'punch');
+      this.shake(260, 0.012);
+      p.takeDamage(GAP_FALL_DAMAGE); // respects i-frames; lethal only if HP runs out
     }
   }
 
@@ -671,45 +781,42 @@ export default class GameScene extends Phaser.Scene {
     return { fill: 0xaa55dd, surface: 0xdd99ff };
   }
 
-  /** Draw a bubbling corrosive pool and register it as a damaging floor strip. The pool fills the
-   *  whole walkable depth band (FLOOR_MIN_Y → bottom of screen), matching the chasm footprint. */
+  /** Draw a bubbling corrosive pool sitting on the floor surface and register it as a damage strip. */
   private _addHazard(x1: number, x2: number): void {
     this._hazards.push({ x1, x2 });
     const { fill, surface } = this._hazardTheme();
     const w = x2 - x1;
-    const top = FLOOR_MIN_Y - 4;
-    const g = this.add.graphics().setDepth(-1.5);
-    g.fillStyle(fill, 0.4);
-    g.fillRect(x1, top, w, GAME_HEIGHT - top);
-    // A denser pool toward the front edge so it reads with depth, not as a flat mat.
-    g.fillStyle(fill, 0.22);
-    g.fillRect(x1, FLOOR_MAX_Y, w, GAME_HEIGHT - FLOOR_MAX_Y);
+    const top = GROUND_TOP_Y - 2;
+    const depth = 26;
+    const g = this.add.graphics().setDepth(DEPTH.GROUND + 2);
+    g.fillStyle(fill, 0.5);
+    g.fillRect(x1, top, w, depth);
     g.lineStyle(2.5, surface, 0.85);
     g.lineBetween(x1, top, x2, top);
-    // Caustic bubbles scattered across the band the player actually walks through.
-    g.fillStyle(surface, 0.5);
+    // Caustic bubbles across the pool surface.
+    g.fillStyle(surface, 0.55);
     const bubbles = Math.max(4, Math.round(w / 22));
     for (let i = 0; i < bubbles; i++) {
       g.fillCircle(
         Phaser.Math.Between(x1 + 6, x2 - 6),
-        Phaser.Math.Between(FLOOR_MIN_Y, FLOOR_MAX_Y + 18),
+        Phaser.Math.Between(top + 3, top + depth - 3),
         Phaser.Math.FloatBetween(2, 4.5),
       );
     }
   }
 
-  /** Step into acid/spikes on the ground and you sizzle; jumping over is safe. */
+  /** Stand in acid/spikes on the ground and you sizzle; jumping over is safe. */
   private _updateHazards(): void {
     if (this._hazards.length === 0) return;
     const p = this.player;
-    if (!p.alive || p.airborne) return;
+    if (!p.alive || !p.sprite.body.onFloor()) return;
     const px = p.sprite.x;
     for (const hz of this._hazards) {
       if (px > hz.x1 && px < hz.x2) {
         if (!p.isInvincible) {
           p.takeDamage(HAZARD_DAMAGE);
           SoundSystem.play(this.audioCtx, 'hazard');
-          this.spawnBurst(px, p.sprite.y + 16, this._hazardTheme().surface, {
+          this.spawnBurst(px, p.sprite.y + 22, this._hazardTheme().surface, {
             count: 6,
             speed: [40, 120],
             angle: [200, 340],
@@ -721,28 +828,28 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Draw a springy bounce-mat spanning the floor depth band. Drawn centered on FLOOR_CENTER_Y in
-   *  local coords so the squash tween (on bounce) compresses around its middle. */
+  /** Draw a springy bounce-spore dome on the floor. Centered on GROUND_TOP_Y so it squashes down. */
   private _addPad(x: number): void {
-    const halfH = (FLOOR_MAX_Y - FLOOR_MIN_Y) / 2 + 8; // covers the whole walk band
-    const g = this.add.graphics().setPosition(x, FLOOR_CENTER_Y).setDepth(-1.5);
+    const g = this.add
+      .graphics()
+      .setPosition(x, GROUND_TOP_Y)
+      .setDepth(DEPTH.GROUND + 2);
     g.fillStyle(0x1f7a4a, 0.45);
-    g.fillEllipse(0, halfH - 4, 60, 22); // base shadow at the front foot
+    g.fillEllipse(0, 4, 56, 14); // contact shadow on the ground
     g.fillStyle(0x39c97a, 1);
-    g.fillRoundedRect(-25, -halfH, 50, halfH * 2, 16); // springy body
+    g.fillEllipse(0, -12, 50, 36); // springy dome rising above the floor
     g.lineStyle(2, 0x9bffc8, 0.85);
-    g.strokeRoundedRect(-25, -halfH, 50, halfH * 2, 16);
-    // Coil-spring highlights down the mat
-    g.lineStyle(2, 0xbfffd8, 0.5);
-    for (let cy = -halfH + 16; cy < halfH - 12; cy += 22) g.lineBetween(-15, cy, 15, cy + 8);
+    g.strokeEllipse(0, -12, 50, 36);
+    g.fillStyle(0xbfffd8, 0.8);
+    g.fillEllipse(-10, -20, 16, 10); // highlight
     this._pads.push({ x, gfx: g });
   }
 
-  /** Touch a pad on the ground and you're launched into a high arc. */
+  /** Land on a pad and you're launched into a high arc. */
   private _updatePads(): void {
     if (this._pads.length === 0) return;
     const p = this.player;
-    if (!p.alive || p.airborne) return;
+    if (!p.alive || !p.sprite.body.onFloor()) return;
     const px = p.sprite.x;
     for (const pad of this._pads) {
       if (Math.abs(px - pad.x) < 30) {
@@ -750,43 +857,49 @@ export default class GameScene extends Phaser.Scene {
         SoundSystem.play(this.audioCtx, 'bounce');
         this.tweens.killTweensOf(pad.gfx);
         pad.gfx.setScale(1);
-        this.tweens.add({ targets: pad.gfx, scaleX: 1.35, scaleY: 0.82, duration: 90, yoyo: true, ease: 'Quad.Out' });
-        this.spawnBurst(pad.x, p.sprite.y, 0xbfffd8, { count: 8, speed: [90, 200], angle: [210, 330], lifespan: 340 });
+        this.tweens.add({ targets: pad.gfx, scaleX: 1.3, scaleY: 0.6, duration: 90, yoyo: true, ease: 'Quad.Out' });
+        this.spawnBurst(pad.x, GROUND_TOP_Y - 6, 0xbfffd8, {
+          count: 8,
+          speed: [90, 200],
+          angle: [210, 330],
+          lifespan: 340,
+        });
         break;
       }
     }
   }
 
-  /** Draw a cracked, loose floor tile that will give way once stood on. It covers the full depth
-   *  band so its footprint lines up with the chasm it leaves behind on collapse. */
+  /** A cracked, loose floor tile that plugs a hole until you stand on it, then collapses into a pit. */
   private _addCrumble(x1: number, x2: number): void {
+    this._holes.push({ x1, x2 }); // a hole in the base floor — the plug collider fills it until it falls
     const w = x2 - x1;
-    const top = FLOOR_MIN_Y - 6;
-    const g = this.add.graphics().setDepth(-1.8);
-    g.fillStyle(0x6a5436, 0.55);
-    g.fillRect(x1, top, w, GAME_HEIGHT - top);
-    g.lineStyle(1.5, 0x2a2014, 0.85);
-    g.strokeRect(x1 + 1, top, w - 2, GAME_HEIGHT - top);
-    // Crack lines down the tile, hinting it's unstable.
+    const top = GROUND_TOP_Y - 2;
+    const tileH = 22;
+    const g = this.add.graphics().setDepth(DEPTH.GROUND + 2);
+    g.fillStyle(0x6a5436, 0.95);
+    g.fillRect(x1, top, w, tileH);
+    g.lineStyle(1.5, 0x2a2014, 0.9);
+    g.strokeRect(x1 + 1, top, w - 2, tileH);
     g.lineStyle(1.2, 0x1a140c, 0.7);
     for (let cx = x1 + 16; cx < x2 - 6; cx += 24) {
-      g.lineBetween(cx, top, cx + Phaser.Math.Between(-8, 8), FLOOR_MAX_Y + 20);
+      g.lineBetween(cx, top, cx + Phaser.Math.Between(-6, 6), top + tileH);
     }
-    this._crumbles.push({ x1, x2, gfx: g, state: 'solid' });
+    const collider = this._addSolid(x1, x2); // plugs the hole until it collapses
+    this._crumbles.push({ x1, x2, gfx: g, collider, state: 'solid' });
   }
 
-  /** Stand on a crumbling tile to start its countdown; it then collapses into a real chasm. */
+  /** Stand on a crumbling tile to start its countdown; it then collapses into a real pit. */
   private _updateCrumbles(): void {
     if (this._crumbles.length === 0) return;
     const p = this.player;
-    if (!p.alive || p.airborne) return;
+    if (!p.alive || !p.sprite.body.onFloor()) return;
     const px = p.sprite.x;
     for (const c of this._crumbles) {
       if (c.state === 'solid' && px > c.x1 && px < c.x2) this._triggerCrumble(c);
     }
   }
 
-  private _triggerCrumble(c: { x1: number; x2: number; gfx: Phaser.GameObjects.Graphics; state: string }): void {
+  private _triggerCrumble(c: CrumbleTile): void {
     c.state = 'warning';
     // Rattle + flash to telegraph the imminent collapse.
     this.tweens.add({
@@ -800,15 +913,15 @@ export default class GameScene extends Phaser.Scene {
     this.time.delayedCall(CRUMBLE_DELAY_MS, () => this._collapseCrumble(c));
   }
 
-  private _collapseCrumble(c: { x1: number; x2: number; gfx: Phaser.GameObjects.Graphics; state: string }): void {
+  private _collapseCrumble(c: CrumbleTile): void {
     c.state = 'gone';
     this.tweens.killTweensOf(c.gfx);
     c.gfx.destroy();
-    // The tile drops away — from here on it's an ordinary chasm (haul-out + fall damage).
-    this._addGap(c.x1, c.x2);
+    c.collider?.destroy(); // remove the plug — the hole is now open (already in _holes)
+    this._drawChasm(c.x1, c.x2);
     SoundSystem.play(this.audioCtx, 'hazard');
     this.shake(200, 0.008);
-    this.spawnBurst((c.x1 + c.x2) / 2, FLOOR_CENTER_Y, 0x8a6a3a, {
+    this.spawnBurst((c.x1 + c.x2) / 2, GROUND_TOP_Y + 20, 0x8a6a3a, {
       count: 14,
       speed: [40, 170],
       angle: [60, 120],
@@ -853,7 +966,7 @@ export default class GameScene extends Phaser.Scene {
 
   private _createMeg(): void {
     const px = this.player.sprite.x;
-    this._meg = this.add.sprite(px - 70, FLOOR_MIN_Y - 46, 'meg').setDepth(305);
+    this._meg = this.add.sprite(px - 70, GROUND_TOP_Y - 46, 'meg').setDepth(305);
     this.tweens.add({
       targets: this._meg,
       scaleX: 1.06,
@@ -1037,7 +1150,7 @@ export default class GameScene extends Phaser.Scene {
     // M.E.G. hovers just behind the player, bobbing
     if (this._meg) {
       const tx = px - 74;
-      const ty = FLOOR_MIN_Y - 48 + Math.sin(time * 0.004) * 8;
+      const ty = GROUND_TOP_Y - 48 + Math.sin(time * 0.004) * 8;
       this._meg.x += (tx - this._meg.x) * 0.08;
       this._meg.y += (ty - this._meg.y) * 0.08;
       this._meg.setDepth(p.sprite.depth + 6);
@@ -1146,7 +1259,7 @@ export default class GameScene extends Phaser.Scene {
       if (p.active && (p.x < 0 || p.x > this.worldWidth || p.y < 0 || p.y > GAME_HEIGHT)) p.destroy();
     });
 
-    this._updateGaps();
+    this._updatePitFall();
     this._updateHazards();
     this._updatePads();
     this._updateCrumbles();
@@ -1455,13 +1568,13 @@ export default class GameScene extends Phaser.Scene {
   // Water Lv3 "Tidal Force" — a towering curling wave that sweeps the screen
   spawnTidalWave(x: number, _y: number, dir: number): void {
     const d = dir;
-    const baseY = FLOOR_MAX_Y + 26; // wave foot, just below the walkable band
-    const crestY = FLOOR_MIN_Y - 150; // wave peak, towering above
+    const baseY = GROUND_TOP_Y + 26; // wave foot, just below the floor surface
+    const crestY = GROUND_TOP_Y - 260; // wave peak, towering above
     const STEPS = 80;
 
-    // Behind the entity band (player/enemy depth = their y ≥ FLOOR_MIN_Y) so the wave passes behind the caster
-    const body = this.add.graphics().setDepth(FLOOR_MIN_Y - 20);
-    const foam = this.add.graphics().setDepth(FLOOR_MIN_Y - 19);
+    // Just behind the player layer so the wave passes behind the caster.
+    const body = this.add.graphics().setDepth(DEPTH.PLAYER - 6);
+    const foam = this.add.graphics().setDepth(DEPTH.PLAYER - 5);
     let waveX = x - d * 70;
     let step = 0;
 
@@ -1470,7 +1583,7 @@ export default class GameScene extends Phaser.Scene {
     const wash = this.add
       .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x2299ee, 0)
       .setScrollFactor(0)
-      .setDepth(FLOOR_MAX_Y + 40);
+      .setDepth(95);
     this.tweens.add({
       targets: wash,
       alpha: 0.18,
@@ -1510,7 +1623,7 @@ export default class GameScene extends Phaser.Scene {
         // Wet trail dragging behind the wave along the floor
         const trailBack = waveX - d * 240;
         body.fillStyle(0x9fe8ff, 0.12 * fade);
-        body.fillRect(Math.min(waveX, trailBack), FLOOR_MAX_Y + 8, 240, 14);
+        body.fillRect(Math.min(waveX, trailBack), GROUND_TOP_Y + 8, 240, 14);
 
         // Depth layers: dark back → mid → bright front, offset for parallax volume
         const layers = [
@@ -1580,7 +1693,13 @@ export default class GameScene extends Phaser.Scene {
     atom.collected = true;
 
     const { x, y } = atomSprite;
+    atom.destroyGlow();
     atomSprite.destroy();
+
+    if (atom.noble) {
+      this._collectNoble(atom.noble, x, y);
+      return;
+    }
 
     if (atom.gold) {
       // Gold wildcard — a flashier pickup that grants +2 to a chosen base atom
@@ -1599,6 +1718,49 @@ export default class GameScene extends Phaser.Scene {
 
     // Every atom is now a choice node — pick a base atom to grow the molecular tree
     this._showElementChoice(atom.choices ?? ['hydrogen', 'oxygen']);
+  }
+
+  /** Grab a noble gas: a big score bonus, a flashy burst, a permanent find, and a M.E.G. shout-out. */
+  private _collectNoble(gas: NobleGasId, x: number, y: number): void {
+    const def = NOBLE_GAS_BY_ID[gas];
+    this.score += NOBLE_GAS_BONUS;
+    this.events.emit('score-update', this.score);
+    const firstFind = SaveSystem.markNobleFound(gas);
+
+    // Celebratory FX in the gas's color.
+    this.spawnHitFlash(x, y, def.color, 70);
+    this.spawnHitFlash(x, y, 0xffffff, 36);
+    this.spawnNova(x, y, def.color, 150, { rings: 3, life: 26, lineWidth: 3, fill: true });
+    this.spawnBurst(x, y, def.color, { count: 26, speed: [120, 320], lifespan: 650, scale: 1.3 });
+    this.shake(220, 0.008);
+    SoundSystem.play(this.audioCtx, 'element_upgrade');
+
+    // Floating "+bonus" label.
+    const label = this.add
+      .text(x, y - 18, `${def.name} +${NOBLE_GAS_BONUS.toLocaleString()}`, {
+        fontSize: '20px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(120);
+    this.tweens.add({
+      targets: label,
+      y: y - 70,
+      alpha: 0,
+      duration: 1100,
+      ease: 'Quad.Out',
+      onComplete: () => label.destroy(),
+    });
+
+    const found = SaveSystem.getNoblesFound().length;
+    this._megQuip(
+      firstFind
+        ? `Incredible — pure ${def.name} (${def.symbol})! A noble gas, inert but priceless. ${found}/${NOBLE_GAS_COUNT} found!`
+        : `${def.name} (${def.symbol}) secured again — +${NOBLE_GAS_BONUS.toLocaleString()} to the tally!`,
+    );
   }
 
   private _showElementChoice(choices: BaseAtom[], opts: { gold?: boolean; grant?: number } = {}): void {
@@ -1715,7 +1877,7 @@ export default class GameScene extends Phaser.Scene {
         .text(
           textX,
           h / 2 + 6,
-          `Reached Stage ${this.currentStage} of ${STAGE_COUNT}\n${sum.atoms}\n${sum.molecules}\n${placed}`.trimEnd(),
+          `Reached Stage ${this.currentStage} of ${STAGE_COUNT}\n${sum.atoms}\n${sum.molecules}\n${sum.nobles}\n${placed}`.trimEnd(),
           {
             fontSize: '14px',
             color: '#cdd8e6',
@@ -1913,15 +2075,17 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /** "H2 O1 C0 N0" + assembled molecule names — used by the clear/death summaries. */
-  private _runSummaryLines(): { atoms: string; molecules: string } {
+  private _runSummaryLines(): { atoms: string; molecules: string; nobles: string } {
     const es = this.player.elementSystem;
     const c = es.getCounts();
     const attacks = es.getAvailableAttacks();
+    const found = SaveSystem.getNoblesFound();
     return {
       atoms: `Atoms:  H${c.hydrogen}  O${c.oxygen}  C${c.carbon}  N${c.nitrogen}`,
       molecules: attacks.length
         ? `Built:  ${attacks.map((a) => ELEMENT_NAMES[a.id]).join(', ')}`
         : 'Built:  nothing this stage',
+      nobles: `Noble gases:  ${NOBLE_GASES.map((n) => (found.includes(n.id) ? n.symbol : '·')).join(' ')}  (${found.length}/${NOBLE_GAS_COUNT})`,
     };
   }
 
@@ -1977,7 +2141,7 @@ export default class GameScene extends Phaser.Scene {
       const sum = this._runSummaryLines();
       const placed = rank >= 0 ? `Leaderboard:  #${rank + 1} on ${this.difficulty.toUpperCase()}` : '';
       this.add
-        .text(w / 2, titleY + 150, `${sum.atoms}\n${sum.molecules}\n${placed}`.trimEnd(), {
+        .text(w / 2, titleY + 150, `${sum.atoms}\n${sum.molecules}\n${sum.nobles}\n${placed}`.trimEnd(), {
           fontSize: '15px',
           color: '#bfe6ff',
           fontFamily: 'monospace',

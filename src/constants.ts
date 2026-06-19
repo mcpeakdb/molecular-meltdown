@@ -40,10 +40,25 @@ export const SECTORS: Record<SectorId, { name: string }> = {
   3: { name: 'MACCONKEY' },
 };
 
-// Walkable band — characters move freely within this Y range
-export const FLOOR_MIN_Y = 310;
-export const FLOOR_MAX_Y = 460;
-export const FLOOR_CENTER_Y = 400;
+// ── 2D platformer geometry ───────────────────────────────────────────────────
+// The world is a true side view: GROUND_TOP_Y is the solid floor surface characters stand on
+// (with real holes for gaps), and Y is real height under arcade gravity. Flying enemies hover
+// within FLYER_MIN_Y..FLYER_MAX_Y instead of resting on the ground.
+export const GROUND_TOP_Y = 470;
+export const GRAVITY = 1800; // px/s² applied to the player and ground enemies
+export const FLYER_MIN_Y = 140;
+export const FLYER_MAX_Y = 430;
+
+// Fixed render layers (side view sorts by role, not by Y as the old 2.5D depth model did).
+export const DEPTH = {
+  BG: -10,
+  GROUND: -5,
+  PLATFORM: -3,
+  GAP: -2,
+  ENEMY: 40,
+  BOSS: 45,
+  PLAYER: 50,
+} as const;
 
 export const ELEMENTS = {
   NONE: 'none',
@@ -100,15 +115,14 @@ export const PLAYER_ATTACK_COOLDOWN = 400; // ms
 export const PLAYER_SPECIAL_COOLDOWN = 1200; // ms
 export const PLAYER_INVINCIBILITY_MS = 800;
 
-// Jump — manual vertical integration (jumpOffset lifts the sprite visually above its ground Y)
-export const PLAYER_JUMP_VELOCITY = 540; // px/s initial upward velocity (peak ≈ 90px)
-export const PLAYER_DOUBLE_JUMP_VELOCITY = 470; // px/s for the airborne second jump
-export const PLAYER_JUMP_GRAVITY = 1600; // px/s²
+// Jump — real arcade physics (body velocity + GRAVITY). Peak height ≈ v²/(2·GRAVITY).
+export const PLAYER_JUMP_VELOCITY = 720; // px/s initial upward velocity (peak ≈ 144px)
+export const PLAYER_DOUBLE_JUMP_VELOCITY = 760; // px/s — a punchy airborne second jump (re-boosts higher)
 export const PLAYER_MAX_JUMPS = 2;
-export const GAP_FALL_DAMAGE = 15; // taken when the player lands inside a chasm instead of clearing it
+export const GAP_FALL_DAMAGE = 15; // taken when the player falls into a pit (then respawns on the last ledge)
 
 // Platforming hazards (added throughout the stages — see src/stages.ts)
-export const PLAYER_BOUNCE_VELOCITY = 840; // bounce-pad launch velocity (peak ≈ 220px)
+export const PLAYER_BOUNCE_VELOCITY = 1150; // bounce-pad launch velocity (peak ≈ 367px)
 export const HAZARD_DAMAGE = 10; // per invincibility-throttled tick while standing in acid/spikes
 export const CRUMBLE_DELAY_MS = 620; // grace period after stepping on a crumbling tile before it drops
 
@@ -118,6 +132,30 @@ export const MAX_ELEMENT_LEVEL = 3;
 // The four collectable base atoms.
 export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen';
 export const BASE_ATOMS: BaseAtom[] = ['hydrogen', 'oxygen', 'carbon', 'nitrogen'];
+
+// ── Noble gases ─────────────────────────────────────────────────────────────
+// Inert collectibles — one of each exists, tucked away on hard-to-reach platforms or guarded by a
+// strong germ. They don't build compounds; grabbing one is a big score bonus and a permanent find.
+export type NobleGasId = 'helium' | 'neon' | 'argon' | 'krypton' | 'xenon' | 'radon';
+export interface NobleGasDef {
+  id: NobleGasId;
+  name: string;
+  symbol: string;
+  color: number;
+}
+export const NOBLE_GASES: NobleGasDef[] = [
+  { id: 'helium', name: 'Helium', symbol: 'He', color: 0xfff0a0 },
+  { id: 'neon', name: 'Neon', symbol: 'Ne', color: 0xff5db1 },
+  { id: 'argon', name: 'Argon', symbol: 'Ar', color: 0x9b7bff },
+  { id: 'krypton', name: 'Krypton', symbol: 'Kr', color: 0x5be0d0 },
+  { id: 'xenon', name: 'Xenon', symbol: 'Xe', color: 0x6aa8ff },
+  { id: 'radon', name: 'Radon', symbol: 'Rn', color: 0x66ff77 },
+];
+export const NOBLE_GAS_BY_ID: Record<NobleGasId, NobleGasDef> = Object.fromEntries(
+  NOBLE_GASES.map((n) => [n.id, n]),
+) as Record<NobleGasId, NobleGasDef>;
+export const NOBLE_GAS_COUNT = NOBLE_GASES.length;
+export const NOBLE_GAS_BONUS = 2500; // score awarded for collecting a noble gas
 
 // Every attack maps 1:1 to an element/compound. NONE has no attack; GOLD is a wildcard
 // pickup (it grants atoms rather than firing), so it is excluded too.

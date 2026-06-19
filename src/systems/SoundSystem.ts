@@ -7,7 +7,8 @@ export type SoundKey =
   | 'boss_roar'
   | 'player_death'
   | 'bounce'
-  | 'hazard';
+  | 'hazard'
+  | 'reaction';
 
 export default class SoundSystem {
   // One master gain per AudioContext; every note routes through it so volume/mute apply globally.
@@ -50,6 +51,9 @@ export default class SoundSystem {
         break;
       case 'hazard':
         SoundSystem._hazard(ctx, now);
+        break;
+      case 'reaction':
+        SoundSystem._reaction(ctx, now);
         break;
     }
   }
@@ -114,5 +118,18 @@ export default class SoundSystem {
   private static _hazard(ctx: AudioContext, now: number): void {
     SoundSystem._note(ctx, 'sawtooth', 320, 90, now, 0.12, 0.22);
     SoundSystem._note(ctx, 'square', 160, 60, now + 0.02, 0.1, 0.12);
+  }
+
+  // Bubbling fizz that builds into an effervescent rising swell — the test-tube reaction
+  // when a stage is chosen. A stream of quick upward "blip" sines (the bubbles) layered over
+  // a rising sawtooth swell (the liquid climbing the glass) and capped with a bright pop.
+  private static _reaction(ctx: AudioContext, now: number): void {
+    for (let i = 0; i < 9; i++) {
+      const t = now + i * 0.07;
+      const base = 300 + i * 55;
+      SoundSystem._note(ctx, 'sine', base, base * 1.7, t, 0.09, 0.14);
+    }
+    SoundSystem._note(ctx, 'sawtooth', 120, 520, now, 0.7, 0.16);
+    SoundSystem._note(ctx, 'triangle', 660, 1320, now + 0.62, 0.22, 0.26); // eruption pop
   }
 }
