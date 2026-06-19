@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import MusicSystem from '../systems/MusicSystem';
 import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
@@ -31,6 +32,10 @@ export default class TitleScene extends Phaser.Scene {
     this.itemTexts = [];
     this.electrons = [];
     this.decor = [];
+
+    // Menus share the calm title theme; it persists across menu scenes (only switching when a
+    // stage starts or the player returns here from a run).
+    MusicSystem.setTrack((this.sound as Phaser.Sound.WebAudioSoundManager).context, 'title');
 
     this.add
       .rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x05090f)

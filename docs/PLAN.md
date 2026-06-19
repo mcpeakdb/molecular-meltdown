@@ -67,6 +67,8 @@ See [PLAN_PHASE6.md](PLAN_PHASE6.md) and [tasks/PHASE6_TASKS.md](tasks/PHASE6_TA
 ### Added in Phase 1
 
 - Procedural sound effects (Web Audio API) — punch, collect, upgrade fanfare, boss roar, death
+- Procedural background music (`MusicSystem`, Web Audio look-ahead sequencer) — title/menu theme, one
+  track per sector, and a boss theme; toggled via the Music setting (v0.25.0)
 - Particle bursts on atom collection (element-colored)
 - Player walk animation (3-frame procedural cycle)
 - Enemy & boss hit stagger (freeze + scale squish + delayed knockback)
@@ -74,6 +76,7 @@ See [PLAN_PHASE6.md](PLAN_PHASE6.md) and [tasks/PHASE6_TASKS.md](tasks/PHASE6_TA
 - Stage intro letterbox sequence
 - Death screen with score display and retry
 - Score tracker (per-enemy kill values, live HUD display)
+- Per-stage germ counter (killed / total / remaining, shown in HUD; v0.24.2)
 - **Player jumping** (Space — arc with ground shadow, natural invulnerability while airborne)
 
 ### Added in Phase 2

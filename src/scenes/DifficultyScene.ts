@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { type Difficulty, GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import MusicSystem from '../systems/MusicSystem';
 import SoundSystem from '../systems/SoundSystem';
 import { attachTap } from '../systems/touchMenu';
 
@@ -69,6 +70,9 @@ export default class DifficultyScene extends Phaser.Scene {
 
   create(): void {
     const cx = GAME_WIDTH / 2;
+
+    // Restore the menu theme (e.g. when returning here from a run via the pause menu).
+    MusicSystem.setTrack((this.sound as Phaser.Sound.WebAudioSoundManager).context, 'title');
 
     // The scene instance is reused across restarts — clear stale refs from a prior visit.
     this.bodies = [];

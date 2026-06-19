@@ -5,9 +5,9 @@ import SoundSystem from '../systems/SoundSystem';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
-const ROWS = ['Volume', 'Mute', 'Sound FX', 'Screen Shake', 'Touch Controls', 'Fullscreen', 'BACK'] as const;
-const ROW_TOP = 158;
-const ROW_DY = 40; // tightened so all rows fit between the panel rules
+const ROWS = ['Volume', 'Mute', 'Sound FX', 'Music', 'Screen Shake', 'Touch Controls', 'Fullscreen', 'BACK'] as const;
+const ROW_TOP = 148;
+const ROW_DY = 36; // tightened so all 8 rows fit between the panel rules (110 / 440)
 
 export default class SettingsScene extends Phaser.Scene {
   private cursor = 0;
@@ -130,12 +130,15 @@ export default class SettingsScene extends Phaser.Scene {
         if (Settings.get().sfx) this._previewBlip();
         break;
       case 3:
-        Settings.set({ screenShake: dir > 0 });
+        Settings.set({ music: dir > 0 });
         break;
       case 4:
-        Settings.cycleTouchControls(dir);
+        Settings.set({ screenShake: dir > 0 });
         break;
       case 5:
+        Settings.cycleTouchControls(dir);
+        break;
+      case 6:
         Settings.set({ fullscreen: dir > 0 });
         this._applyFullscreen(dir > 0);
         break;
@@ -164,12 +167,15 @@ export default class SettingsScene extends Phaser.Scene {
         if (Settings.get().sfx) this._previewBlip();
         break;
       case 3:
-        Settings.set({ screenShake: !s.screenShake });
+        Settings.set({ music: !s.music });
         break;
       case 4:
+        Settings.set({ screenShake: !s.screenShake });
+        break;
+      case 5:
         Settings.cycleTouchControls(1);
         break;
-      case 5: {
+      case 6: {
         const fs = !s.fullscreen;
         Settings.set({ fullscreen: fs });
         this._applyFullscreen(fs);
@@ -210,6 +216,7 @@ export default class SettingsScene extends Phaser.Scene {
       `Volume         [${'█'.repeat(bars)}${'░'.repeat(10 - bars)}] ${Math.round(s.volume * 100)}%`,
       `Mute           ${onOff(s.muted)}`,
       `Sound FX       ${onOff(s.sfx)}`,
+      `Music          ${onOff(s.music)}`,
       `Screen Shake   ${onOff(s.screenShake)}`,
       `Touch Controls ${touchLabel}`,
       `Fullscreen     ${onOff(s.fullscreen)}`,

@@ -55,8 +55,9 @@ src/
   systems/
     ElementSystem.ts       # Atom counts → available attacks, level tracking, weapon-slot bindings
     SoundSystem.ts         # Procedural Web Audio SFX (routed through a settings-aware master gain)
+    MusicSystem.ts         # Procedural Web Audio music — look-ahead step sequencer, 5 data-driven tracks
     SaveSystem.ts          # localStorage meta: unlocks, best scores, leaderboard (per difficulty)
-    Settings.ts            # localStorage global prefs: volume, mute, sfx, screenShake, tutorialDone
+    Settings.ts            # localStorage global prefs: volume, mute, sfx, music, screenShake, tutorialDone
 docs/
   PLAN.md                  # Living design doc — phases, architecture notes
   PATCH_NOTES.md           # Version history (must stay current)

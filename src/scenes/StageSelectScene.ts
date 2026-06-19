@@ -10,6 +10,7 @@ import {
   sectorOf,
 } from '../constants';
 import { STAGES } from '../stages';
+import MusicSystem from '../systems/MusicSystem';
 import { passcodeFor, resolvePasscode } from '../systems/Passcode';
 import SaveSystem from '../systems/SaveSystem';
 import SoundSystem from '../systems/SoundSystem';
@@ -72,6 +73,9 @@ export default class StageSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Restore the menu theme (e.g. when returning here from a run via the pause menu).
+    MusicSystem.setTrack((this.sound as Phaser.Sound.WebAudioSoundManager).context, 'title');
+
     this.difficulty = (this.registry.get('difficulty') as Difficulty | undefined) ?? 'normal';
     this.unlocked = SaveSystem.getUnlockedStage(this.difficulty);
     this.tubes = [];

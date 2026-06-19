@@ -60,6 +60,7 @@ export default class HUDScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private comboSub!: Phaser.GameObjects.Text;
+  private enemiesText!: Phaser.GameObjects.Text;
 
   /** On-screen touch controls, polled by GameScene each frame. Null when touch controls are off. */
   touch: TouchControls | null = null;
@@ -180,6 +181,20 @@ export default class HUDScene extends Phaser.Scene {
       });
     }
 
+    // ── ENEMY COUNTER ──────────────────────────────────────────────────────────
+    // Centred just below the attack bar — germs cleared vs. remaining this stage.
+    this.enemiesText = this.add
+      .text(GAME_WIDTH / 2, barY + CHIP_H / 2 + 8, '', {
+        fontSize: '13px',
+        color: '#aaccaa',
+        fontFamily: MONO,
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setOrigin(0.5, 0)
+      .setVisible(false);
+
     // ── SCORE ────────────────────────────────────────────────────────────────
     this.add
       .text(GAME_WIDTH - PAD, PAD, 'SCORE', { fontSize: '12px', color: '#4a7a4a', fontFamily: MONO })
@@ -211,6 +226,7 @@ export default class HUDScene extends Phaser.Scene {
     gameScene.events.on('hud-update', this._onUpdate, this);
     gameScene.events.on('arsenal-update', this._onArsenal, this);
     gameScene.events.on('score-update', (score: number) => this.scoreText.setText(score.toLocaleString()), this);
+    gameScene.events.on('enemies-update', this._onEnemies, this);
     gameScene.events.on(
       'combo-update',
       (count: number, mult: number) => {
@@ -265,7 +281,18 @@ export default class HUDScene extends Phaser.Scene {
    *  death screen) reads cleanly. The HUD is relaunched fresh on the next stage, so the chips return. */
   hideArsenal(): void {
     for (const chip of this.chips) chip.container.setVisible(false);
+    this.enemiesText.setVisible(false);
     this.touch?.setEnabled(false);
+  }
+
+  private _onEnemies({ killed, total }: { killed: number; total: number }): void {
+    if (total <= 0) {
+      this.enemiesText.setVisible(false);
+      return;
+    }
+    const left = total - killed;
+    this.enemiesText.setVisible(true).setText(`GERMS  ${killed}/${total} KILLED  ·  ${left} LEFT`);
+    this.enemiesText.setColor(left === 0 ? '#88ff88' : '#aaccaa');
   }
 
   private _onUpdate({ hp }: { hp: number }): void {

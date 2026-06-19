@@ -11,6 +11,7 @@ export interface GameSettings {
   volume: number; // 0..1 master volume
   muted: boolean;
   sfx: boolean; // sound effects enabled
+  music: boolean; // background music enabled
   screenShake: boolean;
   touchControls: TouchMode; // on-screen joystick + buttons for mobile
   fullscreen: boolean; // auto-enter fullscreen on touch devices (hides the mobile URL bar)
@@ -24,6 +25,7 @@ const DEFAULTS: GameSettings = {
   volume: 0.8,
   muted: false,
   sfx: true,
+  music: true,
   screenShake: true,
   touchControls: 'auto',
   fullscreen: false,
@@ -80,6 +82,13 @@ export default class Settings {
     return Math.max(0, Math.min(1, s.volume));
   }
 
+  /** Volume applied to background music: 0 when muted or music is off, otherwise tucked under SFX. */
+  static musicVolume(): number {
+    const s = Settings.get();
+    if (s.muted || !s.music) return 0;
+    return Math.max(0, Math.min(1, s.volume)) * 0.5;
+  }
+
   private static _load(): GameSettings {
     try {
       const raw = localStorage.getItem(KEY);
@@ -89,6 +98,7 @@ export default class Settings {
         volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : DEFAULTS.volume,
         muted: parsed.muted ?? DEFAULTS.muted,
         sfx: parsed.sfx ?? DEFAULTS.sfx,
+        music: parsed.music ?? DEFAULTS.music,
         screenShake: parsed.screenShake ?? DEFAULTS.screenShake,
         touchControls: TOUCH_MODES.includes(parsed.touchControls as TouchMode)
           ? (parsed.touchControls as TouchMode)

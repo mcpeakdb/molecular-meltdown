@@ -35,6 +35,7 @@ import Boss from '../entities/Boss';
 import Enemy, { type EnemyType } from '../entities/Enemy';
 import Player from '../entities/Player';
 import { STAGES, type StageDef } from '../stages';
+import MusicSystem, { type TrackId } from '../systems/MusicSystem';
 import SaveSystem, { type RunRecord } from '../systems/SaveSystem';
 import Settings from '../systems/Settings';
 import SoundSystem from '../systems/SoundSystem';
@@ -124,6 +125,10 @@ export default class GameScene extends Phaser.Scene {
   private stageDef!: StageDef;
   private worldWidth = WORLD_WIDTH;
 
+  // ── Enemy counter (germs cleared this stage; the boss counts as one germ) ──
+  private _enemyTotal = 0;
+  private _enemyKilled = 0;
+
   // ── Scoring (score is the cumulative run total, carried between stages) ──
   private _stageStartMs = 0;
   private _stageBaseScore = 0; // run score at the moment this stage began
@@ -134,6 +139,11 @@ export default class GameScene extends Phaser.Scene {
   /** Biome/theme group this stage belongs to (1–3). */
   get sector(): SectorId {
     return sectorOf(this.currentStage);
+  }
+
+  /** Background track for the current stage — one theme per sector. */
+  private _stageTrack(): TrackId {
+    return `sector${this.sector}` as TrackId;
   }
 
   // ── Exit portal (non-boss stages clear by reaching it once enemies are down) ──
@@ -251,6 +261,9 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.worldWidth, GAME_HEIGHT + 300);
     this.cameras.main.setBounds(0, 0, this.worldWidth, GAME_HEIGHT);
     this.audioCtx = (this.sound as Phaser.Sound.WebAudioSoundManager).context;
+    // Stage music keyed by sector (the boss finale swaps to the boss theme on activation, below).
+    // Idempotent, so advancing stages within a sector keeps the same loop running unbroken.
+    MusicSystem.setTrack(this.audioCtx, this._stageTrack());
 
     this.platformGroup = this.physics.add.staticGroup();
     this._buildWorld();
@@ -311,6 +324,7 @@ export default class GameScene extends Phaser.Scene {
         this._stageStartMs = this.time.now;
         // Sync the HUD to the carried run score (it defaults to 0 until an event arrives).
         this.events.emit('score-update', this.score);
+        this._emitEnemyCount();
       });
     }
   }
@@ -620,13 +634,29 @@ export default class GameScene extends Phaser.Scene {
       boss.speed *= scale.enemySpeed;
       this.boss = boss;
       this.enemyGroup.add(boss.sprite);
+      // Joining the arcade group re-applies the group's default body settings, which turns gravity
+      // back on. A dormant boss doesn't reposition itself each frame (flyers mask this in their
+      // hover AI), so without this it would fall through the floor and never come within activation
+      // range of the player. Re-assert the boss's "hovers, never falls" intent after the add.
+      boss.sprite.body.setAllowGravity(false);
       this._bossArenaHandler = (anchorX: number) => this._lockBossArena(anchorX);
       this.events.once('boss-activated', this._bossArenaHandler);
+      // Cut to the boss theme the moment the fight begins.
+      this.events.once('boss-activated', () => MusicSystem.setTrack(this.audioCtx, 'boss'));
     } else if (def.exitX !== undefined) {
       // Regular stage — clear it by reaching the exit once the area is cleared
       this._exitX = def.exitX;
       this._spawnExitPortal(def.exitX);
     }
+
+    // Snapshot how many germs this stage holds (boss included) for the HUD counter.
+    this._enemyTotal = this.enemyGroup.countActive(true);
+    this._enemyKilled = 0;
+  }
+
+  /** Push the current germ tally (killed / total) to the HUD. */
+  private _emitEnemyCount(): void {
+    this.events.emit('enemies-update', { killed: this._enemyKilled, total: this._enemyTotal });
   }
 
   /** Spawn height by enemy type: flyers in the hover band, ground types just above the floor. */
@@ -1820,6 +1850,8 @@ export default class GameScene extends Phaser.Scene {
     };
     this.score += enemy.isBoss ? 1000 : (SCORES[(enemy as Enemy).type] ?? 100);
     this.events.emit('score-update', this.score);
+    this._enemyKilled = Math.min(this._enemyKilled + 1, this._enemyTotal);
+    this._emitEnemyCount();
   }
 
   onPlayerDeath(): void {
@@ -1828,6 +1860,8 @@ export default class GameScene extends Phaser.Scene {
 
   private _showDeathScreen(): void {
     this.isPaused = true;
+    // Cut the music so the death toll lands; it restarts on retry / when the next scene loads.
+    MusicSystem.stop();
     // Clear the weapon chips + on-screen controls so the death overlay reads cleanly.
     (this.scene.get('HUDScene') as HUDScene | undefined)?.hideArsenal();
     const w = GAME_WIDTH,
@@ -2014,6 +2048,7 @@ export default class GameScene extends Phaser.Scene {
   private _completeStage(): void {
     if (this.stageCleared) return;
     this.stageCleared = true;
+    this.player.freeze(); // hold the player still through the clear banner until the next stage
     this._finalizeStageScore();
     const theme = SECTOR_THEMES[this.sector];
     this.cameras.main.flash(500, theme.flashR, theme.flashG, theme.flashB);
@@ -2037,6 +2072,9 @@ export default class GameScene extends Phaser.Scene {
   /** Called by the Boss on a finale stage once it dies. */
   onBossDefeated(): void {
     this.stageCleared = true;
+    this.player.freeze(); // hold the player still through the victory banner until the next stage
+    this._enemyKilled = this._enemyTotal;
+    this._emitEnemyCount();
     this._finalizeStageScore();
     const theme = SECTOR_THEMES[this.sector];
     this.cameras.main.flash(600, theme.flashR, theme.flashG, theme.flashB);

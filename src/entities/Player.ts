@@ -31,6 +31,8 @@ export default class Player {
   scene: GameScene;
   hp: number = PLAYER_MAX_HP;
   alive: boolean = true;
+  /** Halted in place until the next stage loads (death / stage clear / boss defeat). */
+  frozen: boolean = false;
   facingRight: boolean = true;
   elementSystem: ElementSystem = new ElementSystem();
   sprite: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -101,7 +103,7 @@ export default class Player {
   }
 
   update(time: number, delta: number, keys: InputKeys): void {
-    if (!this.alive) return;
+    if (!this.alive || this.frozen) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.invincibleTimer = Math.max(0, this.invincibleTimer - delta);
@@ -953,16 +955,31 @@ export default class Player {
     if (this.hp === 0) this._die();
   }
 
+  /**
+   * Halt the player in place until the next stage loads — no input, no slide, no fall. Phaser's
+   * physics step keeps running even after GameScene.update() early-returns on stage clear / death,
+   * so zeroing velocity isn't enough on its own; we also kill gravity so an airborne player doesn't
+   * drift down. A fresh Player is built when the next stage starts, so this never needs undoing.
+   */
+  freeze(): void {
+    this.frozen = true;
+    this._endRoll();
+    const body = this.sprite.body;
+    body.setVelocity(0, 0);
+    body.setAcceleration(0, 0);
+    body.setAllowGravity(false);
+    if (this.alive) this.sprite.play('player_idle', true);
+  }
+
   private _die(): void {
     this.alive = false;
-    this._endRoll();
+    this.freeze(); // stop dead in place — no post-death slide or fall
     this.sprite.setScale(1, 1);
     this.sprite.setRotation(0);
     this._jumpShadow.clear();
     this._armsGraphic.clear();
     SoundSystem.play(this.scene.audioCtx, 'player_death');
     this.sprite.setTint(0x888888);
-    this.sprite.body.setVelocity(0, 0);
     // The bawling tantrum plays out on the death screen, not in the world (see GameScene._showDeathScreen)
     this.scene.time.delayedCall(900, () => this.scene.onPlayerDeath());
   }

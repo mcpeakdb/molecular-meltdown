@@ -1,5 +1,51 @@
 # Patch Notes
 
+## v0.25.0 - 2026-06-19
+
+### Procedural background music
+
+- **The game has a soundtrack now** — fully synthesized live from Web Audio oscillators, no audio
+  files (same constraint as the SFX). A new `MusicSystem` runs a look-ahead step sequencer that plays
+  data-driven tracks: a chord progression with bass, a key-locked lead, a soft power-chord pad, and
+  kick/snare/hat percussion.
+- **Five themes.** A calm lab-ambient **title/menu** track, one per **sector** (bright & bouncy for
+  Sector 1, grittier dorian for Sector 2, cold crystalline phrygian for Sector 3), and a fast,
+  aggressive **boss** theme that cuts in the instant a finale boss activates.
+- **Seamless transitions.** The track is keyed to context and switching is idempotent, so advancing
+  stages within a sector keeps the same loop running unbroken; it only re-cuts when the sector, the
+  boss, or the menu/gameplay context actually changes. Music ducks out on death so the death toll
+  lands.
+- **New "Music" toggle** in Settings (separate from Sound FX), saved to preferences and applied live.
+  Music sits at half the master volume so it stays under the SFX, and respects mute.
+- **Multi-bar bass/lead lines.** The sequencer now indexes the `bass`/`lead` arrays by the full step
+  position (mod their own length) instead of the step-within-the-bar, so a track can supply a
+  `prog.length × 16` melody that plays through the whole progression (e.g. the title lead resolving
+  differently on its 4th bar). 16-step lines still repeat per bar exactly as before; drums stay
+  per-bar.
+
+## v0.24.2 - 2026-06-19
+
+### Added
+
+- **Germ counter on every stage.** The HUD now shows a centred tally just below the attack bar —
+  `GERMS  x/y KILLED · z LEFT` — so the player can see how many enemies they've cleared and how many
+  remain before the exit opens. The total is snapshotted when the stage spawns (the boss counts as one
+  germ on finale stages); the line turns green when the last germ falls. Hidden in the tutorial and
+  while the stage-clear / death overlay is up.
+
+### Fixed
+
+- **Bosses never triggered (finale stages were uncompletable).** Adding the boss to the enemy physics
+  group re-applied the group's default body settings, switching gravity back on after the constructor
+  had turned it off. A dormant boss doesn't reposition itself each frame (flyers hide the same reset
+  via their hover AI), so it silently fell through the floor and was always thousands of pixels below
+  the player — the proximity check that wakes it could never fire. The boss's "hovers, never falls"
+  intent is now re-asserted after it joins the group, so it stays put and activates on approach.
+- **Player kept sliding/falling after a stage ended.** On death, stage clear, and boss defeat the
+  scene's update loop stops, but Phaser's physics step keeps running, so leftover velocity/gravity
+  let the player drift or fall during the end-of-stage overlay. The player is now frozen in place
+  (velocity zeroed, gravity off, input ignored) until the next stage loads.
+
 ## v0.24.1 - 2026-06-19
 
 ### Fixed
