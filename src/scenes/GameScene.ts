@@ -279,6 +279,12 @@ export default class GameScene extends Phaser.Scene {
     this.player = new Player(this, 120, GROUND_TOP_Y - 40);
     this.player.invincibilityMs = DIFFICULTY_SCALE[this.difficulty].invincMs;
     this.player.elementSystem.setSlotCount(DIFFICULTY_SCALE[this.difficulty].weaponSlots);
+    // Super weapon: a complete noble-gas collection (permanent meta) arms the Prismatic Beam from the
+    // start of every run, auto-bound to a free slot.
+    if (!this.isTutorial && SaveSystem.getNoblesFound().length >= NOBLE_GAS_COUNT) {
+      this.player.elementSystem.setSuperUnlocked(true);
+      this.player.elementSystem.seedSuperWeapon();
+    }
     this.physics.add.collider(this.player.sprite, this.platformGroup);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08);
 
@@ -1789,10 +1795,21 @@ export default class GameScene extends Phaser.Scene {
     });
 
     const found = SaveSystem.getNoblesFound().length;
+    // Completing the collection arms the Prismatic Beam super weapon for the rest of this run (and,
+    // being a permanent unlock, every future run). Announce it instead of the usual pickup quip.
+    const es = this.player.elementSystem;
+    const justCompleted = found >= NOBLE_GAS_COUNT && !es.isSuperUnlocked();
+    if (justCompleted) {
+      es.setSuperUnlocked(true);
+      es.seedSuperWeapon();
+      this.events.emit('arsenal-update', this.player.getArsenalUpdate());
+    }
     this._megQuip(
-      firstFind
-        ? `Incredible — pure ${def.name} (${def.symbol})! A noble gas, inert but priceless. ${found}/${NOBLE_GAS_COUNT} found!`
-        : `${def.name} (${def.symbol}) secured again — +${NOBLE_GAS_BONUS.toLocaleString()} to the tally!`,
+      justCompleted
+        ? `ALL ${NOBLE_GAS_COUNT} noble gases collected! The PRISMATIC BEAM is armed — pure light, in your hands!`
+        : firstFind
+          ? `Incredible — pure ${def.name} (${def.symbol})! A noble gas, inert but priceless. ${found}/${NOBLE_GAS_COUNT} found!`
+          : `${def.name} (${def.symbol}) secured again — +${NOBLE_GAS_BONUS.toLocaleString()} to the tally!`,
     );
   }
 

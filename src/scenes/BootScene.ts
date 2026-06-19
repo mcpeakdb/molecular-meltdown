@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 // Every in-scope sprite is a hand-drawn PNG under `public/assets/sprites/`, loaded by key in
 // preload(). Game code references these textures only by key, so the art lives entirely here.
 // Stage maps (bg_tile / ground_tile), the vignette, and runtime vector FX stay procedural — see
-// _makeBackground / _makeVignette below and docs/GRAPHIC_MIGRATION_PLAN.md.
+// _makeBackground / _makeVignette below.
 type AssetSpec = { key: string; file: string };
 const ASSET_SPECS: AssetSpec[] = [
   // Player (multi-frame → player_walk / player_idle / player_jump anims)

@@ -1,5 +1,21 @@
 # Patch Notes
 
+## v0.26.0 - 2026-06-19
+
+### Prismatic Beam — noble-gas super weapon
+
+- **Collect all six noble gases to permanently arm the Prismatic Beam.** Once your saved noble-gas
+  collection is complete (helium through radon, across any runs), every future run starts with the
+  super weapon auto-bound to a free weapon slot — and if you complete the set mid-run, M.E.G.
+  announces it and it arms immediately.
+- **A wide, piercing rainbow lane attack.** Fired in the facing direction, it shreds every germ in
+  its lane for heavy damage and shoves them back, with a white-hot core, stacked rainbow bands, a
+  screen flash and shake. It behaves like any other weapon — it rides a normal Z/X/C slot, shows on
+  the HUD chips / touch buttons (✦), and can be re-bound via Pause → Compound Selection — on a long
+  5-second cooldown to balance its power.
+- Implemented as a first-class attack id (`prismatic`) gated by collection completeness rather than
+  an atom recipe; see [docs/specs/combat-and-attacks.md](specs/combat-and-attacks.md).
+
 ## v0.25.2 - 2026-06-19
 
 ### Lab-glassware leaderboard

@@ -34,6 +34,7 @@ const ATTACK_SYMBOL: Record<AttackId, string> = {
   methane: 'CH₄',
   nitric_oxide: 'NO',
   carbonic_acid: 'H₂CO₃',
+  prismatic: '✦',
 };
 
 interface Chip {

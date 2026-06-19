@@ -1,6 +1,6 @@
 {
   "name": "molecular-meltdown",
-  "version": "0.25.2",
+  "version": "0.26.0",
   "description": "A molecular-scale beat 'em up — mad scientist vs. the microscopic world",
   "engines": {
     "node": "24.x",

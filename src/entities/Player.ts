@@ -269,6 +269,7 @@ export default class Player {
     else if (id === ELEMENTS.METHANE) this._specialMethane(level, dir);
     else if (id === ELEMENTS.NITRIC_OXIDE) this._specialNitricOxide(level, dir);
     else if (id === ELEMENTS.CARBONIC_ACID) this._specialCarbonicAcid(level, dir);
+    else if (id === ELEMENTS.PRISMATIC) this._specialPrismatic(level, dir);
   }
 
   private _doJump(): void {
@@ -901,6 +902,58 @@ export default class Player {
       });
       this._registerHit();
     }
+  }
+
+  /**
+   * Prismatic Beam (noble-gas super weapon) — a wide, piercing rainbow beam fired in the facing
+   * direction that shreds everything in its lane and shoves it back. Single, fixed power tier.
+   */
+  private _specialPrismatic(_level: number, dir: number): void {
+    const x = this.sprite.x;
+    const y = this.sprite.y;
+    const x0 = x + dir * 30;
+    const range = 900; // lane length
+    const halfH = 70; // lane half-height
+
+    SoundSystem.play(this.scene.audioCtx, 'element_upgrade');
+    this.scene.shake(380, 0.013);
+    this.scene.spawnHitFlash(x0, y, 0xffffff, 90);
+    this.scene.cameras.main.flash(160, 255, 230, 255);
+
+    // Stacked rainbow bands + a white-hot core, drawn just behind the player and faded out.
+    const colors = [0xff3b3b, 0xff9e3b, 0xffe23b, 0x3bff6e, 0x3bd4ff, 0x6e3bff, 0xff3bd4];
+    const g = this.scene.add.graphics().setDepth(DEPTH.PLAYER - 1);
+    const left = dir > 0 ? x0 : x0 - range;
+    const bandH = (halfH * 2) / colors.length;
+    colors.forEach((c, i) => {
+      g.fillStyle(c, 0.85);
+      g.fillRect(left, y - halfH + i * bandH, range, bandH);
+    });
+    g.fillStyle(0xffffff, 0.9);
+    g.fillRect(left, y - 9, range, 18);
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => g.destroy() });
+
+    this.scene.spawnBurst(x0, y, 0xffffff, {
+      count: 30,
+      speed: [140, 400],
+      angle: dir > 0 ? [-42, 42] : [138, 222],
+      lifespan: 620,
+      scale: 1.3,
+    });
+
+    // Damage every enemy ahead of the muzzle within the lane.
+    const dmg = PLAYER_MELEE_DAMAGE * 10;
+    let hit = false;
+    this.scene.enemyGroup.getChildren().forEach((go) => {
+      const s = go as EnemySprite;
+      if (!s.active || !s.enemyRef) return;
+      const ahead = dir > 0 ? s.x >= x0 - 20 : s.x <= x0 + 20;
+      if (ahead && Math.abs(s.x - x) < range && Math.abs(s.y - y) < halfH + 12) {
+        s.enemyRef.takeDamage(dmg, dir * 6);
+        hit = true;
+      }
+    });
+    if (hit) this._registerHit();
   }
 
   private _damageArc(

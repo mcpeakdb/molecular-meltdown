@@ -7,6 +7,7 @@ import {
   ELEMENTS,
   type ElementType,
   MAX_ELEMENT_LEVEL,
+  SUPER_ATTACK_ID,
 } from '../constants';
 import type { AttackSlot, ElementState } from '../types';
 
@@ -29,6 +30,8 @@ export default class ElementSystem {
   private bindings: (AttackId | null)[] = [null, null, null];
   /** Every attack that has ever become available — used to detect *newly* unlocked weapons. */
   private known = new Set<AttackId>();
+  /** The noble-gas super weapon is armed once the full collection is complete (permanent unlock). */
+  private superUnlocked = false;
 
   /** Set the number of weapon slots (from the difficulty), preserving existing bindings. */
   setSlotCount(n: number): void {
@@ -84,12 +87,37 @@ export default class ElementSystem {
     return { ...this.counts };
   }
 
-  /** Every attack the owned atoms make available, in fixed priority order (for menus & summaries). */
+  /** Arm/disarm the noble-gas super weapon (set from the saved collection — see SaveSystem). */
+  setSuperUnlocked(on: boolean): void {
+    this.superUnlocked = on;
+  }
+
+  isSuperUnlocked(): boolean {
+    return this.superUnlocked;
+  }
+
+  /** Auto-bind the super weapon to the *last* free slot (so the basic punch keeps slot 1). No-op if
+   *  it's already bound or every slot is full (the player can then bind it via Compound Selection). */
+  seedSuperWeapon(): void {
+    if (!this.superUnlocked || this.bindings.includes(SUPER_ATTACK_ID)) return;
+    for (let i = this.bindings.length - 1; i >= 0; i--) {
+      if (this.bindings[i] === null) {
+        this.bindings[i] = SUPER_ATTACK_ID;
+        return;
+      }
+    }
+  }
+
+  /** Every attack the owned atoms make available, in fixed priority order (for menus & summaries).
+   *  The super weapon, when armed, is appended so it appears in Compound Selection and summaries. */
   getAvailableAttacks(): AttackSlot[] {
-    return ElementSystem.attacksFor(this.counts);
+    const list = ElementSystem.attacksFor(this.counts);
+    if (this.superUnlocked) list.push({ id: SUPER_ATTACK_ID, level: MAX_ELEMENT_LEVEL, key: 0 });
+    return list;
   }
 
   getAttackLevel(id: AttackId): number {
+    if (id === SUPER_ATTACK_ID) return this.superUnlocked ? MAX_ELEMENT_LEVEL : 0;
     return ElementSystem.levelFor(id, this.counts);
   }
 
@@ -99,6 +127,8 @@ export default class ElementSystem {
    * e.g. Water needs 2H+1O: 2H/1O → Lv1, 4H/2O → Lv2, 6H/3O → Lv3.
    */
   static levelFor(id: AttackId, counts: Record<BaseAtom, number>): number {
+    // The super weapon has no atom recipe; its availability is tracked per-instance, not here.
+    if (id === SUPER_ATTACK_ID) return 0;
     const recipe = ATTACKS[id].recipe;
     let copies = MAX_ELEMENT_LEVEL;
     for (const atom of Object.keys(recipe) as BaseAtom[]) {

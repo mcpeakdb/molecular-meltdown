@@ -76,6 +76,8 @@ export const ELEMENTS = {
   NITRIC_OXIDE: 'nitric_oxide',
   CARBONIC_ACID: 'carbonic_acid',
   GOLD: 'gold',
+  // Super weapon — not an atom/compound. Permanently armed once all noble gases are collected.
+  PRISMATIC: 'prismatic',
 } as const;
 
 export type ElementType = (typeof ELEMENTS)[keyof typeof ELEMENTS];
@@ -93,6 +95,7 @@ export const ELEMENT_COLORS: Record<ElementType, number> = {
   [ELEMENTS.NITRIC_OXIDE]: 0xdd44aa,
   [ELEMENTS.CARBONIC_ACID]: 0x33aadd,
   [ELEMENTS.GOLD]: 0xffd700,
+  [ELEMENTS.PRISMATIC]: 0xff66ff,
 };
 
 export const ELEMENT_NAMES: Record<ElementType, string> = {
@@ -108,6 +111,7 @@ export const ELEMENT_NAMES: Record<ElementType, string> = {
   [ELEMENTS.NITRIC_OXIDE]: 'Nitric Oxide (NO)',
   [ELEMENTS.CARBONIC_ACID]: 'Carbonic Acid (H₂CO₃)',
   [ELEMENTS.GOLD]: 'Gold (Au)',
+  [ELEMENTS.PRISMATIC]: 'Prismatic Beam',
 };
 
 export const PLAYER_MAX_HP = 100;
@@ -259,10 +263,24 @@ export const ATTACKS: Record<AttackId, AttackDef> = {
     tierNames: ['Acid Drop', 'Corrosive Spray', 'Acid Rain'],
     cooldownMs: 1800,
   },
+  // Super weapon — has no atom recipe; availability is driven by the noble-gas collection, not
+  // `levelFor`. It is excluded from ATTACK_ORDER so the recipe machinery never touches it.
+  [ELEMENTS.PRISMATIC]: {
+    id: ELEMENTS.PRISMATIC,
+    recipe: {},
+    slot: 99,
+    color: 0xff66ff,
+    tierNames: ['Prismatic Beam', 'Prismatic Beam', 'Prismatic Beam'],
+    cooldownMs: 5000,
+  },
 };
 
-/** Attack ids in fixed slot/priority order. */
+/** The noble-gas super weapon's attack id (gated by collection completeness, not atoms). */
+export const SUPER_ATTACK_ID: AttackId = ELEMENTS.PRISMATIC;
+
+/** Attack ids in fixed slot/priority order. Excludes the super weapon (it isn't atom-derived). */
 export const ATTACK_ORDER: AttackId[] = Object.values(ATTACKS)
+  .filter((a) => a.id !== SUPER_ATTACK_ID)
   .sort((a, b) => a.slot - b.slot)
   .map((a) => a.id);
 

@@ -59,23 +59,22 @@ src/
     SaveSystem.ts          # localStorage meta: unlocks, best scores, leaderboard (per difficulty)
     Settings.ts            # localStorage global prefs: volume, mute, sfx, music, screenShake, tutorialDone
 docs/
-  PLAN.md                  # Living design doc — phases, architecture notes
+  specs/                   # EARS behavioural specs (what the game does), per subsystem — the living
+                           # reference; read these first to understand a system, keep in sync on change
+    README.md              # Index + EARS conventions; start here
+    glossary.md            # Shared terms, key constants, world geometry
+    navigation-and-scenes.md, player.md, combat-and-attacks.md, enemies-and-bosses.md,
+    stages-and-platforming.md, elements-and-progression.md, scoring-and-persistence.md,
+    hud-and-input.md, audio-and-settings.md, tutorial.md
   PATCH_NOTES.md           # Version history (must stay current)
-  tasks/
-    PHASE1_TASKS.md        # Detailed task list for Phase 1 (complete)
-    PHASE2_TASKS.md        # Detailed task list for Phase 2 (complete)
-    PHASE3_TASKS.md        # Detailed task list for Phase 3 — 9 stages / 3 sectors (complete)
-    PHASE4_TASKS.md        # Detailed task list for Phase 4 — progression & meta (complete)
-    PHASE5_TASKS.md        # Detailed task list for Phase 5 — content & QOL (complete)
 ```
 
 ## After Making Changes
 
 After completing any meaningful change or feature:
 
-1. **Update [docs/PLAN.md](docs/PLAN.md)** — mark completed items, update the current state section if the phase changed.
-2. **Update the relevant task file** in [docs/tasks/](docs/tasks/) — check off completed tasks.
-3. **If the version in [package.json](package.json) changed**, update [docs/PATCH_NOTES.md](docs/PATCH_NOTES.md) with a new entry for that version describing what changed.
+1. **If behaviour changed**, update the affected [docs/specs/](docs/specs/) file(s) so the EARS specs stay true to the code — they are the living reference and are descriptive, not aspirational.
+2. **If the version in [package.json](package.json) changed**, update [docs/PATCH_NOTES.md](docs/PATCH_NOTES.md) with a new entry for that version describing what changed.
 
 ## Versioning
 
