@@ -85,11 +85,12 @@ const TRACKS: Record<TrackId, TrackDef> = {
     root: 261.63,
     prog: [0, 7, 9, 5], // C – G – Am – F
     bass: [0, null, 7, null, 0, null, 7, null, 0, null, 12, null, 7, null, 7, null],
+    // biome-ignore format: one bar (16 steps) per line — keep the 4-bar grid readable
     lead: [
       12, null, 16, 19, 21, null, 19, 16, 17, null, 21, 24, 21, null, 19, null,
       12, null, 16, 19, 21, null, 19, 16, 17, null, 21, 24, 21, null, 19, null,
       12, null, 16, 19, 21, null, 19, 16, 17, null, 21, 24, 21, null, 19, null,
-      21, null, 19, 17, 16, null, 17, 16, 17, null, 19, 16, 17, 14, 16, 11
+      21, null, 19, 17, 16, null, 17, 16, 17, null, 19, 16, 17, 14, 16, 11,
     ],
     voicing: POWER,
     kick: beat(0, 8, 11),
@@ -105,6 +106,7 @@ const TRACKS: Record<TrackId, TrackDef> = {
     root: 220,
     prog: [0, 5, 10, 8], // Am – Dm – G – F
     bass: [0, 0, null, 0, 7, null, 0, null, 0, 0, null, 12, 7, null, 10, null],
+    // biome-ignore format: one bar (16 steps) per line — keep the 4-bar grid readable
     lead: [
       9, null, 12, null, 14, 12, null, 9, 7, null, 9, 12, 14, null, null, null,
       9, null, 12, null, 14, 12, null, 9, 7, null, 9, 12, 14, null, null, null,
