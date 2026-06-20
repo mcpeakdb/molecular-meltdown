@@ -5,12 +5,16 @@ import {
   DEPTH,
   ELEMENT_COLORS,
   ELEMENTS,
+  FALL_DAMAGE_MAX,
+  FALL_DAMAGE_PER_PX,
+  FALL_DAMAGE_SAFE_HEIGHTS,
   GAME_HEIGHT,
   GAME_WIDTH,
   GRAVITY,
   GROUND_TOP_Y,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_DOUBLE_JUMP_VELOCITY,
+  PLAYER_HEIGHT,
   PLAYER_INVINCIBILITY_MS,
   PLAYER_JUMP_VELOCITY,
   PLAYER_MAX_HP,
@@ -50,6 +54,8 @@ export default class Player {
   private jumpCount = 0;
   private _onGround = false;
   private _wasOnGround = false;
+  /** Y of the surface the player last left (takeoff/walk-off point) — the reference for fall damage. */
+  private _takeoffY = 0;
   private _isRolling = false;
   private _rollTween: Phaser.Tweens.Tween | null = null;
   private _jumpShadow!: Phaser.GameObjects.Graphics;
@@ -71,6 +77,7 @@ export default class Player {
     this.sprite.body.setCollideWorldBounds(true);
     this.sprite.body.setGravityY(GRAVITY);
     this.sprite.play('player_idle');
+    this._takeoffY = y; // so the first landing from the spawn drop isn't counted as a fall
     this._jumpShadow = scene.add.graphics().setDepth(DEPTH.PLAYER - 1);
     this._armsGraphic = scene.add.graphics();
     this._jumpKey = scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE) as Phaser.Input.Keyboard.Key;
@@ -121,6 +128,7 @@ export default class Player {
     this._onGround = this.sprite.body.onFloor();
     if (this._onGround && this.sprite.body.velocity.y >= 0) this.jumpCount = 0;
     if (this._onGround && !this._wasOnGround) this._onLand();
+    else if (!this._onGround && this._wasOnGround) this._takeoffY = this.sprite.y; // just left the ground
     this._wasOnGround = this._onGround;
 
     if (this._speedBoostTimer > 0) {
@@ -343,6 +351,7 @@ export default class Player {
   private _onLand(): void {
     this.jumpCount = 0;
     this._endRoll();
+    this._applyFallDamage();
     // Landing squash
     this.sprite.setScale(1.2, 0.8);
     this.scene.tweens.add({
@@ -352,6 +361,33 @@ export default class Player {
       duration: 120,
       ease: 'Quad.Out',
     });
+  }
+
+  /**
+   * Hard-landing fall damage. Measured as the net drop below the takeoff point (so jumping up and
+   * landing where you started costs nothing); free fall up to FALL_DAMAGE_SAFE_HEIGHTS body-heights
+   * is harmless, beyond which damage scales with the distance fallen (capped).
+   */
+  private _applyFallDamage(): void {
+    const drop = this.sprite.y - this._takeoffY;
+    const safe = FALL_DAMAGE_SAFE_HEIGHTS * PLAYER_HEIGHT;
+    if (drop <= safe || this.isInvincible) return;
+    const dmg = Math.min(FALL_DAMAGE_MAX, Math.round((drop - safe) * FALL_DAMAGE_PER_PX));
+    if (dmg <= 0) return;
+    this.takeDamage(dmg);
+    SoundSystem.play(this.scene.audioCtx, 'hazard');
+    this.scene.shake(180, 0.008);
+    this.scene.spawnBurst(this.sprite.x, this._feetY, 0xccccdd, {
+      count: 8,
+      speed: [60, 170],
+      angle: [200, 340],
+      lifespan: 320,
+    });
+  }
+
+  /** Reset the fall-damage reference to the current height (e.g. after a pit respawn teleport). */
+  resetFall(): void {
+    this._takeoffY = this.sprite.y;
   }
 
   private _doMeleeAttack(): void {

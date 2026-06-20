@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { type AttackId, ELEMENT_NAMES, GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import Settings from '../systems/Settings';
 import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
 import type GameScene from './GameScene';
 
@@ -184,11 +185,18 @@ export default class PauseScene extends Phaser.Scene {
     const slotCount = this.gameScene.player.elementSystem.getSlotCount();
 
     const help = this.add
-      .text(cx, cy - 50, '←/→ change compound    ↑/↓ pick key    Esc back', {
-        fontSize: '12px',
-        color: '#6699aa',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        cy - 50,
+        Settings.touchActive()
+          ? 'Tap a slot to change its compound    ·    tap BACK'
+          : '←/→ change compound    ↑/↓ pick key    Esc back',
+        {
+          fontSize: '12px',
+          color: '#6699aa',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(502);

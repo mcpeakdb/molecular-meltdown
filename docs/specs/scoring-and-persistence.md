@@ -26,8 +26,10 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
   HUD arsenal, fade in a YOU DIED overlay with a sobbing-scientist animation, submit the run to the
   leaderboard, reset `runScore`, and show a run summary (score, stage reached, atoms, molecules built,
   nobles found, leaderboard placement).
-- **REQ-DEATH-002** — WHEN Z is pressed on the death screen, the game shall retry (restart the current
-  stage, or the tutorial); WHEN ESC is pressed, it shall return to `TitleScene`.
+- **REQ-DEATH-002** — WHEN Z is pressed (or the retry label is tapped) on the death screen, the game
+  shall retry (restart the current stage, or the tutorial); WHEN ESC is pressed (or the title label is
+  tapped), it shall return to `TitleScene`. Both labels shall be tappable so touch players (no
+  keyboard) can act, and the choice shall be guarded against a double-fire.
 - **REQ-DEATH-003** — IF the death is in the tutorial, THEN no run shall be recorded and no run
   summary shall be shown.
 

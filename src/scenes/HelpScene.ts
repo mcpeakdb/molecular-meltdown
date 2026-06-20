@@ -1,20 +1,35 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
 
-const ENTRIES: [string, string][] = [
-  ['Move', 'WASD / Arrow Keys  ·  or the on-screen stick'],
-  ['Jump', 'Space / ⤒ button  (again in the air to double-jump)'],
-  ['Attack', 'Z, X, C  ·  or the on-screen attack buttons'],
-  ['', 'Z is a punch until you arm a compound'],
-  ['Collect', 'Walk into a glowing atom, then pick an element'],
-  ['Loadout', 'Pause → COMPOUND SELECTION to bind your weapons'],
-  ['Pause', 'ESC / Enter  ·  or the ❚❚ button'],
-  ['Touch', 'On-screen controls — toggle in Settings'],
-  ['Watch out', 'Chasms hurt — jump across them, do not walk in'],
-];
+/** Controls reference, shown for whichever input mode is active (touch vs keyboard). */
+const entriesFor = (touch: boolean): [string, string][] =>
+  touch
+    ? [
+        ['Move', 'On-screen stick (left thumb)'],
+        ['Jump', '⤒ button  (tap again in the air to double-jump)'],
+        ['Attack', 'On-screen attack buttons (right thumb)'],
+        ['', 'The first button punches until you arm a compound'],
+        ['Collect', 'Walk into a glowing atom, then tap an element'],
+        ['Loadout', '❚❚ Pause → COMPOUND SELECTION to bind your weapons'],
+        ['Pause', 'The ❚❚ button (top-right)'],
+        ['Touch', 'On-screen controls are ON — toggle in Settings'],
+        ['Watch out', 'Chasms & long falls hurt — jump across, do not walk in'],
+      ]
+    : [
+        ['Move', 'WASD / Arrow Keys'],
+        ['Jump', 'Space  (press again in the air to double-jump)'],
+        ['Attack', 'Z, X, C'],
+        ['', 'Z is a punch until you arm a compound'],
+        ['Collect', 'Walk into a glowing atom, then pick an element'],
+        ['Loadout', 'Pause → COMPOUND SELECTION to bind your weapons'],
+        ['Pause', 'ESC / Enter'],
+        ['Touch', 'On-screen controls — toggle in Settings'],
+        ['Watch out', 'Chasms & long falls hurt — jump across, do not walk in'],
+      ];
 
 export default class HelpScene extends Phaser.Scene {
   private from = 'TitleScene';
@@ -47,7 +62,7 @@ export default class HelpScene extends Phaser.Scene {
     const leftX = cx - 300;
     const valueX = cx - 110;
     let y = 130;
-    for (const [label, value] of ENTRIES) {
+    for (const [label, value] of entriesFor(Settings.touchActive())) {
       if (label) {
         this.add.text(leftX, y, label, { fontSize: '17px', color: '#aadd88', fontFamily: MONO, fontStyle: 'bold' });
       }
@@ -56,7 +71,7 @@ export default class HelpScene extends Phaser.Scene {
     }
 
     this.add
-      .text(cx, GAME_HEIGHT - 34, 'ESC / Z  or tap  to go back', {
+      .text(cx, GAME_HEIGHT - 34, Settings.touchActive() ? 'Tap anywhere to go back' : 'ESC / Z  or tap  to go back', {
         fontSize: '14px',
         color: '#668866',
         fontFamily: MONO,

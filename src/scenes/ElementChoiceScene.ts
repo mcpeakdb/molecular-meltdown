@@ -12,6 +12,7 @@ import {
   GAME_WIDTH,
 } from '../constants';
 import ElementSystem from '../systems/ElementSystem';
+import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
 const ELEMENT_SYMBOLS: Partial<Record<ElementType, string>> = {
@@ -110,10 +111,15 @@ export default class ElementChoiceScene extends Phaser.Scene {
     this.cards = this.choices.map((el, i) => this._buildCard(el, i));
 
     this.add
-      .text(w / 2, h - 48, '← → to choose   Z to confirm', {
-        fontSize: '17px',
-        color: '#9999aa',
-      })
+      .text(
+        w / 2,
+        h - 48,
+        Settings.touchActive() ? 'Tap a card, tap again to confirm' : '← → to choose   Z to confirm',
+        {
+          fontSize: '17px',
+          color: '#9999aa',
+        },
+      )
       .setOrigin(0.5)
       .setDepth(2);
 

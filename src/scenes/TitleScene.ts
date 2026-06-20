@@ -111,11 +111,16 @@ export default class TitleScene extends Phaser.Scene {
     });
 
     this.add
-      .text(cx, GAME_HEIGHT - 24, '↑↓ select    Z / Enter confirm', {
-        fontSize: '13px',
-        color: '#557755',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 24,
+        Settings.touchActive() ? 'Tap an option, tap again to confirm' : '↑↓ select    Z / Enter confirm',
+        {
+          fontSize: '13px',
+          color: '#557755',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     this._refresh();

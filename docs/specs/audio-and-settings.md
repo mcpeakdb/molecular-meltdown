@@ -13,15 +13,16 @@ Sources: [`src/systems/SoundSystem.ts`](../../src/systems/SoundSystem.ts),
 ## Settings (`Settings`, localStorage `mm.settings.v1`)
 
 - **REQ-CFG-001** — Settings shall hold: volume (0–1), muted, sfx, music, screenShake, touchControls
-  (`auto`/`on`/`off`), fullscreen, tutorialDone, compoundIntroSeen — cached in memory and mirrored to
+  (`on`/`off`), fullscreen, tutorialDone, compoundIntroSeen — cached in memory and mirrored to
   localStorage.
 - **REQ-CFG-002** — Reads (`get`) shall be cheap and never throw; writes (`set`) shall merge, persist,
   and keep the cache hot, tolerating blocked/full storage by silently not persisting.
 - **REQ-CFG-003** — `effectiveVolume` (SFX) shall be 0 when muted or SFX off, else the clamped volume;
   `musicVolume` shall be 0 when muted or music off, else half the clamped volume (music sits under
   SFX).
-- **REQ-CFG-004** — `touchActive` shall resolve `auto` against device touch capability; `on`/`off`
-  force it.
+- **REQ-CFG-004** — `touchControls` shall be an explicit `on`/`off` (no `auto`). `touchActive` shall
+  return true iff it is `on`. The first-run default (and any legacy `auto` value) shall resolve to
+  `on` for touch-capable devices and `off` otherwise; `cycleTouchControls` toggles between the two.
 
 ## Sound effects (`SoundSystem`)
 

@@ -14,6 +14,10 @@ The in-game HUD and the input model (keyboard + on-screen touch controls). Sourc
   ESC/Enter. Slot 1 (Z) punches while no attack is bound.
 - **REQ-INPUT-003** — WHILE the stage is paused or the clear sequence is running, on-screen touch
   controls shall be disabled.
+- **REQ-INPUT-004** — All on-screen control-hint text (menu footers, in-game prompts, the Controls
+  reference, and the M.E.G. tutorial) shall reflect `Settings.touchActive()`: touch instructions
+  ("tap …", on-screen buttons) when touch controls are on, keyboard instructions (Z / arrows / Space /
+  ESC) when off.
 
 ## HUD readouts
 

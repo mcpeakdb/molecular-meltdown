@@ -9,6 +9,7 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
 } from '../constants';
+import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
@@ -150,11 +151,18 @@ export default class MoleculeTreeScene extends Phaser.Scene {
     this._buildDetailPanel();
 
     this.add
-      .text(cx, GAME_HEIGHT - 18, '← → ↑ ↓ inspect    ESC / Z  or tap  to go back', {
-        fontSize: '12px',
-        color: '#557766',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 18,
+        Settings.touchActive()
+          ? 'Tap a tile to inspect    ·    tap to go back'
+          : '← → ↑ ↓ inspect    ESC / Z  or tap  to go back',
+        {
+          fontSize: '12px',
+          color: '#557766',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     this._refresh();

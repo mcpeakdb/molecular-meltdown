@@ -13,6 +13,7 @@ import { STAGES } from '../stages';
 import MusicSystem from '../systems/MusicSystem';
 import { passcodeFor, resolvePasscode } from '../systems/Passcode';
 import SaveSystem from '../systems/SaveSystem';
+import Settings from '../systems/Settings';
 import SoundSystem from '../systems/SoundSystem';
 import { attachTap } from '../systems/touchMenu';
 
@@ -147,11 +148,18 @@ export default class StageSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(cx, GAME_HEIGHT - 22, '← → ↑ ↓ navigate   Z/Enter play   P code   L leaderboard   ESC back', {
-        fontSize: '13px',
-        color: '#668866',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 22,
+        Settings.touchActive()
+          ? 'Tap a tube, tap again to play    ·    use the on-screen buttons'
+          : '← → ↑ ↓ navigate   Z/Enter play   P code   L leaderboard   ESC back',
+        {
+          fontSize: '13px',
+          color: '#668866',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     // Tappable corner buttons (mirror the ESC / L keyboard shortcuts) for touch.
@@ -563,11 +571,18 @@ export default class StageSelectScene extends Phaser.Scene {
     }
 
     this.statusText = this.add
-      .text(cx, cy + PANEL_H / 2 - 26, 'type code · Enter=OK · Esc=cancel', {
-        fontSize: '11px',
-        color: '#668866',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        cy + PANEL_H / 2 - 26,
+        Settings.touchActive()
+          ? 'tap the keys · OK to confirm · tap outside to cancel'
+          : 'type code · Enter=OK · Esc=cancel',
+        {
+          fontSize: '11px',
+          color: '#668866',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
     container.add(this.statusText);
 

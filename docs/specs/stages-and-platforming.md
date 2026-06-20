@@ -62,6 +62,10 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-HAZ-002** — WHILE the player stands on the ground inside a hazard and is not invincible, the
   game shall apply `HAZARD_DAMAGE` (10) per throttled tick with a sizzle SFX and burst. Jumping over
   is safe.
+- **REQ-HAZ-003** — Ground-level features (hazards, bounce pads, crumble tiles) shall act only while
+  the player is standing on the **ground floor itself** (`_onGroundFloor`: on a surface AND resting
+  at floor height), never while perched on a platform above them. (`onFloor()` alone is true on any
+  surface and cannot distinguish the two.)
 
 ## Bounce pads
 

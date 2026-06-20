@@ -812,6 +812,7 @@ export default class GameScene extends Phaser.Scene {
     if (p.sprite.y > GAME_HEIGHT + 60) {
       p.sprite.body.setVelocity(0, 0);
       p.sprite.setPosition(this._lastSafeX, GROUND_TOP_Y - 60);
+      p.resetFall(); // the respawn drop to the ledge must not also incur landing fall damage
       SoundSystem.play(this.audioCtx, 'punch');
       this.shake(260, 0.012);
       p.takeDamage(GAP_FALL_DAMAGE); // respects i-frames; lethal only if HP runs out
@@ -819,6 +820,17 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ── Platforming hazards ───────────────────────────────────────────────────────
+
+  /**
+   * True only when the player is standing on the ground floor itself, not an elevated platform.
+   * Ground-level features (acid pools, bounce pads, crumble tiles) live at GROUND_TOP_Y, so they
+   * must ignore a player perched on a platform above them — `onFloor()` alone can't tell the two
+   * apart (it's true on any surface), so we also require the body to be resting at floor height.
+   */
+  private _onGroundFloor(): boolean {
+    const body = this.player.sprite.body;
+    return body.onFloor() && body.bottom >= GROUND_TOP_Y - 8;
+  }
 
   /** Sector-tinted corrosive-pool colors for hazard strips. */
   private _hazardTheme(): { fill: number; surface: number } {
@@ -855,7 +867,7 @@ export default class GameScene extends Phaser.Scene {
   private _updateHazards(): void {
     if (this._hazards.length === 0) return;
     const p = this.player;
-    if (!p.alive || !p.sprite.body.onFloor()) return;
+    if (!p.alive || !this._onGroundFloor()) return;
     const px = p.sprite.x;
     for (const hz of this._hazards) {
       if (px > hz.x1 && px < hz.x2) {
@@ -895,7 +907,7 @@ export default class GameScene extends Phaser.Scene {
   private _updatePads(): void {
     if (this._pads.length === 0) return;
     const p = this.player;
-    if (!p.alive || !p.sprite.body.onFloor()) return;
+    if (!p.alive || !this._onGroundFloor()) return;
     const px = p.sprite.x;
     for (const pad of this._pads) {
       if (Math.abs(px - pad.x) < 30) {
@@ -938,7 +950,7 @@ export default class GameScene extends Phaser.Scene {
   private _updateCrumbles(): void {
     if (this._crumbles.length === 0) return;
     const p = this.player;
-    if (!p.alive || !p.sprite.body.onFloor()) return;
+    if (!p.alive || !this._onGroundFloor()) return;
     const px = p.sprite.x;
     for (const c of this._crumbles) {
       if (c.state === 'solid' && px > c.x1 && px < c.x2) this._triggerCrumble(c);
@@ -980,9 +992,13 @@ export default class GameScene extends Phaser.Scene {
     this._buildDialogue();
     this._createMeg();
 
-    // Skip-tutorial shortcut + hint
-    this.add
-      .text(14, GAME_HEIGHT - 32, 'ESC — skip tutorial', {
+    // Skip-tutorial shortcut + hint — tappable (so touch works) and ESC on keyboard.
+    const skip = () => {
+      this._tutDone = true;
+      this._exitToDifficulty();
+    };
+    const skipHint = this.add
+      .text(14, GAME_HEIGHT - 32, Settings.touchActive() ? 'tap here to skip' : 'ESC — skip tutorial', {
         fontSize: '12px',
         color: '#668899',
         fontFamily: 'monospace',
@@ -990,18 +1006,24 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2,
       })
       .setScrollFactor(0)
-      .setDepth(481);
-    this.input.keyboard?.once('keydown-ESC', () => {
-      this._tutDone = true;
-      this._exitToDifficulty();
-    });
+      .setDepth(481)
+      .setInteractive({ useHandCursor: true });
+    skipHint.on(
+      'pointerdown',
+      (_p: Phaser.Input.Pointer, _x: number, _y: number, ev?: Phaser.Types.Input.EventData) => {
+        ev?.stopPropagation();
+        skip();
+      },
+    );
+    this.input.keyboard?.once('keydown-ESC', skip);
 
+    const moveHint = Settings.touchActive() ? 'drag the stick' : 'D / →';
     this._say(
       [
         "Whoa — the shrinky-dink ray-ifier backfired! You've been shrunk down to molecular scale!",
         "I'm your faithful lab assistant, Main Element Guide. You can call me M.E.G.!",
         'To grow back to normal size you must gather elements and fight your way out.',
-        "Deep breaths — we'll get you home. Head right (D / → or the stick) and I'll explain as we go.",
+        `Deep breaths — we'll get you home. Head right (${moveHint}) and I'll explain as we go.`,
       ],
       () => {
         this.isPaused = false;
@@ -1062,7 +1084,7 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(481)
       .setVisible(false);
     this._dlgHint = this.add
-      .text(cx + pw / 2 - 16, cy + ph / 2 - 14, '▸ Tap / Space', {
+      .text(cx + pw / 2 - 16, cy + ph / 2 - 14, Settings.touchActive() ? '▸ Tap' : '▸ Space / Z', {
         fontSize: '12px',
         color: '#6699aa',
         fontFamily: 'monospace',
@@ -1209,16 +1231,21 @@ export default class GameScene extends Phaser.Scene {
         'Hey, do you see that floating atom? If you walk into it, you pick an element to collect and arm an attack.',
       );
     }
+    const touch = Settings.touchActive();
     if (this._tutEnemy?.sprite.active && Math.abs(px - this._tutEnemyX) < 300) {
       this._tip(
         'enemy',
-        'Watch out! Germs will drain your health and leave you feeling terrible. Use your attack key (or tap an attack button) to fight — a punch, or your element once armed.',
+        touch
+          ? 'Watch out! Germs drain your health. Tap an attack button to fight — a punch, or your element once armed.'
+          : 'Watch out! Germs drain your health. Use your attack key (Z) to fight — a punch, or your element once armed.',
       );
     }
     if (px > this._gapX1 - 240 && px < this._gapX1) {
       this._tip(
         'gap',
-        'It might seem scary, but you can jump right over gaps in the floor. Press SPACE to JUMP and tap again mid-air to double-jump.',
+        touch
+          ? 'It might seem scary, but you can jump over gaps. Tap the jump button to JUMP, then tap again mid-air to double-jump.'
+          : 'It might seem scary, but you can jump over gaps. Press SPACE to JUMP, then press again mid-air to double-jump.',
       );
     }
     if (px > this._tutEndX && !this._tutDone) this._completeTutorial();
@@ -1852,7 +1879,12 @@ export default class GameScene extends Phaser.Scene {
           (id) => (levelsBefore.get(id) ?? 0) < MAX_ELEMENT_LEVEL && es.getAttackLevel(id) === MAX_ELEMENT_LEVEL,
         );
         if (this.isTutorial) {
-          this._tip('armed', 'Armed! Press Z (or tap the Z button) to unleash your attack. Go smash that germ ahead!');
+          this._tip(
+            'armed',
+            Settings.touchActive()
+              ? 'Armed! Tap an attack button to unleash your attack. Go smash that germ ahead!'
+              : 'Armed! Press Z to unleash your attack. Go smash that germ ahead!',
+          );
         } else if (overflow.length > 0 && !Settings.get().compoundIntroSeen) {
           // First time the player synthesizes more compounds than they have slots — M.E.G. explains
           // the Compound Selection menu so they know how to choose their loadout.
@@ -1956,14 +1988,39 @@ export default class GameScene extends Phaser.Scene {
         .setDepth(501);
     }
 
+    // Retry / title are reachable by keyboard (Z / ESC) AND by tapping their labels, so touch players
+    // (no keyboard) can act. Guarded so a key + tap can't both fire.
+    const touch = Settings.touchActive();
+    let chose = false;
+    const retry = () => {
+      if (chose) return;
+      chose = true;
+      this.scene.stop('HUDScene');
+      this.scene.start('GameScene', this.isTutorial ? { tutorial: true } : { stage: this.currentStage });
+    };
+    const toTitle = () => {
+      if (chose) return;
+      chose = true;
+      this.scene.stop('HUDScene');
+      this.scene.start('TitleScene');
+    };
+    const tap = (go: Phaser.GameObjects.Text, action: () => void) => {
+      go.setInteractive({ useHandCursor: true });
+      go.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev?: Phaser.Types.Input.EventData) => {
+        ev?.stopPropagation();
+        action();
+      });
+    };
+
     const retryText = this.add
-      .text(textX, h - 52, 'Press Z to retry', {
+      .text(textX, h - 52, touch ? 'Tap here to retry' : 'Press Z to retry', {
         fontSize: '24px',
         color: '#ffeeaa',
       })
       .setScrollFactor(0)
       .setOrigin(0.5)
       .setDepth(501);
+    tap(retryText, retry);
     this.tweens.add({
       targets: retryText,
       alpha: 0.3,
@@ -1972,23 +2029,18 @@ export default class GameScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
     });
-    this.add
-      .text(textX, h - 24, 'ESC for title', {
+    const titleText = this.add
+      .text(textX, h - 22, touch ? 'Tap here for title' : 'ESC for title', {
         fontSize: '15px',
         color: '#aa8888',
       })
       .setScrollFactor(0)
       .setOrigin(0.5)
       .setDepth(501);
+    tap(titleText, toTitle);
 
-    this.input.keyboard?.once('keydown-Z', () => {
-      this.scene.stop('HUDScene');
-      this.scene.start('GameScene', this.isTutorial ? { tutorial: true } : { stage: this.currentStage });
-    });
-    this.input.keyboard?.once('keydown-ESC', () => {
-      this.scene.stop('HUDScene');
-      this.scene.start('TitleScene');
-    });
+    this.input.keyboard?.once('keydown-Z', retry);
+    this.input.keyboard?.once('keydown-ESC', toTitle);
   }
 
   /** A close-up of the scientist sobbing on the death screen — trembling, tears streaming into a puddle. */
@@ -2230,7 +2282,7 @@ export default class GameScene extends Phaser.Scene {
         ? `enter ${SECTORS[sectorOf(next)].name}`
         : 'continue';
     const prompt = this.add
-      .text(w / 2, h - 60, `Tap or press Z to ${dest}`, {
+      .text(w / 2, h - 60, `${Settings.touchActive() ? 'Tap' : 'Press Z'} to ${dest}`, {
         fontSize: '24px',
         color: '#ffeeaa',
       })

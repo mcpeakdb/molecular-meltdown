@@ -4,8 +4,8 @@
 // preferences read on hot paths (every sound, every screen shake), so access must
 // be cheap and never throw.
 
-/** On-screen touch controls: always on, always off, or shown only on touch-capable devices. */
-export type TouchMode = 'auto' | 'on' | 'off';
+/** On-screen touch controls: explicitly on or off. (Defaults to the device at first run — see _load.) */
+export type TouchMode = 'on' | 'off';
 
 export interface GameSettings {
   volume: number; // 0..1 master volume
@@ -27,13 +27,13 @@ const DEFAULTS: GameSettings = {
   sfx: true,
   music: true,
   screenShake: true,
-  touchControls: 'auto',
+  touchControls: 'off', // first-run default is device-based (see _load); this is just the fallback
   fullscreen: false,
   tutorialDone: false,
   compoundIntroSeen: false,
 };
 
-const TOUCH_MODES: readonly TouchMode[] = ['auto', 'on', 'off'];
+const TOUCH_MODES: readonly TouchMode[] = ['on', 'off'];
 
 let cache: GameSettings | null = null;
 
@@ -53,24 +53,20 @@ export default class Settings {
     }
   }
 
-  /** Whether on-screen touch controls should be shown, resolving the `auto` mode against the device. */
+  /** Whether on-screen touch controls (and touch-style hint text) are enabled. */
   static touchActive(): boolean {
-    const mode = Settings.get().touchControls;
-    if (mode === 'on') return true;
-    if (mode === 'off') return false;
-    return Settings.isTouchDevice();
+    return Settings.get().touchControls === 'on';
   }
 
-  /** Best-effort touch-capability sniff (used to resolve the `auto` touch-controls mode). */
+  /** Best-effort touch-capability sniff (used only for the first-run default). */
   static isTouchDevice(): boolean {
     if (typeof window === 'undefined') return false;
     return 'ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
   }
 
-  /** Cycle the touch-controls mode (auto → on → off → auto). Returns the new mode. */
-  static cycleTouchControls(dir = 1): TouchMode {
-    const i = TOUCH_MODES.indexOf(Settings.get().touchControls);
-    const next = TOUCH_MODES[(i + dir + TOUCH_MODES.length) % TOUCH_MODES.length];
+  /** Toggle the touch-controls mode (on ↔ off). Returns the new mode. */
+  static cycleTouchControls(): TouchMode {
+    const next: TouchMode = Settings.get().touchControls === 'on' ? 'off' : 'on';
     Settings.set({ touchControls: next });
     return next;
   }
@@ -90,9 +86,11 @@ export default class Settings {
   }
 
   private static _load(): GameSettings {
+    // First run (or a legacy 'auto' value) defaults to ON for touch-capable devices, else OFF.
+    const defaultTouch: TouchMode = Settings.isTouchDevice() ? 'on' : 'off';
     try {
       const raw = localStorage.getItem(KEY);
-      if (!raw) return { ...DEFAULTS };
+      if (!raw) return { ...DEFAULTS, touchControls: defaultTouch };
       const parsed = JSON.parse(raw) as Partial<GameSettings>;
       return {
         volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : DEFAULTS.volume,
@@ -102,13 +100,13 @@ export default class Settings {
         screenShake: parsed.screenShake ?? DEFAULTS.screenShake,
         touchControls: TOUCH_MODES.includes(parsed.touchControls as TouchMode)
           ? (parsed.touchControls as TouchMode)
-          : DEFAULTS.touchControls,
+          : defaultTouch,
         fullscreen: parsed.fullscreen ?? DEFAULTS.fullscreen,
         tutorialDone: parsed.tutorialDone ?? DEFAULTS.tutorialDone,
         compoundIntroSeen: parsed.compoundIntroSeen ?? DEFAULTS.compoundIntroSeen,
       };
     } catch {
-      return { ...DEFAULTS };
+      return { ...DEFAULTS, touchControls: defaultTouch };
     }
   }
 }

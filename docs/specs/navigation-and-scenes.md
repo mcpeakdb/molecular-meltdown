@@ -140,7 +140,7 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 - **REQ-SET-001** — `SettingsScene` shall expose rows for Volume, Mute, Sound FX, Music, Screen
   Shake, Touch Controls, Fullscreen, and BACK, and shall display the app version (`__APP_VERSION__`).
 - **REQ-SET-002** — ←/→ shall adjust the highlighted row (volume in 0.1 steps; booleans set by
-  direction; Touch Controls cycles auto→on→off); Z/Enter shall toggle a boolean / nudge volume up
+  direction; Touch Controls toggles on/off); Z/Enter shall toggle a boolean / nudge volume up
   (wrapping at max) / activate BACK.
 - **REQ-SET-003** — WHEN a row that produces sound is adjusted on (volume/mute-off/sfx-on), the scene
   shall play a preview blip.

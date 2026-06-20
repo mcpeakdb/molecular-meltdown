@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { type Difficulty, GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import MusicSystem from '../systems/MusicSystem';
+import Settings from '../systems/Settings';
 import SoundSystem from '../systems/SoundSystem';
 import { attachTap } from '../systems/touchMenu';
 
@@ -164,11 +165,18 @@ export default class DifficultyScene extends Phaser.Scene {
     });
 
     this.add
-      .text(cx, GAME_HEIGHT - 22, '← → navigate     Z / Enter confirm     ESC back to title', {
-        fontSize: '13px',
-        color: '#668866',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 22,
+        Settings.touchActive()
+          ? 'Tap a flask, tap again to start    ·    ‹ BACK to return'
+          : '← → navigate     Z / Enter confirm     ESC back to title',
+        {
+          fontSize: '13px',
+          color: '#668866',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     const back = this.add

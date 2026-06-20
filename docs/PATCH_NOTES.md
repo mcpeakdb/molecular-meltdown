@@ -1,5 +1,25 @@
 # Patch Notes
 
+## v0.28.0 - 2026-06-20
+
+### Fall damage, ground-hazard fix & touch polish
+
+- **Touch controls are now a simple ON / OFF** (the "auto" mode is gone). First run defaults to ON for
+  touch-capable devices and OFF otherwise; you can flip it anytime in Settings.
+- **All on-screen control hints now follow the touch setting.** Every prompt, menu footer, the
+  Controls reference, and the M.E.G. tutorial show touch instructions ("tap …", on-screen buttons)
+  when touch is on, and keyboard instructions (Z / arrows / Space / ESC) when it's off — no more mixed
+  or wrong-for-your-device hints. The tutorial can also be skipped by tapping on touch.
+- **Fixed:** on touch devices you can now retry or return to the title from the death screen — both
+  options are tappable (they were keyboard-only Z / ESC before, leaving touch players stuck).
+- **Fixed:** acid/lava pools no longer hurt you while you're standing on a platform *above* them.
+  Ground-level hazards (and bounce pads and crumbling tiles) now act only when you're actually on the
+  ground floor, not on an elevated ledge over them.
+- **New: fall damage.** Landing after a long drop now hurts, scaling with how far you fell. It's
+  measured as the net drop below the point you took off from — so jumping straight up and landing
+  where you started is always free; only genuine falls (e.g. tumbling off a tall sky tower) sting,
+  up to a capped maximum. Safe up to ~3 player-heights.
+
 ## v0.27.0 - 2026-06-19
 
 ### Vertical camera + climbable stages

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { type Difficulty, GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import SaveSystem from '../systems/SaveSystem';
+import Settings from '../systems/Settings';
 import { attachTap } from '../systems/touchMenu';
 
 const MONO = 'monospace';
@@ -94,11 +95,18 @@ export default class LeaderboardScene extends Phaser.Scene {
     this.board = this.add.container(0, 0);
 
     this.add
-      .text(cx, GAME_HEIGHT - 22, '← → switch difficulty    ESC / Z back', {
-        fontSize: '13px',
-        color: '#668866',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 22,
+        Settings.touchActive()
+          ? 'Tap a difficulty tab    ·    ‹ BACK to return'
+          : '← → switch difficulty    ESC / Z back',
+        {
+          fontSize: '13px',
+          color: '#668866',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     const back = this.add

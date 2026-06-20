@@ -74,11 +74,18 @@ export default class SettingsScene extends Phaser.Scene {
     });
 
     this.add
-      .text(cx, GAME_HEIGHT - 30, '↑↓ select    ←→ adjust    Z/Enter toggle    ESC back', {
-        fontSize: '13px',
-        color: '#668866',
-        fontFamily: MONO,
-      })
+      .text(
+        cx,
+        GAME_HEIGHT - 30,
+        Settings.touchActive()
+          ? 'Tap a row to change it    ·    tap BACK to return'
+          : '↑↓ select    ←→ adjust    Z/Enter toggle    ESC back',
+        {
+          fontSize: '13px',
+          color: '#668866',
+          fontFamily: MONO,
+        },
+      )
       .setOrigin(0.5);
 
     this._refresh();
@@ -134,7 +141,7 @@ export default class SettingsScene extends Phaser.Scene {
         Settings.set({ screenShake: dir > 0 });
         break;
       case 5:
-        Settings.cycleTouchControls(dir);
+        Settings.cycleTouchControls();
         break;
       case 6:
         Settings.set({ fullscreen: dir > 0 });
@@ -176,7 +183,7 @@ export default class SettingsScene extends Phaser.Scene {
         Settings.set({ screenShake: !s.screenShake });
         break;
       case 5:
-        Settings.cycleTouchControls(1);
+        Settings.cycleTouchControls();
         break;
       case 6: {
         const fs = !s.fullscreen;
@@ -214,7 +221,7 @@ export default class SettingsScene extends Phaser.Scene {
     const s = Settings.get();
     const bars = Math.round(s.volume * 10);
     const onOff = (v: boolean) => (v ? 'ON' : 'OFF');
-    const touchLabel = { auto: 'AUTO', on: 'ON', off: 'OFF' }[s.touchControls];
+    const touchLabel = s.touchControls === 'on' ? 'ON' : 'OFF';
     const values = [
       `Volume         [${'█'.repeat(bars)}${'░'.repeat(10 - bars)}] ${Math.round(s.volume * 100)}%`,
       `Mute           ${onOff(s.muted)}`,
