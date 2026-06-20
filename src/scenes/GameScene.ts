@@ -124,6 +124,8 @@ export default class GameScene extends Phaser.Scene {
   difficulty: Difficulty = 'normal';
   private stageDef!: StageDef;
   private worldWidth = WORLD_WIDTH;
+  /** Climbable sky above the standard screen (px) — drives vertical camera/world bounds. 0 = locked. */
+  private _rise = 0;
 
   // ── Enemy counter (germs cleared this stage; the boss counts as one germ) ──
   private _enemyTotal = 0;
@@ -257,9 +259,13 @@ export default class GameScene extends Phaser.Scene {
     // Real gravity now. The physics world is taller than the view so the player can fall into
     // pits below the screen (we respawn them); the camera bounds stay one screen tall, which keeps
     // the camera vertically locked (lane + ledges).
+    // Vertical extent: stages may rise above the standard screen for climbing. The floor stays at
+    // GROUND_TOP_Y; `rise` opens room *above* it (negative y), and the camera follows the player up
+    // into it. The world keeps the extra +300 below for pit-falls. rise=0 → vertically locked.
+    this._rise = this.isTutorial ? 0 : (this.stageDef.rise ?? 0);
     this.physics.world.gravity.y = GRAVITY;
-    this.physics.world.setBounds(0, 0, this.worldWidth, GAME_HEIGHT + 300);
-    this.cameras.main.setBounds(0, 0, this.worldWidth, GAME_HEIGHT);
+    this.physics.world.setBounds(0, -this._rise, this.worldWidth, GAME_HEIGHT + this._rise + 300);
+    this.cameras.main.setBounds(0, -this._rise, this.worldWidth, GAME_HEIGHT + this._rise);
     this.audioCtx = (this.sound as Phaser.Sound.WebAudioSoundManager).context;
     // Stage music keyed by sector (the boss finale swaps to the boss theme on activation, below).
     // Idempotent, so advancing stages within a sector keeps the same loop running unbroken.
@@ -420,7 +426,11 @@ export default class GameScene extends Phaser.Scene {
     const theme = SECTOR_THEMES[sector];
     const w = this.worldWidth;
 
-    this.add.tileSprite(0, 0, w, GAME_HEIGHT, `bg_tile_${sector}`).setOrigin(0, 0).setScrollFactor(0.3).setDepth(-10);
+    this.add
+      .tileSprite(0, -this._rise, w, GAME_HEIGHT + this._rise, `bg_tile_${sector}`)
+      .setOrigin(0, 0)
+      .setScrollFactor(0.3)
+      .setDepth(-10);
     this.add
       .tileSprite(0, GROUND_TOP_Y, w, GAME_HEIGHT - GROUND_TOP_Y, `ground_tile_${sector}`)
       .setOrigin(0, 0)

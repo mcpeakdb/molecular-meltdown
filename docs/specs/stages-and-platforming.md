@@ -8,9 +8,9 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-STAGE-001** — The game shall consist of `STAGES[9]` (`StageDef`), one per stage; `GameScene`
   shall read `STAGES[currentStage - 1]` and build the level from it.
 - **REQ-STAGE-002** — A `StageDef` shall carry: `name`, `width`, `atoms` (choice nodes, optionally
-  perched at `y`), `enemies`, `gaps`, and optionally `platforms`, `hazards`, `pads`, `crumble`,
-  `noble`, and either `boss` (finale) or `exitX` (reach-the-exit clear). `boss` and `exitX` are
-  mutually exclusive.
+  perched at `y`), `enemies`, `gaps`, and optionally `rise` (climbable sky height), `platforms`,
+  `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or `exitX` (reach-the-exit clear).
+  `boss` and `exitX` are mutually exclusive.
 - **REQ-STAGE-003** — Theme/art shall be keyed by sector (not per-stage): `SECTOR_THEMES` colours and
   the `bg_tile_${sector}` / `ground_tile_${sector}` textures. All three stages of a sector share a
   biome.
@@ -20,7 +20,13 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 ## World construction
 
 - **REQ-WORLD-001** — `GameScene` shall set physics-world bounds taller than the viewport (so the
-  player can fall into pits) while keeping the camera bounds one screen tall (vertically locked).
+  player can fall into pits below the floor).
+- **REQ-WORLD-001a** — WHERE a stage sets `rise > 0`, the camera and world bounds shall extend that
+  many px **above** the standard screen (into negative y, the floor staying at `GROUND_TOP_Y`), and
+  the camera shall follow the player vertically up into that climbable space (a free 2-axis camera).
+  WHERE `rise` is omitted/0, the camera bounds stay one screen tall, leaving the camera vertically
+  locked as before. The camera never scrolls below the standard screen (pits remain off-bottom).
+- **REQ-WORLD-001b** — The parallax background shall extend to cover the climbable sky when `rise > 0`.
 - **REQ-WORLD-002** — The floor shall be built as solid static colliders spanning every gap-free
   range, with real holes at each gap and crumble range (`_buildFloorColliders`); ledge platforms
   shall be added as visible solid colliders the player can jump onto.

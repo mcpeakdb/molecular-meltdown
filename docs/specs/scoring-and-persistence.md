@@ -66,8 +66,9 @@ Persisted under `mm.save.v2`. Records are kept separately per difficulty.
   find via `SaveSystem`, play celebratory FX in the gas colour, float a "+bonus" label, and have
   M.E.G. quip — first finds noting the running `n/6` total.
 - **REQ-NOBLE-002** — Exactly one noble gas shall be hidden per non-finale-or-finale stage (helium
-  through radon across stages 1-2 … 3-3), usually perched high and/or guarded (see
-  [stages-and-platforming.md](stages-and-platforming.md)).
+  through radon across stages 1-2 … 3-3), perched at the summit of that stage's sky tower and usually
+  guarded (see [stages-and-platforming.md](stages-and-platforming.md)). On exit-clear stages the
+  guard shall hover down into reach (a flyer) so the optional climb never gates the stage clear.
 - **REQ-NOBLE-003** — WHEN the noble-gas collection becomes complete (all 6 ever found), the player
   shall permanently unlock the Prismatic Beam super weapon (see
   [elements-and-progression.md](elements-and-progression.md) REQ-SUPER-*).

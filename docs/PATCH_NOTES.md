@@ -1,5 +1,19 @@
 # Patch Notes
 
+## v0.27.0 - 2026-06-19
+
+### Vertical camera + climbable stages
+
+- **The camera now follows you vertically as well as sideways.** Stages define a `rise` — a band of
+  climbable "sky" above the standard screen — and the camera scrolls up to track you as you climb,
+  while the floor stays put and pits remain off the bottom. Casual ground jumping doesn't move the
+  camera; only real climbing does.
+- **Every stage now has a sky tower.** Each level grows a zig-zag tower of single-hop platforms
+  reaching into the sky (taller as the sectors progress, tallest on the final stage). On the six
+  noble-gas stages the rare gem now sits at the summit of its tower; the two stages without a gem get
+  an atom reward up top. Noble climbs stay optional — guards that would otherwise gate an exit-clear
+  stage from a high perch hover down into reach instead.
+
 ## v0.26.0 - 2026-06-19
 
 ### Prismatic Beam — noble-gas super weapon

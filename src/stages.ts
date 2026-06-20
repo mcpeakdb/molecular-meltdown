@@ -20,6 +20,10 @@ export interface StageDef {
   name: string;
   /** Total walkable width of this stage (camera + physics bounds). */
   width: number;
+  /** Climbable "sky" above the standard screen, in px. When set, the camera follows the player
+   *  vertically up to `rise` px above the normal view and structures can be built into negative y
+   *  (the floor stays at GROUND_TOP_Y). Omitted/0 keeps the camera vertically locked as before. */
+  rise?: number;
   /** Atom pickups — each a branching choice node. `y` perches it on a ledge (defaults to floating). */
   atoms: { x: number; y?: number; choices: BaseAtom[] }[];
   /** Enemy placements (y is randomized within the floor band at spawn). */
@@ -55,24 +59,35 @@ export const STAGES: StageDef[] = [
   {
     name: 'INOCULATION ZONE',
     width: 3600,
+    // First vertical stage: the camera now follows the player up a climbable tower (see `rise`).
+    rise: 480,
     atoms: [
       { x: 650, choices: ['hydrogen', 'oxygen'] },
       { x: 1500, choices: ['hydrogen', 'oxygen'] },
-      { x: 2500, choices: ['hydrogen', 'carbon'] },
+      // Reward for the climb — a third atom perched at the top of the tower.
+      { x: 2610, y: -300, choices: ['hydrogen', 'carbon'] },
     ],
     enemies: [
       ...spread(600, 1300, ['bacterium', 'virus', 'bacterium']),
       ...spread(1750, 2400, ['virus', 'bacterium', 'pollen']),
-      ...spread(2700, 3250, ['bacterium', 'dustbunny', 'virus']),
+      ...spread(2900, 3250, ['bacterium', 'dustbunny', 'virus']),
     ],
     gaps: [[1500, 1620]],
-    // Gentle introduction to jumping onto ledges — a low, climbable row.
     platforms: [
+      // Gentle introduction to jumping onto ledges — a low row.
       [700, 410, 120],
       [1080, 360, 140],
       [1840, 390, 150],
       [2250, 350, 130],
-      [2700, 400, 150],
+      // A zig-zag tower climbing into the sky; each step is a single hop, the top holds an atom.
+      [2520, 400, 130],
+      [2720, 300, 120],
+      [2520, 200, 120],
+      [2720, 90, 120],
+      [2520, -20, 120],
+      [2720, -140, 130],
+      [2540, -260, 150],
+      // Back down to the ground run-up to the exit.
       [3050, 360, 140],
     ],
     // First taste of platforming: a single springy spore to bop on, just past the gap.
@@ -83,6 +98,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'THE AGAR FLATS',
     width: 4200,
+    rise: 460,
     atoms: [
       { x: 500, choices: ['hydrogen', 'oxygen'] },
       { x: 1400, choices: ['oxygen', 'carbon'] },
@@ -104,12 +120,17 @@ export const STAGES: StageDef[] = [
       [1750, 380, 140],
       [2150, 360, 140], // staircase up to the Helium gem — each step is a single hop
       [2330, 300, 130],
-      [2480, 250, 140], // Helium gem ledge
+      [2480, 250, 140], // Helium gem ledge — base of the sky tower
+      // Sky tower up to the Helium gem (zig-zag single hops into the sky).
+      [2660, 150, 130],
+      [2480, 50, 130],
+      [2660, -60, 130],
+      [2480, -170, 150],
       [2900, 360, 150],
       [3250, 320, 130],
     ],
     // Helium — up a gentle single-jump staircase mid-stage (unguarded, the easiest find).
-    noble: { x: 2550, y: 212, gas: 'helium' },
+    noble: { x: 2555, y: -210, gas: 'helium' },
     pads: [800],
     // First crumbling tile — stand too long and the agar gives way into a chasm.
     crumble: [[3550, 3690]],
@@ -119,6 +140,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'COLONY CORE',
     width: 5000,
+    rise: 480,
     atoms: [
       { x: 500, choices: ['hydrogen', 'oxygen'] },
       { x: 1300, choices: ['oxygen', 'carbon'] },
@@ -140,13 +162,18 @@ export const STAGES: StageDef[] = [
       [1100, 350, 140],
       [1900, 380, 150],
       [2000, 300, 120], // step up toward the Neon gem
-      [2150, 240, 130], // Neon gem ledge (high, guarded below)
+      [2150, 240, 130], // Neon gem ledge — base of the sky tower
+      // Sky tower up to the Neon gem.
+      [2330, 140, 130],
+      [2150, 40, 130],
+      [2330, -70, 130],
+      [2150, -180, 150],
       [2750, 360, 150],
       [3300, 330, 160],
       [3900, 380, 140],
     ],
     // Neon — high up, with an amoeba standing guard at the base of the climb.
-    noble: { x: 2215, y: 202, gas: 'neon', guard: 'amoeba' },
+    noble: { x: 2225, y: -220, gas: 'neon', guard: 'amoeba' },
     // First hazard pool appears before the boss run-up; bop the pad to skip it cleanly.
     hazards: [[2300, 2440]],
     pads: [3650],
@@ -158,10 +185,11 @@ export const STAGES: StageDef[] = [
   {
     name: 'HEMOLYTIC FIELDS',
     width: 4200,
+    rise: 420,
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1300, choices: ['hydrogen', 'nitrogen'] },
-      { x: 2200, choices: ['oxygen', 'carbon'] },
+      { x: 2675, y: -150, choices: ['oxygen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3200, choices: ['hydrogen', 'oxygen'] },
     ],
     enemies: [
@@ -178,7 +206,12 @@ export const STAGES: StageDef[] = [
       [1100, 350, 140],
       [1550, 320, 130],
       [2050, 380, 140],
-      [2600, 330, 150],
+      [2600, 330, 150], // base of the sky tower
+      // Sky tower to a perched atom reward.
+      [2780, 220, 130],
+      [2600, 110, 130],
+      [2780, 0, 130],
+      [2600, -110, 150],
       [3150, 360, 140],
       [3650, 320, 150],
     ],
@@ -191,6 +224,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'PLASMA CURRENTS',
     width: 4600,
+    rise: 480,
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1200, choices: ['hydrogen', 'nitrogen'] },
@@ -213,12 +247,17 @@ export const STAGES: StageDef[] = [
       [1400, 290, 120],
       [2000, 370, 140],
       [2600, 330, 140],
-      [2850, 260, 130], // Argon gem ledge (high, over solid ground)
+      [2850, 260, 130], // Argon gem ledge — base of the sky tower
+      // Sky tower up to the Argon gem; the hovering spore harasses the climb.
+      [2660, 150, 130],
+      [2850, 40, 130],
+      [2660, -70, 130],
+      [2850, -180, 150],
       [3500, 330, 150],
       [3950, 360, 140],
     ],
     // Argon — up high over the plasma; a hovering spore makes the climb dangerous.
-    noble: { x: 2910, y: 222, gas: 'argon', guard: 'spore' },
+    noble: { x: 2925, y: -220, gas: 'argon', guard: 'spore' },
     hazards: [
       [900, 1040],
       [2350, 2520],
@@ -231,6 +270,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'THE BEATING HEART',
     width: 5200,
+    rise: 500,
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1300, choices: ['hydrogen', 'nitrogen'] },
@@ -253,12 +293,17 @@ export const STAGES: StageDef[] = [
       [1500, 300, 130],
       [2100, 370, 140],
       [2400, 330, 140], // step toward the Krypton gem
-      [2650, 250, 130], // Krypton gem ledge (high, over solid ground)
+      [2650, 250, 130], // Krypton gem ledge — base of the sky tower
+      // Sky tower up to the Krypton gem.
+      [2470, 140, 130],
+      [2650, 30, 130],
+      [2470, -80, 130],
+      [2650, -190, 150],
       [3500, 330, 150],
       [3950, 360, 150],
     ],
     // Krypton — a high perch between the chasms, with an amoeba guarding the approach.
-    noble: { x: 2710, y: 212, gas: 'krypton', guard: 'amoeba' },
+    noble: { x: 2725, y: -230, gas: 'krypton', guard: 'amoeba' },
     hazards: [[2400, 2560]],
     pads: [1000, 4100],
     crumble: [[3650, 3800]],
@@ -270,6 +315,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'LACTOSE MARSHES',
     width: 4400,
+    rise: 540,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1200, choices: ['hydrogen', 'oxygen'] },
@@ -292,14 +338,21 @@ export const STAGES: StageDef[] = [
       [1200, 350, 130],
       [1430, 300, 130], // staircase up to the Xenon gem — single hops, partly over the chasm
       [1650, 250, 130],
-      [1820, 210, 130], // Xenon gem ledge (high, guarded)
+      [1820, 210, 130], // Xenon gem ledge — base of the sky tower
+      // Sky tower up to the Xenon gem.
+      [1640, 100, 130],
+      [1820, -10, 130],
+      [1640, -120, 130],
+      [1820, -230, 150],
       [2300, 360, 140],
       [3000, 320, 140],
       [3520, 410, 90], // stepping stone in the wide gap
       [3850, 330, 150],
     ],
     // Xenon — tucked high above the marshes, guarded by a mite.
-    noble: { x: 1885, y: 172, gas: 'xenon', guard: 'mite' },
+    // Flyer guard (hovers down into reach): on an exit-clear stage a ground guard stuck on the high
+    // summit would force the climb just to clear the stage. A spore patrols the climb instead.
+    noble: { x: 1895, y: -270, gas: 'xenon', guard: 'spore' },
     hazards: [
       [1000, 1160],
       [2150, 2310],
@@ -311,10 +364,11 @@ export const STAGES: StageDef[] = [
   {
     name: 'BILE SALT BARRENS',
     width: 4800,
+    rise: 420,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
-      { x: 1900, choices: ['oxygen', 'nitrogen'] },
+      { x: 2125, y: -130, choices: ['oxygen', 'nitrogen'] }, // summit reward atop the sky tower
       { x: 2700, choices: ['hydrogen', 'carbon'] },
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
@@ -334,7 +388,12 @@ export const STAGES: StageDef[] = [
       [700, 390, 130],
       [1150, 340, 130],
       [1600, 300, 130],
-      [2050, 350, 130],
+      [2050, 350, 130], // base of the sky tower
+      // Sky tower to a perched atom reward.
+      [2230, 240, 130],
+      [2050, 130, 130],
+      [2230, 20, 130],
+      [2050, -90, 150],
       [2900, 330, 140],
       [3150, 270, 120],
       [3600, 330, 150],
@@ -352,6 +411,7 @@ export const STAGES: StageDef[] = [
   {
     name: 'CRYSTAL VIOLET THRONE',
     width: 5500,
+    rise: 600,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -377,14 +437,19 @@ export const STAGES: StageDef[] = [
       [1360, 300, 140], // staircase up to the Radon gem — single hops, partly over the chasm
       [1580, 255, 140],
       [1800, 215, 140],
-      [2030, 180, 150], // Radon gem ledge (the highest perch in the game)
+      [2030, 180, 150], // Radon gem ledge — base of the sky tower
+      // Sky tower up to the Radon gem (the highest climb in the game).
+      [1840, 70, 140],
+      [2030, -40, 140],
+      [1840, -150, 140],
+      [2030, -260, 160],
       [2900, 350, 140],
       [3600, 320, 150],
       [4170, 410, 110], // stepping stone in the wide gap
       [4650, 340, 150],
     ],
     // Radon — the final, hardest find: highest perch in the game, guarded by an amoeba.
-    noble: { x: 2105, y: 142, gas: 'radon', guard: 'amoeba' },
+    noble: { x: 2110, y: -300, gas: 'radon', guard: 'amoeba' },
     hazards: [
       [950, 1120],
       [3000, 3180],
