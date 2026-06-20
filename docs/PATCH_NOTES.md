@@ -1,5 +1,20 @@
 # Patch Notes
 
+## v0.29.0 - 2026-06-20
+
+### Sector 4 — LAB FLOOR (3 new stages)
+
+- **Escape the petri dishes onto the lab floor.** A new fourth sector adds stages 10–12 (now 12
+  stages total): BENCHTOP SPILL, CRUMB TRAILS, and the finale THE ROACH NEST — clinical grey-blue
+  tiling, teal reagent spills, and lab-equipment silhouettes in the background.
+- **New bug enemy: the Ant** — a fast, low-HP ground swarmer that scurries at you — alongside the
+  returning mites. Both are procedurally drawn (no new art assets needed).
+- **New final boss: the ROACH KING** — a giant cockroach, the fastest and toughest boss yet, with a
+  dense 8-shot spread.
+- New sector-4 background music (driving and a touch industrial), its own teal theme on the stage
+  rack, and three tall sky towers (the stage-12 climb is the highest in the game). Passcodes, unlocks,
+  and the leaderboard all extend to the new stages automatically.
+
 ## v0.28.0 - 2026-06-20
 
 ### Fall damage, ground-hazard fix & touch polish

@@ -17,6 +17,7 @@ Enemy types and AI, status effects (bleed/slow), and boss phases/attacks. Source
 | amoeba | 80 | 48 | 16 | 2200 | no | slow tank (sector 2+) |
 | spore | 14 | 180 | 7 | 800 | yes | fast hoverer (sector 2+) |
 | mite | 30 | 115 | 11 | 1300 | no | hops, crawler (sector 3+) |
+| ant | 24 | 150 | 9 | 950 | no | fast ground swarmer, scurries (sector 4) |
 
 - **REQ-ENEMY-001** — On spawn, an enemy shall take HP/speed from `CONFIGS` scaled by the difficulty
   (`enemyHp`, `enemySpeed`); flyers shall disable gravity, ground types shall fall under gravity and
@@ -74,6 +75,7 @@ States: PATROL, CHASE, ATTACK, HURT, DEAD.
 | bacterium (SUPER BACTERIUM) | 1 (stage 3) | 500 | 140 | 22 | 3 shots | 0.30 rad |
 | amoeba (AMOEBA TITAN) | 2 (stage 6) | 850 | 120 | 26 | 5 shots | 0.26 rad |
 | phage (PHAGE LORD) | 3 (stage 9) | 1300 | 175 | 32 | 7 shots | 0.22 rad |
+| roach (ROACH KING) | 4 (stage 12) | 1600 | 185 | 34 | 8 shots | 0.20 rad |
 
 Boss base stats are also scaled by difficulty (`enemyHp`, `enemySpeed`).
 

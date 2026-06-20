@@ -107,6 +107,18 @@ const SECTOR_THEMES: Record<
     flashB: 255,
     clearColor: '#aaccff',
   },
+  // Sector 4 — LAB FLOOR: clinical grey-blue tiling with teal reagent accents.
+  4: {
+    floorLine: 0x7b8893,
+    shadow: 0x0a0d12,
+    label: '#5fc8bb',
+    tick: 0x55636e,
+    particles: [0xaab0b8, 0xcfd6dd, 0x8a92a0, 0x4fd0c0],
+    flashR: 160,
+    flashG: 240,
+    flashB: 220,
+    clearColor: '#9ff0dd',
+  },
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -560,12 +572,20 @@ export default class GameScene extends Phaser.Scene {
         g.fillEllipse(x, y, 60 * s, 40 * s);
         g.fillStyle(0x300808, 0.1);
         g.fillEllipse(x, y, 26 * s, 18 * s);
-      } else {
+      } else if (sector === 3) {
         // MacConkey — crystal shards
         g.fillStyle(color, 0.12);
         g.fillTriangle(x, y - 36 * s, x - 14 * s, y + 22 * s, x + 14 * s, y + 22 * s);
         g.lineStyle(1, color, 0.2);
         g.strokeTriangle(x, y - 36 * s, x - 14 * s, y + 22 * s, x + 14 * s, y + 22 * s);
+      } else {
+        // Lab floor — faint equipment silhouettes (jars / boxes) in the deep background
+        g.fillStyle(color, 0.1);
+        g.fillRoundedRect(x - 22 * s, y - 30 * s, 44 * s, 60 * s, 6);
+        g.lineStyle(1.5, color, 0.16);
+        g.strokeRoundedRect(x - 22 * s, y - 30 * s, 44 * s, 60 * s, 6);
+        g.fillStyle(color, 0.12);
+        g.fillRect(x - 10 * s, y - 40 * s, 20 * s, 12 * s); // a cap / lid
       }
     }
 
@@ -586,10 +606,16 @@ export default class GameScene extends Phaser.Scene {
         // squat cell mounds
         g.fillStyle(color, 0.4);
         g.fillEllipse(x, y, 26 * s, 12 * s);
-      } else {
+      } else if (sector === 3) {
         // upright crystal spikes
         g.fillStyle(color, 0.45);
         g.fillTriangle(x - 5 * s, y, x + 5 * s, y, x, y - rand(16, 28) * s);
+      } else {
+        // Lab floor — dust clumps & crumbs along the floor
+        g.fillStyle(color, 0.4);
+        g.fillCircle(x, y - 3 * s, 4 * s);
+        g.fillStyle(color, 0.25);
+        g.fillCircle(x + 7 * s, y - 1, 2.5 * s);
       }
     }
   }
@@ -836,7 +862,8 @@ export default class GameScene extends Phaser.Scene {
   private _hazardTheme(): { fill: number; surface: number } {
     if (this.sector === 1) return { fill: 0x88dd33, surface: 0xccff66 };
     if (this.sector === 2) return { fill: 0xdd3322, surface: 0xff7755 };
-    return { fill: 0xaa55dd, surface: 0xdd99ff };
+    if (this.sector === 3) return { fill: 0xaa55dd, surface: 0xdd99ff };
+    return { fill: 0x33bbcc, surface: 0x99ffee }; // sector 4 — spilled reagent (teal)
   }
 
   /** Draw a bubbling corrosive pool sitting on the floor surface and register it as a damage strip. */
@@ -1909,6 +1936,7 @@ export default class GameScene extends Phaser.Scene {
       amoeba: 200,
       spore: 70,
       mite: 120,
+      ant: 110,
     };
     this.score += enemy.isBoss ? 1000 : (SCORES[(enemy as Enemy).type] ?? 100);
     this.events.emit('score-update', this.score);

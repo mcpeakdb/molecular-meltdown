@@ -19,7 +19,7 @@ type AttackKind = 'volley' | 'radial' | 'barrage' | 'sweep';
 // reach it, but high enough to loom. (Player center sits ≈ GROUND_TOP_Y − 22 when standing.)
 const HOVER_Y = GROUND_TOP_Y - 80;
 
-export type BossVariant = 'bacterium' | 'amoeba' | 'phage';
+export type BossVariant = 'bacterium' | 'amoeba' | 'phage' | 'roach';
 
 interface BossVariantCfg {
   texture: string;
@@ -85,6 +85,22 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
     labelColor: '#aaddff',
     activateTint: 0x44aaff,
     fireTint: 0x88ccff,
+  },
+  // Sector 4 — Roach King: the lab-floor finale. Fastest and toughest, with a dense 8-shot spread.
+  roach: {
+    texture: 'boss_roach',
+    name: 'ROACH KING',
+    hp: 1600,
+    speed: 185,
+    damage: 34,
+    scale: 1.5,
+    bodySize: [70, 54],
+    bodyOffset: [21, 18],
+    projectileCount: 8,
+    projectileSpread: 0.2,
+    labelColor: '#e0c08a',
+    activateTint: 0xaa6622,
+    fireTint: 0xffaa44,
   },
 };
 

@@ -458,4 +458,145 @@ export const STAGES: StageDef[] = [
     crumble: [[2700, 2850]],
     boss: { variant: 'phage', x: 5000 },
   },
+
+  // ── Sector 4 — LAB FLOOR ──────────────────────────────────────────────────
+  // Escaped the dishes onto the lab bench/floor: ants swarm and mites crawl, ending at the Roach King.
+  // 4-1 — emerging onto the bench: ants arrive alongside the familiar mites.
+  {
+    name: 'BENCHTOP SPILL',
+    width: 4600,
+    rise: 520,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2675, y: -120, choices: ['hydrogen', 'carbon'] }, // summit reward atop the sky tower
+      { x: 3700, choices: ['carbon', 'oxygen'] },
+    ],
+    enemies: [
+      ...spread(500, 1300, ['ant', 'mite', 'ant', 'ant']),
+      ...spread(1700, 2600, ['mite', 'ant', 'ant', 'mite', 'ant']),
+      ...spread(2950, 3950, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2950, 3090],
+    ],
+    platforms: [
+      [650, 390, 120],
+      [1150, 350, 130],
+      [1600, 310, 130],
+      [2050, 360, 140],
+      // sky tower
+      [2600, 360, 140],
+      [2790, 250, 130],
+      [2600, 140, 130],
+      [2790, 30, 130],
+      [2600, -80, 150],
+      [3300, 340, 150],
+      [3850, 360, 140],
+    ],
+    hazards: [[2150, 2300]],
+    pads: [900],
+    crumble: [[4050, 4200]],
+    exitX: 4380,
+  },
+  // 4-2 — crumb trails: four gaps, dense ant + mite pressure, two reagent spills.
+  {
+    name: 'CRUMB TRAILS',
+    width: 4900,
+    rise: 560,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward atop the sky tower
+      { x: 3500, choices: ['carbon', 'oxygen'] },
+      { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['ant', 'mite', 'ant', 'ant', 'mite']),
+      ...spread(1750, 2650, ['mite', 'ant', 'ant', 'mite', 'ant']),
+      ...spread(3000, 4100, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant', 'mite']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4100, 4320], // wide — clear it via the mid-gap stepping stone or a double-jump
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      // sky tower
+      [2680, 360, 140],
+      [2870, 250, 130],
+      [2680, 140, 130],
+      [2870, 30, 130],
+      [2680, -80, 130],
+      [2870, -190, 150],
+      [3700, 330, 150],
+      [4170, 410, 110], // stepping stone in the wide gap
+      [4600, 340, 150],
+    ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3800],
+    crumble: [[2250, 2390]],
+    exitX: 4680,
+  },
+  // 4-3 — The Roach Nest: the Roach King, final boss of the game.
+  {
+    name: 'THE ROACH NEST',
+    width: 5600,
+    rise: 620,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2760, y: -360, choices: ['hydrogen', 'carbon'] }, // summit reward (the highest climb in the game)
+      { x: 3500, choices: ['carbon', 'oxygen'] },
+      { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['ant', 'mite', 'ant', 'ant']),
+      ...spread(1750, 2650, ['mite', 'ant', 'ant', 'mite', 'ant']),
+      ...spread(3000, 4100, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4100, 4330], // wide — clear it via the mid-gap stepping stone or a double-jump
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      // sky tower — the tallest climb in the game
+      [2680, 360, 140],
+      [2870, 250, 140],
+      [2680, 140, 140],
+      [2870, 30, 140],
+      [2680, -90, 140],
+      [2870, -200, 150],
+      [2680, -320, 160],
+      [2900, 350, 140],
+      [3600, 320, 150],
+      [4170, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 150],
+    ],
+    hazards: [
+      [950, 1120],
+      [3000, 3180],
+    ],
+    pads: [1900, 4500],
+    crumble: [[2250, 2390]],
+    boss: { variant: 'roach', x: 5100 },
+  },
 ];

@@ -20,11 +20,14 @@ import { attachTap } from '../systems/touchMenu';
 const MONO = 'monospace';
 
 // ── Test-tube rack geometry ────────────────────────────────────────────────────
-// The nine stages are nine test tubes in a rack, grouped three-per-sector. Tube x is derived
-// from the sector (group) and the substage (position within the group); see `_tubeX`.
+// Every stage is a test tube in a rack, grouped three-per-sector. Tube x is derived from the sector
+// (group) and the substage (position within the group); see `_tubeX`. The rack auto-centers for
+// however many sector groups exist (STAGE_COUNT / 3), so adding a sector needs no geometry retune.
 const TUBE_PITCH = 70; // center-to-center within a sector group
 const GROUP_GAP = 56; // extra space between sector groups
-const FIRST_X = 214; // x of the first tube (sector 1, stage 1), centers the rack at GAME_WIDTH/2
+const SECTOR_GROUPS = STAGE_COUNT / 3;
+const RACK_SPAN = (SECTOR_GROUPS - 1) * (2 * TUBE_PITCH + GROUP_GAP) + 2 * TUBE_PITCH; // first→last center
+const FIRST_X = (GAME_WIDTH - RACK_SPAN) / 2; // x of the first tube, centering the rack
 const TUBE_W = 40; // outer glass width
 const TUBE_TOP = 150; // y of the glass mouth
 const TUBE_H = 214; // glass height (bottom at TUBE_TOP + TUBE_H)
@@ -37,6 +40,7 @@ const SECTOR_COLOR: Record<SectorId, number> = {
   1: 0x66cc55,
   2: 0xdd5544,
   3: 0x6688ee,
+  4: 0x33ccbb,
 };
 
 export default class StageSelectScene extends Phaser.Scene {
@@ -112,7 +116,7 @@ export default class StageSelectScene extends Phaser.Scene {
     rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 8, 4);
 
     // Sector group headers, centered over each trio of tubes.
-    for (let s = 0; s < 3; s++) {
+    for (let s = 0; s < SECTOR_GROUPS; s++) {
       const sector = (s + 1) as SectorId;
       const midX = this._tubeX(s * 3 + 2); // middle tube of the group
       this.add

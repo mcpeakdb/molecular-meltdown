@@ -10,7 +10,7 @@ import Settings from './Settings';
 // so music flows unbroken between stages; `setTrack` only re-cuts when the
 // requested track actually changes.
 
-export type TrackId = 'title' | 'sector1' | 'sector2' | 'sector3' | 'boss';
+export type TrackId = 'title' | 'sector1' | 'sector2' | 'sector3' | 'sector4' | 'boss';
 
 interface TrackDef {
   bpm: number;
@@ -134,6 +134,21 @@ const TRACKS: Record<TrackId, TrackDef> = {
     hat: beat(2, 5, 6, 10, 13, 14),
     waves: { bass: 'square', lead: 'triangle', pad: 'square' },
     gain: 0.78,
+  },
+
+  // Sector 4 — LAB FLOOR: driving, mechanical, a touch industrial. A minor with a tense bVI/V pull.
+  sector4: {
+    bpm: 138,
+    root: 220,
+    prog: [0, 5, 3, 7], // Am – Dm – C – E
+    bass: [0, 0, 0, 7, 0, 0, 3, 0, 0, 0, 0, 7, 5, 5, 7, 7],
+    lead: [12, null, 15, null, 19, null, 15, 12, 14, null, 12, null, 10, null, null, null],
+    voicing: POWER,
+    kick: beat(0, 4, 6, 8, 12, 14),
+    snare: beat(4, 12),
+    hat: beat(0, 2, 4, 6, 8, 10, 12, 14),
+    waves: { bass: 'sawtooth', lead: 'square', pad: 'sawtooth' },
+    gain: 0.8,
   },
 
   // Boss — fast, aggressive, relentless 16th-note bass. A minor with an E-major lift for menace.

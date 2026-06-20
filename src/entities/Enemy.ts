@@ -15,7 +15,7 @@ const STATES = {
 } as const;
 type EnemyState = (typeof STATES)[keyof typeof STATES];
 
-export type EnemyType = 'bacterium' | 'virus' | 'dustbunny' | 'pollen' | 'amoeba' | 'spore' | 'mite';
+export type EnemyType = 'bacterium' | 'virus' | 'dustbunny' | 'pollen' | 'amoeba' | 'spore' | 'mite' | 'ant';
 
 interface EnemyConfig {
   hp: number;
@@ -37,6 +37,8 @@ const CONFIGS: Record<EnemyType, EnemyConfig> = {
   amoeba: { hp: 80, speed: 48, damage: 16, attackRate: 2200, texture: 'amoeba', scale: 1.15, fly: false }, // slow tank
   spore: { hp: 14, speed: 180, damage: 7, attackRate: 800, texture: 'spore', scale: 0.9, fly: true }, // fast, hovers
   mite: { hp: 30, speed: 115, damage: 11, attackRate: 1300, texture: 'mite', scale: 0.9, fly: false }, // crawler, hops
+  // Sector 4 (LAB FLOOR) — fast, low-HP ground swarmer that scurries (no hop).
+  ant: { hp: 24, speed: 150, damage: 9, attackRate: 950, texture: 'ant', scale: 0.95, fly: false },
 };
 
 const DETECT_RANGE = 320;
@@ -284,6 +286,13 @@ export default class Enemy {
         if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.004) * 0.05;
           this.sprite.setScale(0.9 * (1 + s), 0.9 * (1 - s));
+        }
+        break;
+      case 'ant':
+        // Quick scuttling jitter — fast little body shudder as it scurries
+        if (this.sprite.body.onFloor()) {
+          const s = Math.sin(time * 0.02 + this.sprite.x) * 0.04;
+          this.sprite.setScale(0.95 * (1 + s), 0.95 * (1 - s));
         }
         break;
     }

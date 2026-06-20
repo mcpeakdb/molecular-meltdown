@@ -59,7 +59,81 @@ export default class BootScene extends Phaser.Scene {
     this._makeBackground();
     this._makeVignette();
     this._makeNobleGem();
+    // Sector 4 (LAB FLOOR) creatures have no hand-drawn PNG yet, so draw them procedurally here.
+    this._makeAnt();
+    this._makeRoachBoss();
     this.scene.start('TitleScene');
+  }
+
+  // A reddish-brown ant — fast lab-floor ground swarmer (key 'ant'). Drawn facing RIGHT (head on the
+  // right) to match the engine convention: enemies flip via setFlipX(velocity.x < 0).
+  private _makeAnt(): void {
+    const g = this._g();
+    const body = 0x7a3b1a;
+    const body2 = 0x8a4520;
+    const head = 0x5e2f12;
+    const leg = 0x32190a;
+    // Legs first so the body covers their roots.
+    g.lineStyle(2, leg, 1);
+    g.lineBetween(21, 15, 26, 25);
+    g.lineBetween(18, 16, 19, 26);
+    g.lineBetween(16, 15, 11, 25);
+    // Abdomen (rear, left) → thorax (mid) → head (front, right).
+    g.fillStyle(body, 1);
+    g.fillEllipse(9, 12, 18, 14);
+    g.fillStyle(body2, 1);
+    g.fillEllipse(19, 13, 11, 11);
+    g.fillStyle(head, 1);
+    g.fillCircle(28, 12, 5);
+    // Antennae (forward, up-right).
+    g.lineStyle(1.5, leg, 1);
+    g.lineBetween(30, 9, 34, 3);
+    g.lineBetween(28, 8, 30, 2);
+    // Eye + abdomen shine.
+    g.fillStyle(0x140a04, 1);
+    g.fillCircle(29, 11, 1.4);
+    g.fillStyle(0xb56a3a, 0.5);
+    g.fillEllipse(11, 9, 7, 4);
+    g._done('ant', 34, 28);
+  }
+
+  // The Roach King — a giant cockroach boss (key 'boss_roach'). Drawn facing RIGHT (head on the right).
+  private _makeRoachBoss(): void {
+    const g = this._g();
+    const shell = 0x6b4423;
+    const shell2 = 0x8a5a2e;
+    const pron = 0x4e3018;
+    const leg = 0x2a1810;
+    const eye = 0x140a06;
+    // Six splayed legs.
+    g.lineStyle(3, leg, 1);
+    g.lineBetween(66, 50, 78, 76);
+    g.lineBetween(54, 54, 60, 80);
+    g.lineBetween(42, 52, 28, 78);
+    g.lineBetween(62, 50, 86, 74);
+    g.lineBetween(50, 54, 46, 80);
+    g.lineBetween(36, 50, 16, 74);
+    // Carapace + center wing-seam.
+    g.fillStyle(shell, 1);
+    g.fillEllipse(54, 44, 92, 56);
+    g.lineStyle(2, pron, 0.6);
+    g.lineBetween(12, 44, 72, 44);
+    // Pronotum shield over the head (front, right).
+    g.fillStyle(pron, 1);
+    g.fillEllipse(76, 38, 34, 30);
+    // Head + long antennae (forward, up-right).
+    g.fillStyle(0x3a2410, 1);
+    g.fillCircle(90, 38, 9);
+    g.lineStyle(3, leg, 1);
+    g.lineBetween(96, 34, 112, 14);
+    g.lineBetween(94, 32, 108, 6);
+    // Eyes + shell shine.
+    g.fillStyle(eye, 1);
+    g.fillCircle(93, 33, 2.4);
+    g.fillCircle(93, 43, 2.4);
+    g.fillStyle(shell2, 0.5);
+    g.fillEllipse(48, 34, 40, 16);
+    g._done('boss_roach', 112, 86);
   }
 
   // A faceted gem for noble-gas pickups, drawn in white/greys so it tints to each gas's color.
@@ -288,6 +362,45 @@ export default class BootScene extends Phaser.Scene {
       g.fillCircle(54, 28, 1.5);
       g.fillCircle(30, 56, 2);
       g._done('bg_tile_3', 64, 64);
+    }
+    // === Sector 4 — lab floor (grey-blue linoleum tile + grout seams) ===
+    {
+      const g = this._g();
+      g.fillStyle(0x9aa4ac);
+      g.fillRect(0, 0, 64, 64);
+      // Wet-glass / polished sheen
+      g.fillStyle(0xc2ccd2, 0.18);
+      g.fillRect(0, 0, 64, 14);
+      g.fillStyle(0xd2dce2, 0.1);
+      g.fillRect(0, 0, 64, 5);
+      // Tile grout seams (thicker cross than the agar grids)
+      g.lineStyle(2, 0x6b7680, 0.55);
+      g.lineBetween(0, 32, 64, 32);
+      g.lineBetween(32, 0, 32, 64);
+      // Flecks in the flooring
+      g.fillStyle(0x808a92, 0.3);
+      g.fillCircle(16, 46, 2.2);
+      g.fillCircle(48, 20, 1.6);
+      g.fillStyle(0xb0bac0, 0.25);
+      g.fillCircle(44, 52, 2);
+      g._done('ground_tile_4', 64, 64);
+    }
+    {
+      const g = this._g();
+      g.fillStyle(0x070a0e);
+      g.fillRect(0, 0, 64, 64);
+      g.lineStyle(1, 0x0e151c, 1.0);
+      g.lineBetween(0, 32, 64, 32);
+      g.lineBetween(32, 0, 32, 64);
+      g.lineStyle(1, 0x18222c, 0.5);
+      g.strokeCircle(20, 18, 8);
+      g.lineStyle(0.8, 0x121b22, 0.4);
+      g.strokeCircle(48, 46, 5);
+      g.fillStyle(0x121a22, 0.5);
+      g.fillCircle(10, 42, 2.5);
+      g.fillCircle(54, 28, 1.5);
+      g.fillCircle(30, 56, 2);
+      g._done('bg_tile_4', 64, 64);
     }
   }
 }

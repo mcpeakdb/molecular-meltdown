@@ -29,10 +29,10 @@ export const WORLD_WIDTH = 5500; // default / widest stage span; individual stag
 // The game is 9 stages grouped into 3 sectors of 3 stages each. A "sector" is the
 // biome/theme (art, music-color, boss); a "stage" is one playable level within it.
 // stage 1-9 → sector = ceil(stage/3); the 3rd stage of each sector is the boss finale.
-export const STAGE_COUNT = 9;
-export type SectorId = 1 | 2 | 3;
+export const STAGE_COUNT = 12;
+export type SectorId = 1 | 2 | 3 | 4;
 
-export const sectorOf = (stage: number): SectorId => Math.min(3, Math.floor((stage - 1) / 3) + 1) as SectorId;
+export const sectorOf = (stage: number): SectorId => Math.min(4, Math.floor((stage - 1) / 3) + 1) as SectorId;
 /** Position of a stage within its sector: 1, 2, or 3 (3 = boss finale). */
 export const substageOf = (stage: number): number => ((stage - 1) % 3) + 1;
 export const isFinaleStage = (stage: number): boolean => substageOf(stage) === 3;
@@ -41,6 +41,8 @@ export const SECTORS: Record<SectorId, { name: string }> = {
   1: { name: 'PETRI DISH' },
   2: { name: 'BLOOD AGAR' },
   3: { name: 'MACCONKEY' },
+  // Sector 4 — the player has escaped the dishes and is loose on the lab floor.
+  4: { name: 'LAB FLOOR' },
 };
 
 // ── 2D platformer geometry ───────────────────────────────────────────────────
