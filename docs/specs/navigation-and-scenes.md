@@ -7,12 +7,13 @@ Boot sequence, the scene graph, and every menu/overlay screen. Sources:
 
 - **REQ-BOOT-001** — The game shall run on Phaser arcade physics at a fixed `960×540` design
   resolution, scaled with `Phaser.Scale.FIT` and centred.
-- **REQ-BOOT-002** — On launch, `BootScene` shall preload every hand-drawn sprite listed in
-  `ASSET_SPECS` (player frames, M.E.G., enemies, bosses, atoms, FX) from
-  `public/assets/sprites/` by key.
-- **REQ-BOOT-003** — After loading, `BootScene` shall build the player walk/idle/jump animations,
-  the procedural per-sector `bg_tile_*`/`ground_tile_*` maps, the `vignette` overlay, and the
-  `atom_noble` gem texture, then start `TitleScene`.
+- **REQ-BOOT-002** — On launch, `BootScene` shall preload every sprite listed in `ASSET_SPECS`
+  (player frames, M.E.G., enemies, bosses, atoms incl. the noble gem, FX) from
+  `public/assets/sprites/` by key. (The lab-floor creatures and the noble gem are PNG files generated
+  by `scripts/gen-sprites.mjs` rather than hand-drawn, but load identically.)
+- **REQ-BOOT-003** — After loading, `BootScene` shall build the player walk/idle/jump animations and
+  the only remaining procedural textures — the per-sector `bg_tile_*`/`ground_tile_*` stage maps and
+  the `vignette` overlay — then start `TitleScene`.
 - **REQ-BOOT-004** — IF an asset fails to load, THEN `BootScene` shall log a warning and continue
   (it shall not block startup).
 - **REQ-BOOT-005** — WHERE the `fullscreen` setting is on and the device is touch-capable, the game

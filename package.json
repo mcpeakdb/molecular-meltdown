@@ -1,6 +1,6 @@
 {
   "name": "molecular-meltdown",
-  "version": "0.30.0",
+  "version": "0.30.1",
   "description": "A molecular-scale beat 'em up — mad scientist vs. the microscopic world",
   "engines": {
     "node": "24.x",
@@ -13,6 +13,7 @@
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "typecheck": "tsc --noEmit",
+    "gen:sprites": "node scripts/gen-sprites.mjs",
     "prepare": "husky"
   },
   "dependencies": {

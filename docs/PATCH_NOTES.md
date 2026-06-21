@@ -1,5 +1,17 @@
 # Patch Notes
 
+## v0.30.1 - 2026-06-21
+
+### Static assets for the lab-floor creatures
+
+- The lab-floor bugs (ant, fly, bee), the three insect bosses (Roach King, Dung Beetle, Hornet
+  Queen), and the noble-gas gem were being drawn procedurally at runtime; they're now real PNG sprite
+  files under `public/assets/sprites/`, loaded by key via `ASSET_SPECS` exactly like the hand-drawn
+  art. No visual change — the PNGs are rasterized from the same shapes (anti-aliased).
+- Added `npm run gen:sprites` ([`scripts/gen-sprites.mjs`](../scripts/gen-sprites.mjs)) — a zero-dep
+  generator that produces those PNGs, so they can be regenerated or tweaked. Stage-map tiles and the
+  vignette remain procedural by design.
+
 ## v0.30.0 - 2026-06-20
 
 ### Sectors 5 & 6 — deeper into the lab (6 new stages)
