@@ -12,6 +12,10 @@ weapon loadout (Compound Selection). Sources:
 - **REQ-PROG-001** — Most atom pickups shall be **choice nodes**: walking into one opens a 2–3 way
   choice of base atoms. A rare **Gold** node grants +2 of any chosen base atom. A **noble** pickup is
   inert (no choice) — see [scoring-and-persistence.md](scoring-and-persistence.md).
+- **REQ-PROG-001a** — Later levels (lab-floor sectors 4–6) shall spawn additional free-choice atom
+  nodes (all four base atoms) beyond those authored in the stage, scaled by sector (`(sector-3)*3`),
+  spread across the stage and skipping holes/hazards — so the most atom-hungry compounds become
+  reachable. (`GameScene._spawnStage`.)
 - **REQ-PROG-002** — An atom shall bob and rotate; a noble gem shall additionally render a pulsing
   coloured halo so it reads as special.
 - **REQ-PROG-003** — WHEN the player overlaps an uncollected atom, the game shall mark it collected,

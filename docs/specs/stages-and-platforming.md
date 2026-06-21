@@ -5,9 +5,10 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 
 ## Stage data model
 
-- **REQ-STAGE-001** — The game shall consist of `STAGES[STAGE_COUNT]` (`StageDef`, currently 12 — four
+- **REQ-STAGE-001** — The game shall consist of `STAGES[STAGE_COUNT]` (`StageDef`, currently 18 — six
   sectors of three), one per stage; `GameScene` shall read `STAGES[currentStage - 1]` and build the
-  level from it. Sectors: 1 PETRI DISH, 2 BLOOD AGAR, 3 MACCONKEY, 4 LAB FLOOR.
+  level from it. Sectors: 1 PETRI DISH, 2 BLOOD AGAR, 3 MACCONKEY, 4 LAB FLOOR, 5 UNDER THE BENCH,
+  6 THE WASTE BIN. Sectors 4–6 share the lab-floor biome/tiles (only 1–3 have unique tile art).
 - **REQ-STAGE-002** — A `StageDef` shall carry: `name`, `width`, `atoms` (choice nodes, optionally
   perched at `y`), `enemies`, `gaps`, and optionally `rise` (climbable sky height), `platforms`,
   `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or `exitX` (reach-the-exit clear).

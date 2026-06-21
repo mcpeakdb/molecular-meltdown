@@ -38,8 +38,6 @@ export interface StageDef {
   pads?: number[];
   /** Crumbling floor tiles [x1, x2] — they collapse into a chasm shortly after you stand on one. */
   crumble?: [number, number][];
-  /** A hidden noble-gas bonus pickup — usually perched high or guarded by a strong germ. */
-  noble?: { x: number; y: number; gas: NobleGasId; guard?: EnemyType };
   /** Boss finale (3rd stage of a sector). Mutually exclusive with `exitX`. */
   boss?: { variant: BossVariant; x: number };
   /** Non-boss stages clear by reaching this x — an exit portal sits here. */
@@ -130,7 +128,6 @@ export const STAGES: StageDef[] = [
       [3250, 320, 130],
     ],
     // Helium — up a gentle single-jump staircase mid-stage (unguarded, the easiest find).
-    noble: { x: 2555, y: -210, gas: 'helium' },
     pads: [800],
     // First crumbling tile — stand too long and the agar gives way into a chasm.
     crumble: [[3550, 3690]],
@@ -173,7 +170,6 @@ export const STAGES: StageDef[] = [
       [3900, 380, 140],
     ],
     // Neon — high up, with an amoeba standing guard at the base of the climb.
-    noble: { x: 2225, y: -220, gas: 'neon', guard: 'amoeba' },
     // First hazard pool appears before the boss run-up; bop the pad to skip it cleanly.
     hazards: [[2300, 2440]],
     pads: [3650],
@@ -257,7 +253,6 @@ export const STAGES: StageDef[] = [
       [3950, 360, 140],
     ],
     // Argon — up high over the plasma; a hovering spore makes the climb dangerous.
-    noble: { x: 2925, y: -220, gas: 'argon', guard: 'spore' },
     hazards: [
       [900, 1040],
       [2350, 2520],
@@ -303,7 +298,6 @@ export const STAGES: StageDef[] = [
       [3950, 360, 150],
     ],
     // Krypton — a high perch between the chasms, with an amoeba guarding the approach.
-    noble: { x: 2725, y: -230, gas: 'krypton', guard: 'amoeba' },
     hazards: [[2400, 2560]],
     pads: [1000, 4100],
     crumble: [[3650, 3800]],
@@ -350,9 +344,6 @@ export const STAGES: StageDef[] = [
       [3850, 330, 150],
     ],
     // Xenon — tucked high above the marshes, guarded by a mite.
-    // Flyer guard (hovers down into reach): on an exit-clear stage a ground guard stuck on the high
-    // summit would force the climb just to clear the stage. A spore patrols the climb instead.
-    noble: { x: 1895, y: -270, gas: 'xenon', guard: 'spore' },
     hazards: [
       [1000, 1160],
       [2150, 2310],
@@ -449,7 +440,6 @@ export const STAGES: StageDef[] = [
       [4650, 340, 150],
     ],
     // Radon — the final, hardest find: highest perch in the game, guarded by an amoeba.
-    noble: { x: 2110, y: -300, gas: 'radon', guard: 'amoeba' },
     hazards: [
       [950, 1120],
       [3000, 3180],
@@ -599,4 +589,310 @@ export const STAGES: StageDef[] = [
     crumble: [[2250, 2390]],
     boss: { variant: 'roach', x: 5100 },
   },
+
+  // ── Sector 5 — UNDER THE BENCH ────────────────────────────────────────────
+  // Deeper into the lab: flies and bees join the ant/mite crawlers; finale is the Dung Beetle.
+  // 5-1 — spill tray: first flyers harass the climbs.
+  {
+    name: 'SPILL TRAY',
+    width: 4800,
+    rise: 560,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
+      { x: 3600, choices: ['carbon', 'oxygen'] },
+      { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['ant', 'fly', 'ant', 'mite', 'fly']),
+      ...spread(1750, 2650, ['mite', 'ant', 'fly', 'ant', 'mite']),
+      ...spread(3000, 4050, ['ant', 'fly', 'mite', 'ant', 'fly', 'ant']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 130],
+      [2870, 250, 130],
+      [2680, 140, 130],
+      [2870, 30, 130],
+      [2680, -80, 130],
+      [2870, -190, 150],
+      [3700, 330, 150],
+      [4250, 350, 150],
+    ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3800],
+    crumble: [[2250, 2390]],
+    exitX: 4580,
+  },
+  // 5-2 — sugar stain: bees arrive; four gaps including a wide one.
+  {
+    name: 'SUGAR STAIN',
+    width: 5000,
+    rise: 560,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
+      { x: 3600, choices: ['carbon', 'oxygen'] },
+      { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['ant', 'bee', 'mite', 'fly', 'ant']),
+      ...spread(1750, 2650, ['fly', 'ant', 'bee', 'mite', 'ant']),
+      ...spread(3000, 4150, ['ant', 'fly', 'bee', 'mite', 'ant', 'fly']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4150, 4370], // wide — clear it via the mid-gap stepping stone or a double-jump
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 130],
+      [2870, 250, 130],
+      [2680, 140, 130],
+      [2870, 30, 130],
+      [2680, -80, 130],
+      [2870, -190, 150],
+      [3700, 330, 150],
+      [4220, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 150],
+    ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3800],
+    crumble: [[2250, 2390]],
+    exitX: 4780,
+  },
+  // 5-3 — The Dung Heap: the Dung Beetle, a slow armored bruiser.
+  {
+    name: 'THE DUNG HEAP',
+    width: 5600,
+    rise: 620,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2760, y: -360, choices: ['hydrogen', 'carbon'] }, // summit reward (tall climb)
+      { x: 3500, choices: ['carbon', 'oxygen'] },
+      { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['ant', 'bee', 'mite', 'fly']),
+      ...spread(1750, 2650, ['mite', 'ant', 'bee', 'fly', 'ant']),
+      ...spread(3000, 4100, ['ant', 'fly', 'bee', 'mite', 'ant', 'bee']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4100, 4330],
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 140],
+      [2870, 250, 140],
+      [2680, 140, 140],
+      [2870, 30, 140],
+      [2680, -90, 140],
+      [2870, -200, 150],
+      [2680, -320, 160],
+      [2900, 350, 140],
+      [3600, 320, 150],
+      [4170, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 150],
+    ],
+    hazards: [
+      [950, 1120],
+      [3000, 3180],
+    ],
+    pads: [1900, 4500],
+    crumble: [[2250, 2390]],
+    boss: { variant: 'beetle', x: 5100 },
+  },
+
+  // ── Sector 6 — THE WASTE BIN ──────────────────────────────────────────────
+  // The grimy depths where the Hornet Queen nests — the hardest run, ending the game.
+  // 6-1 — grease trap.
+  {
+    name: 'GREASE TRAP',
+    width: 5000,
+    rise: 580,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
+      { x: 3600, choices: ['carbon', 'oxygen'] },
+      { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['bee', 'ant', 'fly', 'mite', 'bee']),
+      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'mite', 'ant']),
+      ...spread(3000, 4150, ['bee', 'fly', 'ant', 'bee', 'mite', 'fly']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4150, 4370],
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 130],
+      [2870, 250, 130],
+      [2680, 140, 130],
+      [2870, 30, 130],
+      [2680, -80, 130],
+      [2870, -190, 150],
+      [3700, 330, 150],
+      [4220, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 150],
+    ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3800],
+    crumble: [[2250, 2390]],
+    exitX: 4780,
+  },
+  // 6-2 — rotting refuse: relentless flyer + crawler pressure.
+  {
+    name: 'ROTTING REFUSE',
+    width: 5200,
+    rise: 600,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2945, y: -260, choices: ['hydrogen', 'carbon'] }, // summit reward
+      { x: 3600, choices: ['carbon', 'oxygen'] },
+      { x: 4350, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['bee', 'ant', 'bee', 'fly', 'mite']),
+      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'bee', 'ant']),
+      ...spread(3000, 4250, ['bee', 'fly', 'ant', 'bee', 'mite', 'fly', 'bee']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4200, 4420],
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 130],
+      [2870, 250, 130],
+      [2680, 140, 130],
+      [2870, 20, 130],
+      [2680, -100, 130],
+      [2870, -220, 150],
+      [3700, 330, 150],
+      [4270, 410, 110], // stepping stone in the wide gap
+      [4700, 340, 150],
+    ],
+    hazards: [
+      [900, 1080],
+      [3150, 3320],
+    ],
+    pads: [1900, 3900],
+    crumble: [[2250, 2390]],
+    exitX: 4980,
+  },
+  // 6-3 — The Hornet Hive: the Hornet Queen, final boss of the game.
+  {
+    name: 'THE HORNET HIVE',
+    width: 5800,
+    rise: 640,
+    atoms: [
+      { x: 450, choices: ['nitrogen', 'carbon'] },
+      { x: 1150, choices: ['hydrogen', 'oxygen'] },
+      { x: 1950, choices: ['oxygen', 'nitrogen'] },
+      { x: 2760, y: -380, choices: ['hydrogen', 'carbon'] }, // summit reward (highest climb in the game)
+      { x: 3500, choices: ['carbon', 'oxygen'] },
+      { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+    ],
+    enemies: [
+      ...spread(500, 1350, ['bee', 'ant', 'fly', 'bee']),
+      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'bee', 'ant']),
+      ...spread(3000, 4100, ['bee', 'fly', 'ant', 'bee', 'fly', 'bee']),
+    ],
+    gaps: [
+      [1450, 1590],
+      [2400, 2540],
+      [3500, 3640],
+      [4100, 4330],
+    ],
+    platforms: [
+      [700, 390, 130],
+      [1150, 350, 130],
+      [1600, 300, 130],
+      [2050, 350, 130],
+      [2680, 360, 140],
+      [2870, 240, 140],
+      [2680, 120, 140],
+      [2870, 0, 140],
+      [2680, -120, 140],
+      [2870, -240, 150],
+      [2680, -340, 160],
+      [2900, 350, 140],
+      [3600, 320, 150],
+      [4170, 410, 110], // stepping stone in the wide gap
+      [4700, 340, 150],
+    ],
+    hazards: [
+      [950, 1120],
+      [3000, 3180],
+    ],
+    pads: [1900, 4500],
+    crumble: [[2250, 2390]],
+    boss: { variant: 'hornet', x: 5300 },
+  },
 ];
+
+/**
+ * Noble-gas gems, spread one per sector across the 18 stages — each tucked at the top of the
+ * second stage's sky tower (so they're evenly distributed, not clustered in the early game).
+ * Keyed by stage number. Guards on these exit-clear stages are flyers (or none) so the optional
+ * climb never gates the stage clear; where a stage already has a summit atom, the gem sits a little
+ * higher so both are worth grabbing.
+ */
+export const NOBLE_BY_STAGE: Record<number, { x: number; y: number; gas: NobleGasId; guard?: EnemyType }> = {
+  2: { x: 2555, y: -210, gas: 'helium' }, // sector 1
+  5: { x: 2925, y: -220, gas: 'neon', guard: 'spore' }, // sector 2
+  8: { x: 2125, y: -180, gas: 'argon', guard: 'spore' }, // sector 3
+  11: { x: 2945, y: -280, gas: 'krypton' }, // sector 4
+  14: { x: 2945, y: -280, gas: 'xenon', guard: 'bee' }, // sector 5
+  17: { x: 2945, y: -310, gas: 'radon', guard: 'bee' }, // sector 6
+};

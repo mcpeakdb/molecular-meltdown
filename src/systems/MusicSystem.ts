@@ -10,7 +10,7 @@ import Settings from './Settings';
 // so music flows unbroken between stages; `setTrack` only re-cuts when the
 // requested track actually changes.
 
-export type TrackId = 'title' | 'sector1' | 'sector2' | 'sector3' | 'sector4' | 'boss';
+export type TrackId = 'title' | 'sector1' | 'sector2' | 'sector3' | 'sector4' | 'sector5' | 'sector6' | 'boss';
 
 interface TrackDef {
   bpm: number;
@@ -149,6 +149,36 @@ const TRACKS: Record<TrackId, TrackDef> = {
     hat: beat(0, 2, 4, 6, 8, 10, 12, 14),
     waves: { bass: 'sawtooth', lead: 'square', pad: 'sawtooth' },
     gain: 0.8,
+  },
+
+  // Sector 5 — UNDER THE BENCH: darker, heavier industrial grind. A phrygian-ish menace.
+  sector5: {
+    bpm: 142,
+    root: 220,
+    prog: [0, 1, 5, 7], // Am – Bb – Dm – E
+    bass: [0, 0, 1, 0, 0, 0, 5, 0, 0, 0, 1, 0, 7, 7, 7, 7],
+    lead: [12, null, 13, null, 12, null, 8, null, 7, null, 8, 12, 10, null, 8, null],
+    voicing: POWER,
+    kick: beat(0, 3, 6, 8, 11, 14),
+    snare: beat(4, 12),
+    hat: beat(0, 2, 4, 6, 8, 10, 12, 14),
+    waves: { bass: 'sawtooth', lead: 'square', pad: 'sawtooth' },
+    gain: 0.8,
+  },
+
+  // Sector 6 — THE WASTE BIN: frantic, high-tension run to the final boss. Fast & driving.
+  sector6: {
+    bpm: 150,
+    root: 220,
+    prog: [0, 10, 8, 7], // Am – G – F – E
+    bass: [0, 0, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0, 7, 0, 7, 0],
+    lead: [12, 14, 15, 14, 12, null, 10, null, 8, 10, 12, null, 14, null, 15, null],
+    voicing: POWER,
+    kick: beat(0, 2, 4, 6, 8, 10, 12, 14),
+    snare: beat(4, 12),
+    hat: beat(2, 6, 10, 14),
+    waves: { bass: 'sawtooth', lead: 'square', pad: 'square' },
+    gain: 0.82,
   },
 
   // Boss — fast, aggressive, relentless 16th-note bass. A minor with an E-major lift for menace.

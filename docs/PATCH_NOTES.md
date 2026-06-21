@@ -1,5 +1,27 @@
 # Patch Notes
 
+## v0.30.0 - 2026-06-20
+
+### Sectors 5 & 6 — deeper into the lab (6 new stages)
+
+- **Two more lab-floor sectors take the game to 18 stages:** UNDER THE BENCH (stages 13–15) and THE
+  WASTE BIN (16–18). They share the lab-floor tiling but escalate the danger accent (teal → amber →
+  crimson).
+- **New flying bugs:** the **Fly** (fast, fragile) and the **Bee** (tougher, aggressive) — they
+  finally give the sky-tower climbs some aerial harassment, alongside the returning ants and mites.
+- **Two new bosses:** the **DUNG BEETLE** (sector 5 — a slow, hugely armored bruiser with heavy
+  volleys) and the **HORNET QUEEN** (sector 6 — the new final boss: a fast flyer that floods the
+  arena with wide, fast sprays).
+- New sector-5/6 music. Everything else (unlocks, passcodes, leaderboard, scoring) extends
+  automatically.
+- **Stage select is now two shelves of 9 test tubes** (sectors 1–3 on top, 4–6 below) instead of one
+  cramped overlapping row; up/down hops between shelves, and the title/difficulty header spacing was
+  fixed.
+- **Way more atoms in the later levels.** The lab-floor sectors (4–6) now spawn extra free-choice
+  atom nodes (scaling with sector) so the most atom-hungry, powerful compounds are actually reachable.
+- **Noble gases are now spread one per sector** across all 18 stages (instead of clustered in the
+  first nine), each near the top of that sector's second-stage sky tower.
+
 ## v0.29.0 - 2026-06-20
 
 ### Sector 4 — LAB FLOOR (3 new stages)

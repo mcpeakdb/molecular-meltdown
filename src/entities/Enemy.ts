@@ -15,7 +15,17 @@ const STATES = {
 } as const;
 type EnemyState = (typeof STATES)[keyof typeof STATES];
 
-export type EnemyType = 'bacterium' | 'virus' | 'dustbunny' | 'pollen' | 'amoeba' | 'spore' | 'mite' | 'ant';
+export type EnemyType =
+  | 'bacterium'
+  | 'virus'
+  | 'dustbunny'
+  | 'pollen'
+  | 'amoeba'
+  | 'spore'
+  | 'mite'
+  | 'ant'
+  | 'fly'
+  | 'bee';
 
 interface EnemyConfig {
   hp: number;
@@ -39,6 +49,9 @@ const CONFIGS: Record<EnemyType, EnemyConfig> = {
   mite: { hp: 30, speed: 115, damage: 11, attackRate: 1300, texture: 'mite', scale: 0.9, fly: false }, // crawler, hops
   // Sector 4 (LAB FLOOR) — fast, low-HP ground swarmer that scurries (no hop).
   ant: { hp: 24, speed: 150, damage: 9, attackRate: 950, texture: 'ant', scale: 0.95, fly: false },
+  // Sectors 5–6 (LAB FLOOR) — fast fragile flyer, and a tougher aggressive flyer.
+  fly: { hp: 16, speed: 205, damage: 8, attackRate: 850, texture: 'fly', scale: 0.85, fly: true },
+  bee: { hp: 42, speed: 150, damage: 14, attackRate: 1100, texture: 'bee', scale: 1.0, fly: true },
 };
 
 const DETECT_RANGE = 320;
@@ -294,6 +307,14 @@ export default class Enemy {
           const s = Math.sin(time * 0.02 + this.sprite.x) * 0.04;
           this.sprite.setScale(0.95 * (1 + s), 0.95 * (1 - s));
         }
+        break;
+      case 'fly':
+        // Frantic buzzing wing-blur — fast tiny vertical shimmer
+        this.sprite.setScale(0.85, 0.85 * (1 + Math.sin(time * 0.05) * 0.08));
+        break;
+      case 'bee':
+        // Heavier hovering buzz
+        this.sprite.setScale(1 + Math.sin(time * 0.035) * 0.05, 1 - Math.sin(time * 0.035) * 0.05);
         break;
     }
   }

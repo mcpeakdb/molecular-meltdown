@@ -39,9 +39,9 @@ Sources: [`src/systems/SoundSystem.ts`](../../src/systems/SoundSystem.ts),
 - **REQ-MUS-001** — Music shall be a stateful singleton driving a look-ahead step sequencer on the
   shared `AudioContext`, scheduling notes precisely on the audio clock; it shall outlive scene
   restarts so music flows unbroken between stages.
-- **REQ-MUS-002** — There shall be 6 data-driven tracks: `title`, `sector1`, `sector2`, `sector3`,
-  `sector4`, `boss`, each with its own bpm, chord progression, bass/lead lines, pad voicing, drum
-  pattern, and oscillator waveforms.
+- **REQ-MUS-002** — There shall be 8 data-driven tracks: `title`, `sector1`–`sector6`, and `boss`,
+  each with its own bpm, chord progression, bass/lead lines, pad voicing, drum pattern, and
+  oscillator waveforms.
 - **REQ-MUS-003** — `setTrack` shall be idempotent — re-requesting the currently playing track shall
   keep it going seamlessly (so advancing stages within a sector does not restart the loop).
 - **REQ-MUS-004** — Menus shall use the `title` track; a stage shall use `sector${sector}`; WHEN a

@@ -85,8 +85,10 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 ## StageSelectScene
 
 - **REQ-STAGESEL-001** — `StageSelectScene` shall render the stages as test tubes in a rack, grouped
-  3-per-sector (currently 12 tubes in 4 groups), reading the difficulty from the registry and the
-  unlock state from `SaveSystem`. The rack auto-centers for `STAGE_COUNT / 3` sector groups.
+  3-per-sector, reading the difficulty from the registry and the unlock state from `SaveSystem`. The
+  rack holds up to three sector groups (9 tubes) per shelf and stacks onto a second shelf below when
+  there are more (currently 18 tubes on two shelves: sectors 1–3 on top, 4–6 below). Up/down navigation
+  hops between shelves.
 - **REQ-STAGESEL-002** — On open, the cursor shall start on the furthest unlocked stage.
 - **REQ-STAGESEL-003** — A stage tube shall render locked (dim) WHILE its stage number exceeds the
   unlocked stage, and the detail panel shall show "LOCKED" with no best score.

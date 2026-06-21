@@ -20,17 +20,19 @@ import { attachTap } from '../systems/touchMenu';
 const MONO = 'monospace';
 
 // ── Test-tube rack geometry ────────────────────────────────────────────────────
-// Every stage is a test tube in a rack, grouped three-per-sector. Tube x is derived from the sector
-// (group) and the substage (position within the group); see `_tubeX`. The rack auto-centers for
-// however many sector groups exist (STAGE_COUNT / 3), so adding a sector needs no geometry retune.
+// Stages are test tubes on shelves, grouped three-per-sector. Each shelf holds up to three sector
+// groups (9 tubes); with more sectors the rack stacks onto a second shelf below the first. A tube's
+// x comes from its sector-group-within-the-row + substage (`_tubeX`); its y from its row (`_tubeTop`).
+const SECTOR_GROUPS = STAGE_COUNT / 3;
+const GROUPS_PER_ROW = 3; // sector trios per shelf → 9 tubes per shelf
 const TUBE_PITCH = 70; // center-to-center within a sector group
 const GROUP_GAP = 56; // extra space between sector groups
-const SECTOR_GROUPS = STAGE_COUNT / 3;
-const RACK_SPAN = (SECTOR_GROUPS - 1) * (2 * TUBE_PITCH + GROUP_GAP) + 2 * TUBE_PITCH; // first→last center
-const FIRST_X = (GAME_WIDTH - RACK_SPAN) / 2; // x of the first tube, centering the rack
 const TUBE_W = 40; // outer glass width
-const TUBE_TOP = 150; // y of the glass mouth
-const TUBE_H = 214; // glass height (bottom at TUBE_TOP + TUBE_H)
+const ROW_SPAN = (GROUPS_PER_ROW - 1) * (2 * TUBE_PITCH + GROUP_GAP) + 2 * TUBE_PITCH; // first→last center
+const FIRST_X = (GAME_WIDTH - ROW_SPAN) / 2; // x of the first tube in a shelf, centering it
+const ROW_MOUTH = [110, 286]; // glass-mouth y for shelf 0 (sectors 1–3) and shelf 1 (sectors 4–6)
+const TUBE_H = 118; // glass height (shorter than the old single row so two shelves + headers fit)
+const ROW_COUNT = Math.ceil(STAGE_COUNT / (GROUPS_PER_ROW * 3)); // shelves in use
 
 const FILL_LOCKED = 0.24;
 const FILL_OPEN = 0.66;
@@ -41,6 +43,8 @@ const SECTOR_COLOR: Record<SectorId, number> = {
   2: 0xdd5544,
   3: 0x6688ee,
   4: 0x33ccbb,
+  5: 0xe0a52a,
+  6: 0xcc4422,
 };
 
 export default class StageSelectScene extends Phaser.Scene {
@@ -97,30 +101,32 @@ export default class StageSelectScene extends Phaser.Scene {
     this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x060e06).setScrollFactor(0);
 
     this.add
-      .text(cx, 36, 'SELECT STAGE', { fontSize: '26px', color: '#88cc88', fontFamily: MONO, fontStyle: 'bold' })
+      .text(cx, 30, 'SELECT STAGE', { fontSize: '26px', color: '#88cc88', fontFamily: MONO, fontStyle: 'bold' })
       .setOrigin(0.5);
     this.add
-      .text(cx, 64, `Difficulty: ${this.difficulty.toUpperCase()}`, {
+      .text(cx, 56, `Difficulty: ${this.difficulty.toUpperCase()}`, {
         fontSize: '13px',
         color: '#669966',
         fontFamily: MONO,
       })
       .setOrigin(0.5);
 
-    // The wooden rack rail the tubes slot into.
-    const railY = TUBE_TOP + TUBE_H - 26;
+    // A wooden rack rail per shelf the tubes slot into.
     const rail = this.add.graphics();
-    rail.fillStyle(0x2a1c10, 1);
-    rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 30, 6);
-    rail.fillStyle(0x3c2a18, 1);
-    rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 8, 4);
+    for (let r = 0; r < ROW_COUNT; r++) {
+      const railY = ROW_MOUTH[r] + TUBE_H - 24;
+      rail.fillStyle(0x2a1c10, 1);
+      rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 26, 6);
+      rail.fillStyle(0x3c2a18, 1);
+      rail.fillRoundedRect(FIRST_X - 44, railY, GAME_WIDTH - 2 * (FIRST_X - 44), 7, 4);
+    }
 
-    // Sector group headers, centered over each trio of tubes.
+    // Sector group headers, centered over each trio of tubes, on their shelf.
     for (let s = 0; s < SECTOR_GROUPS; s++) {
       const sector = (s + 1) as SectorId;
-      const midX = this._tubeX(s * 3 + 2); // middle tube of the group
+      const midStage = s * 3 + 2; // middle stage of the group
       this.add
-        .text(midX, 108, SECTORS[sector].name, {
+        .text(this._tubeX(midStage), this._tubeTop(midStage) - 30, SECTORS[sector].name, {
           fontSize: '14px',
           color: `#${SECTOR_COLOR[sector].toString(16).padStart(6, '0')}`,
           fontFamily: MONO,
@@ -134,21 +140,21 @@ export default class StageSelectScene extends Phaser.Scene {
       this._buildTube(stage);
     }
 
-    // Detail panel below the rack.
-    const panelY = 408;
+    // Detail panel below the bottom shelf.
+    const panelY = 416;
     const panel = this.add.graphics();
     panel.fillStyle(0x0c160c, 0.9);
-    panel.fillRoundedRect(cx - 320, panelY, 640, 70, 8);
+    panel.fillRoundedRect(cx - 320, panelY, 640, 58, 8);
     panel.lineStyle(1, 0x335533, 0.8);
-    panel.strokeRoundedRect(cx - 320, panelY, 640, 70, 8);
+    panel.strokeRoundedRect(cx - 320, panelY, 640, 58, 8);
     this.detailTitle = this.add
-      .text(cx, panelY + 16, '', { fontSize: '16px', color: '#cfe6cf', fontFamily: MONO, fontStyle: 'bold' })
+      .text(cx, panelY + 13, '', { fontSize: '16px', color: '#cfe6cf', fontFamily: MONO, fontStyle: 'bold' })
       .setOrigin(0.5);
     this.detailName = this.add
-      .text(cx, panelY + 38, '', { fontSize: '13px', color: '#9fc89f', fontFamily: MONO })
+      .text(cx, panelY + 33, '', { fontSize: '13px', color: '#9fc89f', fontFamily: MONO })
       .setOrigin(0.5);
     this.detailMeta = this.add
-      .text(cx, panelY + 56, '', { fontSize: '12px', color: '#7f9a7f', fontFamily: MONO })
+      .text(cx, panelY + 49, '', { fontSize: '12px', color: '#7f9a7f', fontFamily: MONO })
       .setOrigin(0.5);
 
     this.add
@@ -228,15 +234,26 @@ export default class StageSelectScene extends Phaser.Scene {
     this.codeKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.P);
   }
 
+  /** Which shelf (row) a stage sits on (0 = top). */
+  private _rowOf(stage: number): number {
+    return Math.floor((sectorOf(stage) - 1) / GROUPS_PER_ROW);
+  }
+
+  /** y of a tube's glass mouth (set by its shelf). */
+  private _tubeTop(stage: number): number {
+    return ROW_MOUTH[this._rowOf(stage)] ?? ROW_MOUTH[0];
+  }
+
   /** x of a tube's center for the given stage (1-based). */
   private _tubeX(stage: number): number {
-    const group = sectorOf(stage) - 1; // 0..2
+    const groupInRow = (sectorOf(stage) - 1) % GROUPS_PER_ROW; // 0..2 within this shelf
     const sub = (stage - 1) % 3; // 0..2
-    return FIRST_X + group * (2 * TUBE_PITCH + GROUP_GAP) + sub * TUBE_PITCH;
+    return FIRST_X + groupInRow * (2 * TUBE_PITCH + GROUP_GAP) + sub * TUBE_PITCH;
   }
 
   private _buildTube(stage: number): void {
     const x = this._tubeX(stage);
+    const top = this._tubeTop(stage);
     const g = this.add.graphics();
     this.tubes.push(g); // index = stage - 1
 
@@ -244,7 +261,7 @@ export default class StageSelectScene extends Phaser.Scene {
     const accent = SECTOR_COLOR[sectorOf(stage)];
     const locked = stage > this.unlocked;
     this.add
-      .text(x, TUBE_TOP - 18, `${stage}${isFinaleStage(stage) ? '☣' : ''}`, {
+      .text(x, top - 14, `${stage}${isFinaleStage(stage) ? '☣' : ''}`, {
         fontSize: '13px',
         color: locked ? '#556055' : `#${accent.toString(16).padStart(6, '0')}`,
         fontFamily: MONO,
@@ -253,7 +270,7 @@ export default class StageSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Touch: a hit zone over the whole tube. Tap to highlight; tap the highlighted tube to play.
-    const zone = this.add.rectangle(x, TUBE_TOP + TUBE_H / 2, TUBE_W + 18, TUBE_H + 24, 0x000000, 0).setOrigin(0.5);
+    const zone = this.add.rectangle(x, top + TUBE_H / 2, TUBE_W + 18, TUBE_H + 24, 0x000000, 0).setOrigin(0.5);
     attachTap(zone, () => {
       if (this.reacting) return;
       if (this.cursor === stage - 1) this._confirm();
@@ -270,6 +287,7 @@ export default class StageSelectScene extends Phaser.Scene {
     g.clear();
 
     const baseX = this._tubeX(stage);
+    const top = this._tubeTop(stage);
     const x = baseX + (jitter ? Phaser.Math.Between(-jitter, jitter) : 0);
     const selected = stage - 1 === this.cursor;
     const locked = stage > this.unlocked;
@@ -283,12 +301,12 @@ export default class StageSelectScene extends Phaser.Scene {
     // Selection halo behind the glass.
     if (selected && !locked) {
       g.lineStyle(4, accent, 0.28);
-      g.strokeRoundedRect(left - 4, TUBE_TOP - 4, TUBE_W + 8, TUBE_H + 8, { tl: 8, tr: 8, bl: r + 4, br: r + 4 });
+      g.strokeRoundedRect(left - 4, top - 4, TUBE_W + 8, TUBE_H + 8, { tl: 8, tr: 8, bl: r + 4, br: r + 4 });
     }
 
     // Liquid.
     const fillH = Math.max(fill01 * TUBE_H, r + 2);
-    const liquidTop = TUBE_TOP + TUBE_H - fillH;
+    const liquidTop = top + TUBE_H - fillH;
     const lx = left + 3;
     const lw = TUBE_W - 6;
     const lr = lw / 2;
@@ -300,12 +318,12 @@ export default class StageSelectScene extends Phaser.Scene {
 
     // Glass body + mouth.
     g.lineStyle(2, locked ? 0x4a5a4a : 0x9fd0c8, 0.85);
-    g.strokeRoundedRect(left, TUBE_TOP, TUBE_W, TUBE_H, { tl: 5, tr: 5, bl: r, br: r });
+    g.strokeRoundedRect(left, top, TUBE_W, TUBE_H, { tl: 5, tr: 5, bl: r, br: r });
     g.lineStyle(2, locked ? 0x4a5a4a : 0xbfe6df, 0.9);
-    g.strokeRoundedRect(x - (TUBE_W + 10) / 2, TUBE_TOP - 6, TUBE_W + 10, 9, 3);
+    g.strokeRoundedRect(x - (TUBE_W + 10) / 2, top - 6, TUBE_W + 10, 9, 3);
     // Vertical shine streak.
     g.fillStyle(0xffffff, 0.1);
-    g.fillRoundedRect(left + 6, TUBE_TOP + 12, 5, TUBE_H - 48, 3);
+    g.fillRoundedRect(left + 6, top + 12, 5, TUBE_H - 48, 3);
   }
 
   private _lerpColor(a: number, b: number, t: number): number {
@@ -321,10 +339,11 @@ export default class StageSelectScene extends Phaser.Scene {
   /** A single rising, fading bubble inside a tube's liquid. */
   private _spawnBubble(stage: number, color: number, fill: number): void {
     const x = this._tubeX(stage);
+    const top = this._tubeTop(stage);
     const lr = (TUBE_W - 6) / 2;
     const bx = x + Phaser.Math.Between(-lr + 4, lr - 4);
-    const surfaceY = TUBE_TOP + TUBE_H - fill * TUBE_H;
-    const startY = TUBE_TOP + TUBE_H - 16;
+    const surfaceY = top + TUBE_H - fill * TUBE_H;
+    const startY = top + TUBE_H - 16;
     const b = this.add
       .circle(bx, startY, Phaser.Math.Between(2, 4), this._lerpColor(color, 0xffffff, 0.5), 0.8)
       .setDepth(50);
@@ -343,8 +362,8 @@ export default class StageSelectScene extends Phaser.Scene {
     if (this.entering || this.reacting) return;
     if (Phaser.Input.Keyboard.JustDown(this.leftKey)) this._move(-1);
     if (Phaser.Input.Keyboard.JustDown(this.rightKey)) this._move(1);
-    if (Phaser.Input.Keyboard.JustDown(this.upKey)) this._move(-3);
-    if (Phaser.Input.Keyboard.JustDown(this.downKey)) this._move(3);
+    if (Phaser.Input.Keyboard.JustDown(this.upKey)) this._move(-GROUPS_PER_ROW * 3); // hop up a shelf
+    if (Phaser.Input.Keyboard.JustDown(this.downKey)) this._move(GROUPS_PER_ROW * 3); // hop down a shelf
     if (Phaser.Input.Keyboard.JustDown(this.confirmKey) || Phaser.Input.Keyboard.JustDown(this.confirmKey2)) {
       this._confirm();
     }
@@ -394,7 +413,12 @@ export default class StageSelectScene extends Phaser.Scene {
       const g = this.tubes[stage - 1];
       const x = this._tubeX(stage);
       g.lineStyle(2, 0xff4444, 0.9);
-      g.strokeRoundedRect(x - TUBE_W / 2, TUBE_TOP, TUBE_W, TUBE_H, { tl: 5, tr: 5, bl: TUBE_W / 2, br: TUBE_W / 2 });
+      g.strokeRoundedRect(x - TUBE_W / 2, this._tubeTop(stage), TUBE_W, TUBE_H, {
+        tl: 5,
+        tr: 5,
+        bl: TUBE_W / 2,
+        br: TUBE_W / 2,
+      });
       this.cameras.main.shake(120, 0.004);
       return;
     }
@@ -442,13 +466,14 @@ export default class StageSelectScene extends Phaser.Scene {
 
   /** Eruption: foam and droplets burst from the tube mouth, the screen flashes, then GameScene loads. */
   private _erupt(stage: number, x: number, accent: number): void {
+    const top = this._tubeTop(stage);
     const flash = this._lerpColor(accent, 0xffffff, 0.5);
     const fc = Phaser.Display.Color.ValueToColor(flash);
     this.cameras.main.flash(260, fc.red, fc.green, fc.blue);
     this.cameras.main.shake(280, 0.006);
 
     // Expanding foam ring at the mouth.
-    const ring = this.add.circle(x, TUBE_TOP, 6, 0xffffff, 0.5).setDepth(60);
+    const ring = this.add.circle(x, top, 6, 0xffffff, 0.5).setDepth(60);
     this.tweens.add({
       targets: ring,
       radius: 46,
@@ -463,7 +488,7 @@ export default class StageSelectScene extends Phaser.Scene {
       const d = this.add
         .circle(
           x + Phaser.Math.Between(-8, 8),
-          TUBE_TOP,
+          top,
           Phaser.Math.Between(3, 7),
           this._lerpColor(accent, 0xffffff, 0.4),
           0.95,
@@ -472,7 +497,7 @@ export default class StageSelectScene extends Phaser.Scene {
       this.tweens.add({
         targets: d,
         x: x + Phaser.Math.Between(-140, 140),
-        y: TUBE_TOP - Phaser.Math.Between(70, 210),
+        y: top - Phaser.Math.Between(70, 210),
         alpha: 0,
         scale: 0.2,
         duration: Phaser.Math.Between(500, 900),

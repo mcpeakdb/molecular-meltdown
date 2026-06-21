@@ -7,10 +7,10 @@ Shared vocabulary and the constants the rest of the specs lean on. Source of tru
 
 | Term | Meaning |
 |------|---------|
-| **Stage** | One playable level. There are `STAGE_COUNT = 12` stages, numbered 1–12. The unit of play and unlocking. |
-| **Sector** | A biome/theme grouping 3 stages. `sectorOf(stage) = min(4, floor((stage-1)/3)+1)`. Sectors: 1 = PETRI DISH, 2 = BLOOD AGAR, 3 = MACCONKEY, 4 = LAB FLOOR. |
+| **Stage** | One playable level. There are `STAGE_COUNT = 18` stages, numbered 1–18. The unit of play and unlocking. |
+| **Sector** | A biome/theme grouping 3 stages. `sectorOf(stage) = min(6, floor((stage-1)/3)+1)`. Sectors: 1 = PETRI DISH, 2 = BLOOD AGAR, 3 = MACCONKEY, 4 = LAB FLOOR, 5 = UNDER THE BENCH, 6 = THE WASTE BIN (4–6 share the lab-floor biome/tiles). |
 | **Substage** | Position within a sector, 1–3. `substageOf(stage) = ((stage-1) % 3) + 1`. |
-| **Finale stage** | The 3rd stage of each sector (`substage === 3`, i.e. stages 3, 6, 9, 12) — a boss fight. `isFinaleStage`. |
+| **Finale stage** | The 3rd stage of each sector (`substage === 3`, i.e. stages 3, 6, 9, 12, 15, 18) — a boss fight. `isFinaleStage`. |
 | **Base atom** | One of the four collectables: hydrogen, oxygen, carbon, nitrogen (`BASE_ATOMS`). |
 | **Compound** | An attack assembled from a stoichiometric recipe of base atoms (water, ammonia, etc.). |
 | **Attack / weapon** | Any element/compound the player can fire (`AttackId`); excludes `NONE` and `GOLD`. |

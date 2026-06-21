@@ -59,10 +59,132 @@ export default class BootScene extends Phaser.Scene {
     this._makeBackground();
     this._makeVignette();
     this._makeNobleGem();
-    // Sector 4 (LAB FLOOR) creatures have no hand-drawn PNG yet, so draw them procedurally here.
+    // Sectors 4–6 (LAB FLOOR) creatures have no hand-drawn PNG yet, so draw them procedurally here.
     this._makeAnt();
     this._makeRoachBoss();
+    this._makeFly();
+    this._makeBee();
+    this._makeBeetleBoss();
+    this._makeHornetBoss();
     this.scene.start('TitleScene');
+  }
+
+  // A house fly — fast fragile flyer (key 'fly'). Facing right.
+  private _makeFly(): void {
+    const g = this._g();
+    // Wings (translucent, up).
+    g.fillStyle(0xddeeff, 0.5);
+    g.fillEllipse(12, 6, 16, 9);
+    g.fillStyle(0xccddee, 0.4);
+    g.fillEllipse(16, 7, 12, 7);
+    // Body: abdomen (left) → thorax (mid) → head (right).
+    g.fillStyle(0x2a2a30, 1);
+    g.fillEllipse(11, 14, 16, 11);
+    g.fillStyle(0x3a3a44, 1);
+    g.fillEllipse(19, 14, 8, 9);
+    g.fillStyle(0x222228, 1);
+    g.fillCircle(25, 13, 4);
+    // Big red compound eye + abdomen banding.
+    g.fillStyle(0xcc3322, 1);
+    g.fillCircle(26, 12, 2.4);
+    g.lineStyle(1, 0x55555f, 0.8);
+    g.lineBetween(7, 11, 7, 18);
+    g.lineBetween(11, 10, 11, 19);
+    g._done('fly', 30, 24);
+  }
+
+  // A bee — tougher aggressive flyer (key 'bee'). Facing right.
+  private _makeBee(): void {
+    const g = this._g();
+    const dark = 0x201810;
+    // Wings.
+    g.fillStyle(0xeef6ff, 0.55);
+    g.fillEllipse(15, 7, 16, 10);
+    g.fillEllipse(20, 8, 11, 7);
+    // Yellow body + black stripes.
+    g.fillStyle(0xf0c030, 1);
+    g.fillEllipse(15, 16, 22, 16);
+    g.fillStyle(dark, 1);
+    g.fillRect(9, 9, 3, 14);
+    g.fillRect(15, 8, 3, 16);
+    g.fillRect(21, 9, 3, 14);
+    // Head (right) + eye + antennae + stinger (left rear).
+    g.fillStyle(dark, 1);
+    g.fillCircle(27, 15, 5);
+    g.fillStyle(0x55452a, 1);
+    g.fillCircle(28, 14, 1.8);
+    g.lineStyle(1.5, dark, 1);
+    g.lineBetween(29, 11, 32, 6);
+    g.fillStyle(dark, 1);
+    g.fillTriangle(5, 14, 5, 18, 0, 16);
+    g._done('bee', 32, 28);
+  }
+
+  // The Dung Beetle — slow armored bruiser boss (key 'boss_beetle'). Facing right.
+  private _makeBeetleBoss(): void {
+    const g = this._g();
+    const shell = 0x4a3a22;
+    const shell2 = 0x6a5430;
+    const dark = 0x2a2012;
+    const leg = 0x1e160c;
+    const eye = 0x100a04;
+    // Thick legs.
+    g.lineStyle(5, leg, 1);
+    g.lineBetween(50, 56, 38, 86);
+    g.lineBetween(66, 60, 62, 88);
+    g.lineBetween(82, 58, 98, 86);
+    g.lineBetween(46, 56, 28, 82);
+    g.lineBetween(62, 60, 56, 88);
+    g.lineBetween(78, 58, 92, 82);
+    // Big domed carapace + shine + segment line.
+    g.fillStyle(shell, 1);
+    g.fillEllipse(58, 46, 96, 64);
+    g.fillStyle(shell2, 0.5);
+    g.fillEllipse(54, 32, 52, 22);
+    g.lineStyle(2.5, dark, 0.7);
+    g.lineBetween(20, 46, 96, 46);
+    // Head + upward horn (front right) + eyes.
+    g.fillStyle(dark, 1);
+    g.fillCircle(96, 52, 12);
+    g.fillStyle(0x3a2c16, 1);
+    g.fillTriangle(100, 44, 116, 18, 104, 46);
+    g.fillStyle(eye, 1);
+    g.fillCircle(98, 50, 2.4);
+    g.fillCircle(98, 58, 2.4);
+    g._done('boss_beetle', 120, 96);
+  }
+
+  // The Hornet Queen — fast flying final boss (key 'boss_hornet'). Facing right.
+  private _makeHornetBoss(): void {
+    const g = this._g();
+    const yellow = 0xf0b820;
+    const dark = 0x1c140a;
+    const eye = 0x3a2a10;
+    // Large wings (up).
+    g.fillStyle(0xeef6ff, 0.5);
+    g.fillEllipse(40, 26, 60, 30);
+    g.fillEllipse(58, 22, 40, 22);
+    // Thorax.
+    g.fillStyle(dark, 1);
+    g.fillEllipse(58, 50, 30, 28);
+    // Striped abdomen curving down-left to the stinger.
+    g.fillStyle(yellow, 1);
+    g.fillEllipse(38, 72, 46, 34);
+    g.fillStyle(dark, 1);
+    g.fillEllipse(38, 60, 44, 8);
+    g.fillEllipse(34, 76, 40, 8);
+    g.fillEllipse(30, 90, 30, 8);
+    g.fillTriangle(14, 98, 4, 104, 18, 102);
+    // Head (right) + eyes + antennae.
+    g.fillStyle(dark, 1);
+    g.fillCircle(78, 44, 11);
+    g.fillStyle(eye, 1);
+    g.fillCircle(80, 40, 3);
+    g.fillCircle(80, 48, 3);
+    g.lineStyle(2.5, dark, 1);
+    g.lineBetween(82, 38, 98, 20);
+    g.lineBetween(84, 42, 102, 30);
+    g._done('boss_hornet', 104, 110);
   }
 
   // A reddish-brown ant — fast lab-floor ground swarmer (key 'ant'). Drawn facing RIGHT (head on the

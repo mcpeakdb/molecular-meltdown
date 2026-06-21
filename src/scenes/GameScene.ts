@@ -34,7 +34,7 @@ import Atom from '../entities/Atom';
 import Boss from '../entities/Boss';
 import Enemy, { type EnemyType } from '../entities/Enemy';
 import Player from '../entities/Player';
-import { STAGES, type StageDef } from '../stages';
+import { NOBLE_BY_STAGE, STAGES, type StageDef } from '../stages';
 import MusicSystem, { type TrackId } from '../systems/MusicSystem';
 import SaveSystem, { type RunRecord } from '../systems/SaveSystem';
 import Settings from '../systems/Settings';
@@ -49,7 +49,7 @@ type ProjectileSprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody & {
 };
 
 /** Enemy types that fly (hover, no gravity) rather than walking the floor. */
-const FLYER_TYPES = new Set<EnemyType>(['virus', 'spore', 'pollen']);
+const FLYER_TYPES = new Set<EnemyType>(['virus', 'spore', 'pollen', 'fly', 'bee']);
 
 /** A crumbling floor tile: its plug collider fills a hole in the base floor until it collapses. */
 type CrumbleTile = {
@@ -118,6 +118,29 @@ const SECTOR_THEMES: Record<
     flashG: 240,
     flashB: 220,
     clearColor: '#9ff0dd',
+  },
+  // Sectors 5 & 6 share the lab-floor floor/dust but escalate the accent (amber → crimson danger).
+  5: {
+    floorLine: 0x7b8893,
+    shadow: 0x0a0d12,
+    label: '#e0b24a',
+    tick: 0x55636e,
+    particles: [0xaab0b8, 0xcfd6dd, 0x8a92a0, 0xe0b24a],
+    flashR: 255,
+    flashG: 210,
+    flashB: 120,
+    clearColor: '#ffd98a',
+  },
+  6: {
+    floorLine: 0x7b8893,
+    shadow: 0x0a0d12,
+    label: '#ff7a55',
+    tick: 0x55636e,
+    particles: [0xaab0b8, 0xcfd6dd, 0x8a92a0, 0xcc5540],
+    flashR: 255,
+    flashG: 120,
+    flashB: 90,
+    clearColor: '#ffb09a',
   },
 };
 
@@ -437,14 +460,16 @@ export default class GameScene extends Phaser.Scene {
     const sector = this.sector;
     const theme = SECTOR_THEMES[sector];
     const w = this.worldWidth;
+    // Sectors 4–6 are all the lab floor and share one tile set; only sectors 1–3 have their own art.
+    const tileSector = sector >= 4 ? 4 : sector;
 
     this.add
-      .tileSprite(0, -this._rise, w, GAME_HEIGHT + this._rise, `bg_tile_${sector}`)
+      .tileSprite(0, -this._rise, w, GAME_HEIGHT + this._rise, `bg_tile_${tileSector}`)
       .setOrigin(0, 0)
       .setScrollFactor(0.3)
       .setDepth(-10);
     this.add
-      .tileSprite(0, GROUND_TOP_Y, w, GAME_HEIGHT - GROUND_TOP_Y, `ground_tile_${sector}`)
+      .tileSprite(0, GROUND_TOP_Y, w, GAME_HEIGHT - GROUND_TOP_Y, `ground_tile_${tileSector}`)
       .setOrigin(0, 0)
       .setDepth(DEPTH.GROUND);
 
@@ -658,13 +683,27 @@ export default class GameScene extends Phaser.Scene {
       this._spawnEnemy(en.x, this._spawnYFor(en.type), en.type);
     });
 
-    // Noble-gas bonus pickup — a rare inert gem, usually perched high and/or guarded. It awards a
-    // score bonus every run; the first grab also records a permanent find (see _collectNoble).
-    if (def.noble) {
-      const n = def.noble;
+    // Later levels (lab floor, sectors 4–6) are flush with extra atoms so the most powerful,
+    // atom-hungry compounds become reachable. Sprinkle a sector-scaled row of free-choice (all four
+    // base atoms) nodes across the stage, skipping holes and hazard pools.
+    const bonusAtoms = this.sector >= 4 ? (this.sector - 3) * 3 : 0;
+    if (bonusAtoms > 0) {
+      const onHazard = (x: number) => this._hazards.some((h) => x > h.x1 - 20 && x < h.x2 + 20);
+      for (let i = 0; i < bonusAtoms; i++) {
+        const bx = Math.round(((i + 1) / (bonusAtoms + 1)) * (def.width - 800)) + 400;
+        if (inHole(bx) || onHazard(bx)) continue;
+        const atom = new Atom(this, bx, GROUND_TOP_Y - 36, [...BASE_ATOMS], false);
+        this.atomGroup.add(atom.sprite);
+      }
+    }
+
+    // Noble-gas bonus pickup — a rare inert gem, spread one per sector (see NOBLE_BY_STAGE). It awards
+    // a score bonus every run; the first grab also records a permanent find (see _collectNoble).
+    const n = NOBLE_BY_STAGE[this.currentStage];
+    if (n) {
       const gem = new Atom(this, n.x, n.y, [], false, n.gas);
       this.atomGroup.add(gem.sprite);
-      // Guard spawns right at the gem — a ground type drops onto its ledge, a flyer hovers there.
+      // Guard spawns right at the gem — a flyer hovers down into reach (so it never gates the exit).
       if (n.guard) this._spawnEnemy(n.x, n.y, n.guard);
     }
 
@@ -1937,6 +1976,8 @@ export default class GameScene extends Phaser.Scene {
       spore: 70,
       mite: 120,
       ant: 110,
+      fly: 70,
+      bee: 160,
     };
     this.score += enemy.isBoss ? 1000 : (SCORES[(enemy as Enemy).type] ?? 100);
     this.events.emit('score-update', this.score);

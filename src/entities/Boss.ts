@@ -19,7 +19,7 @@ type AttackKind = 'volley' | 'radial' | 'barrage' | 'sweep';
 // reach it, but high enough to loom. (Player center sits ≈ GROUND_TOP_Y − 22 when standing.)
 const HOVER_Y = GROUND_TOP_Y - 80;
 
-export type BossVariant = 'bacterium' | 'amoeba' | 'phage' | 'roach';
+export type BossVariant = 'bacterium' | 'amoeba' | 'phage' | 'roach' | 'beetle' | 'hornet';
 
 interface BossVariantCfg {
   texture: string;
@@ -101,6 +101,38 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
     labelColor: '#e0c08a',
     activateTint: 0xaa6622,
     fireTint: 0xffaa44,
+  },
+  // Sector 5 — Dung Beetle: a slow, hugely armored bruiser with heavy 6-shot volleys.
+  beetle: {
+    texture: 'boss_beetle',
+    name: 'DUNG BEETLE',
+    hp: 2000,
+    speed: 110,
+    damage: 38,
+    scale: 1.7,
+    bodySize: [78, 60],
+    bodyOffset: [17, 16],
+    projectileCount: 6,
+    projectileSpread: 0.28,
+    labelColor: '#cbb083',
+    activateTint: 0x6b4a22,
+    fireTint: 0xc89a44,
+  },
+  // Sector 6 — Hornet Queen: the final boss. Fast flyer that floods the arena with wide, fast sprays.
+  hornet: {
+    texture: 'boss_hornet',
+    name: 'HORNET QUEEN',
+    hp: 2200,
+    speed: 200,
+    damage: 36,
+    scale: 1.55,
+    bodySize: [56, 70],
+    bodyOffset: [28, 12],
+    projectileCount: 9,
+    projectileSpread: 0.18,
+    labelColor: '#ffd86a',
+    activateTint: 0xe0a000,
+    fireTint: 0xffd24a,
   },
 };
 
