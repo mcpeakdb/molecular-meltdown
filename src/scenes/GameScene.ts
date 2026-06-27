@@ -34,6 +34,7 @@ import Atom from '../entities/Atom';
 import Boss from '../entities/Boss';
 import Enemy, { type EnemyType } from '../entities/Enemy';
 import Player from '../entities/Player';
+import { fitHeightScale } from '../spriteFit';
 import { NOBLE_BY_STAGE, STAGES, type StageDef } from '../stages';
 import MusicSystem, { type TrackId } from '../systems/MusicSystem';
 import SaveSystem, { type RunRecord } from '../systems/SaveSystem';
@@ -50,6 +51,11 @@ type ProjectileSprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody & {
 
 /** Enemy types that fly (hover, no gravity) rather than walking the floor. */
 const FLYER_TYPES = new Set<EnemyType>(['virus', 'spore', 'pollen', 'fly', 'bee']);
+
+/** Camera zoom during normal play (tighter on the player). Boss fights pull back to 1.0 (a full
+ *  screen) so the whole one-screen arena fits — see `_lockBossArena`. */
+const PLAY_ZOOM = 1.5;
+const BOSS_ZOOM = 1.0;
 
 /** A crumbling floor tile: its plug collider fills a hole in the base floor until it collapses. */
 type CrumbleTile = {
@@ -193,6 +199,15 @@ export default class GameScene extends Phaser.Scene {
   private _bossArena: { left: number; right: number } | null = null;
   private _bossArenaHandler?: (anchorX: number) => void;
 
+  // Petri-dish iris mask on the camera. Its ellipse is drawn inverse to the camera zoom so the
+  // framing stays fixed to the screen edges regardless of how far we're zoomed in (see _redrawDish).
+  private _dishMask?: Phaser.GameObjects.Graphics;
+  // Screen-fixed vignette overlay, counter-scaled with the zoom (same reason as the dish mask).
+  private _vignette?: Phaser.GameObjects.Image;
+  // The resting camera zoom for the current context: PLAY_ZOOM during free play, BOSS_ZOOM during a
+  // boss fight. Cutscene UI (dialogue, banners) pulls back to BOSS_ZOOM, then restores to this.
+  private _playZoom = BOSS_ZOOM;
+
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private slotKeys!: Phaser.Input.Keyboard.Key[][];
@@ -275,6 +290,10 @@ export default class GameScene extends Phaser.Scene {
       this.events.off('boss-activated', this._bossArenaHandler);
       this._bossArenaHandler = undefined;
     }
+    // Reused-scene refs (see below) — the dish mask isn't recreated on a tutorial run, so a stale
+    // destroyed ref would otherwise survive into it. Reassigned in _buildWorld / _playStageIntro.
+    this._vignette = undefined;
+    this._dishMask = undefined;
     this._dlgBlocking = false;
     this._dlgQueue = [];
     this._firedTips.clear();
@@ -328,6 +347,10 @@ export default class GameScene extends Phaser.Scene {
     }
     this.physics.add.collider(this.player.sprite, this.platformGroup);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08);
+    // Zoom is applied once the intro finishes (free play); see the intro onComplete below. It starts
+    // at BOSS_ZOOM (1.0) so the intro letterbox and any cutscene UI frame correctly.
+    this.cameras.main.setZoom(BOSS_ZOOM);
+    this._playZoom = BOSS_ZOOM;
 
     this.physics.add.overlap(this.player.sprite, this.atomGroup, (_p, atomSprite) =>
       this._onAtomCollect(atomSprite as AtomSprite),
@@ -367,6 +390,9 @@ export default class GameScene extends Phaser.Scene {
       this._playStageIntro(() => {
         this.isPaused = false;
         this.physics.resume();
+        // Free play begins — zoom in on the player. (Boss/cutscene moments pull back to BOSS_ZOOM.)
+        this._playZoom = PLAY_ZOOM;
+        this._applyZoom(PLAY_ZOOM, 500);
         // Start the clear timer once the intro is over and the player can actually move.
         this._stageStartMs = this.time.now;
         // Sync the HUD to the carried run score (it defaults to 0 until an event arrives).
@@ -381,8 +407,8 @@ export default class GameScene extends Phaser.Scene {
     const h = GAME_HEIGHT;
 
     const dishMask = this.add.graphics().setScrollFactor(0).setDepth(-999);
-    dishMask.fillStyle(0xffffff);
-    dishMask.fillEllipse(w / 2, h / 2, w - 4, h - 4);
+    this._dishMask = dishMask;
+    this._redrawDish();
     this.cameras.main.setMask(dishMask.createGeometryMask());
 
     this.time.delayedCall(0, () => this.events.emit('intro-start'));
@@ -507,7 +533,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Per-sector decorative scenery + horizon props, then a screen-fixed vignette for mood.
     this._buildBiomeProps(sector, w);
-    this.add
+    this._vignette = this.add
       .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'vignette')
       .setScrollFactor(0)
       .setDepth(250)
@@ -1162,6 +1188,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private _showDlg(): void {
+    // The dialogue panel is screen-fixed, so pull the camera back to a full screen while it's up.
+    this._applyZoom(BOSS_ZOOM, 200);
     this._dlgBg?.setVisible(true);
     this._dlgPortrait?.setVisible(true);
     this._dlgName?.setVisible(true);
@@ -1174,6 +1202,8 @@ export default class GameScene extends Phaser.Scene {
     this._dlgName?.setVisible(false);
     this._dlgText?.setVisible(false);
     this._dlgHint?.setVisible(false);
+    // Restore the free-play / boss zoom once the panel is dismissed.
+    this._applyZoom(this._playZoom, 200);
   }
 
   private _popPortrait(): void {
@@ -1991,6 +2021,8 @@ export default class GameScene extends Phaser.Scene {
 
   private _showDeathScreen(): void {
     this.isPaused = true;
+    // The death overlay is screen-fixed — snap back to a full screen so it frames correctly.
+    this._applyZoom(BOSS_ZOOM, 250);
     // Cut the music so the death toll lands; it restarts on retry / when the next scene loads.
     MusicSystem.stop();
     // Clear the weapon chips + on-screen controls so the death overlay reads cleanly.
@@ -2119,6 +2151,8 @@ export default class GameScene extends Phaser.Scene {
     // so the bare 'player_0' texture has none. Re-create the idle arms at his sides and group them
     // with the sprite in a container so every sob tween moves it together.
     const sprite = this.add.sprite(0, 0, 'player_0');
+    // player_0 is high-res hand-drawn art; normalize it to the ~70px cameo the arms/tears expect.
+    sprite.setScale(fitHeightScale(sprite.height, 70));
     const arms = this.add.graphics();
     arms.fillStyle(0xe8e8f2);
     arms.fillRect(-16, -7, 5, 15); // left sleeve
@@ -2218,6 +2252,48 @@ export default class GameScene extends Phaser.Scene {
     this._bossArena = { left, right };
     // Bounds exactly one screen wide → the follow camera has nothing left to scroll, so it locks.
     this.cameras.main.setBounds(left, 0, GAME_WIDTH, GAME_HEIGHT);
+    // Pull the camera back to a full screen so the whole one-screen arena is visible for the fight.
+    this._playZoom = BOSS_ZOOM;
+    this._applyZoom(BOSS_ZOOM, 600);
+  }
+
+  /**
+   * Smoothly retarget the camera zoom, keeping the screen-fixed framing overlays (vignette + the
+   * petri-dish iris mask) glued to the screen edges. They're rendered through the zooming camera, so
+   * without the counter-scale in `_rescaleOverlays` they'd inflate off-screen as we zoom in.
+   */
+  private _applyZoom(target: number, duration: number): void {
+    this.tweens.killTweensOf(this.cameras.main);
+    if (duration <= 0) {
+      this.cameras.main.setZoom(target);
+      this._rescaleOverlays();
+      return;
+    }
+    this.tweens.add({
+      targets: this.cameras.main,
+      zoom: target,
+      duration,
+      ease: 'Sine.InOut',
+      onUpdate: () => this._rescaleOverlays(),
+      onComplete: () => this._rescaleOverlays(),
+    });
+  }
+
+  /** Counter-scale the screen-fixed framing overlays to the current camera zoom (see `_applyZoom`). */
+  private _rescaleOverlays(): void {
+    const z = this.cameras.main.zoom || 1;
+    this._vignette?.setScale(1 / z);
+    this._redrawDish();
+  }
+
+  /** Draw the petri-dish iris so it frames the screen edges at the current zoom (inverse-sized). */
+  private _redrawDish(): void {
+    const g = this._dishMask;
+    if (!g) return;
+    const z = this.cameras.main.zoom || 1;
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillEllipse(GAME_WIDTH / 2, GAME_HEIGHT / 2, (GAME_WIDTH - 4) / z, (GAME_HEIGHT - 4) / z);
   }
 
   /** Called by the Boss on a finale stage once it dies. */
@@ -2282,6 +2358,8 @@ export default class GameScene extends Phaser.Scene {
   private _showClearBanner(): void {
     const w = GAME_WIDTH,
       h = GAME_HEIGHT;
+    // The victory overlay is screen-fixed — return to a full screen so it frames correctly.
+    this._applyZoom(BOSS_ZOOM, 250);
     const theme = SECTOR_THEMES[this.sector];
     // Clear the playfield UI (weapon chips + touch buttons) so the banner reads cleanly. Direct
     // call (not an event) so it leaves no listener behind on the reused scene emitter.

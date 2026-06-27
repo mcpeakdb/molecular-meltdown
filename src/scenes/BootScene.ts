@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { PlayerFrameBox } from '../types';
 
 // === Hand-drawn art manifest ===
 // Every in-scope sprite is a hand-drawn PNG under `public/assets/sprites/`, loaded by key in
@@ -62,6 +63,7 @@ export default class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    this._computePlayerBounds();
     this._makePlayerAnims();
     this._makeBackground();
     this._makeVignette();
@@ -76,6 +78,50 @@ export default class BootScene extends Phaser.Scene {
       g.destroy();
     };
     return g;
+  }
+
+  /**
+   * The player frames are authored at different resolutions (high-res walk frames vs. a small jump
+   * frame) and may carry transparent margins. Measure each frame's opaque content box once at boot
+   * and stash it in the registry so {@link Player} can normalize every frame to a constant on-screen
+   * size and ground the body on the character's feet regardless of source resolution.
+   */
+  private _computePlayerBounds(): void {
+    const keys = ['player_0', 'player_1', 'player_2', 'player_jump'];
+    const bounds: Record<string, PlayerFrameBox> = {};
+    for (const key of keys) {
+      if (!this.textures.exists(key)) continue;
+      const src = this.textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
+      const w = src.width;
+      const h = src.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        bounds[key] = { x: 0, y: 0, w, h };
+        continue;
+      }
+      ctx.drawImage(src, 0, 0);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      let minX = w;
+      let minY = h;
+      let maxX = -1;
+      let maxY = -1;
+      for (let y = 0; y < h; y++) {
+        const row = y * w * 4;
+        for (let x = 0; x < w; x++) {
+          if (data[row + x * 4 + 3] > 16) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      bounds[key] = maxX < 0 ? { x: 0, y: 0, w, h } : { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    }
+    this.registry.set('playerFrameBounds', bounds);
   }
 
   // Player animations are built from the loaded player_0..2 / player_jump frame textures.

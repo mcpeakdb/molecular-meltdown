@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import { fitHeightScale } from '../spriteFit';
 import MusicSystem from '../systems/MusicSystem';
 import Settings from '../systems/Settings';
 import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
@@ -140,13 +141,15 @@ export default class TitleScene extends Phaser.Scene {
     const between = Phaser.Math.Between;
     const float = Phaser.Math.FloatBetween;
 
-    const make = (keys: string[], count: number, spinny: boolean) => {
+    const make = (keys: string[], count: number, spinny: boolean, displayH: number) => {
       for (let i = 0; i < count; i++) {
         const key = keys[between(0, keys.length - 1)];
         const go = this.add
           .sprite(between(40, GAME_WIDTH - 40), between(40, GAME_HEIGHT - 40), key)
           .setDepth(-5)
-          .setScale(float(0.7, 1.15))
+          // Normalize the source PNG to ~displayH px tall (germ art is high-res) before the random
+          // size variation, so a 2048px germ and a 40px atom float at comparable sizes.
+          .setScale(fitHeightScale(this.textures.get(key).getSourceImage().height, displayH) * float(0.7, 1.15))
           .setAlpha(float(0.35, 0.7));
         const ang = float(0, Math.PI * 2);
         const speed = float(12, 30);
@@ -158,8 +161,8 @@ export default class TitleScene extends Phaser.Scene {
         });
       }
     };
-    make(germs, 6, false);
-    make(atoms, 7, true);
+    make(germs, 6, false, 46);
+    make(atoms, 7, true, 40);
   }
 
   update(_time: number, delta: number): void {

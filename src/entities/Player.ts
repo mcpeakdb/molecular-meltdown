@@ -26,10 +26,19 @@ import {
 import type GameScene from '../scenes/GameScene';
 import ElementSystem from '../systems/ElementSystem';
 import SoundSystem from '../systems/SoundSystem';
-import type { ArsenalEntry, EnemySprite, InputKeys } from '../types';
+import type { ArsenalEntry, EnemySprite, InputKeys, PlayerFrameBox } from '../types';
 
 /** Nitric Oxide (Radical Rush) buff duration per tier, in ms. Its cooldown is twice this. */
 const RADICAL_DURATIONS = [3000, 5000, 8000] as const;
+
+// === Sprite sizing (resolution-independent) ===
+// Player frames are authored at different source resolutions (high-res walk frames + a small jump
+// frame), so the sprite is fit per-frame: the character's opaque content is rendered PLAYER_CONTENT_H
+// px tall and the physics body is re-derived in source pixels so it stays a constant world size.
+/** On-screen height (px) of the scientist's drawn body, regardless of the source PNG resolution. */
+const PLAYER_CONTENT_H = 64;
+/** Distance (px) from the sprite centre down to the feet — half the content height (content is centred). */
+const PLAYER_FEET_OFFSET = PLAYER_CONTENT_H / 2;
 
 export default class Player {
   scene: GameScene;
@@ -63,25 +72,31 @@ export default class Player {
   private _speedBoost = 1.0;
   private _speedBoostTimer = 0;
   private _speedBoostAura: Phaser.GameObjects.Graphics | null = null;
-  private _armsGraphic!: Phaser.GameObjects.Graphics;
-  private _isPunching = false;
+  /** Opaque content box per frame texture, measured at boot — drives resolution-independent sizing. */
+  private _frameBounds: Record<string, PlayerFrameBox> = {};
+  /** Fit scale for the current frame (so its content renders PLAYER_CONTENT_H tall). */
+  private _frameScale = 1;
+  /** Momentary squash/stretch multipliers layered on top of the frame fit (e.g. landing). */
+  private _squashX = 1;
+  private _squashY = 1;
   private _punchArmGraphic: Phaser.GameObjects.Graphics | null = null;
   private _punchArmDir = 1;
 
   constructor(scene: GameScene, x: number, y: number) {
     this.scene = scene;
+    this._frameBounds = (scene.registry.get('playerFrameBounds') ?? {}) as Record<string, PlayerFrameBox>;
     this.sprite = scene.physics.add.sprite(x, y, 'player_0') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
     this.sprite.setDepth(DEPTH.PLAYER);
-    this.sprite.body.setSize(28, 44);
-    this.sprite.body.setOffset(6, 8);
     this.sprite.body.setCollideWorldBounds(true);
     this.sprite.body.setGravityY(GRAVITY);
     this.sprite.play('player_idle');
+    // Normalize the spawn frame's on-screen size and collision body before the first update tick.
+    this._fitFrame();
     this._takeoffY = y; // so the first landing from the spawn drop isn't counted as a fall
     this._jumpShadow = scene.add.graphics().setDepth(DEPTH.PLAYER - 1);
-    this._armsGraphic = scene.add.graphics();
     this._jumpKey = scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE) as Phaser.Input.Keyboard.Key;
-    scene.events.on('postupdate', this._updateArms, this);
+    // The player has no idle arms — only the transient punch arm, which this keeps glued to the body.
+    scene.events.on('postupdate', this._updatePunchArm, this);
   }
 
   /** Airborne and not plummeting — a well-timed jump leaps clean over contact attacks (projectiles still hit). */
@@ -96,7 +111,7 @@ export default class Player {
 
   /** Y of the player's feet — the local "ground level" for ground-targeted FX. */
   private get _feetY(): number {
-    return this.sprite.y + 22;
+    return this.sprite.y + PLAYER_FEET_OFFSET;
   }
 
   /** True while the post-hit invincibility window is active (no further damage will land). */
@@ -118,7 +133,6 @@ export default class Player {
 
     const flickerAlpha = this.invincibleTimer > 0 && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1;
     this.sprite.setAlpha(flickerAlpha);
-    this._armsGraphic.setAlpha(flickerAlpha);
 
     const { cursors, wasd, slotKeys, touch } = keys;
     const left = cursors.left.isDown || wasd.A.isDown;
@@ -173,8 +187,12 @@ export default class Player {
       this.sprite.play('player_jump');
     }
 
+    // Re-fit whichever frame is now showing: walk/idle/jump frames have different source
+    // resolutions, so size + body must be recomputed as the animation swaps between them.
+    this._fitFrame();
+
     // Drop shadow projected onto the main floor, fading/shrinking with height above it.
-    const feetY = this.sprite.y + 22;
+    const feetY = this.sprite.y + PLAYER_FEET_OFFSET;
     const heightAbove = GROUND_TOP_Y - feetY;
     if (heightAbove > 6) {
       const t = Math.min(1, heightAbove / 200);
@@ -288,13 +306,7 @@ export default class Player {
       this.sprite.body.setVelocityY(-PLAYER_JUMP_VELOCITY);
       this.jumpCount = 1;
       this.sprite.play('player_jump');
-      this.scene.tweens.add({
-        targets: this.sprite,
-        scaleY: 1.15,
-        scaleX: 0.9,
-        duration: 110,
-        yoyo: true,
-      });
+      this._squashPulse(0.9, 1.15, 110);
     } else if (this.jumpCount < PLAYER_MAX_JUMPS) {
       // Air jump — a dramatic re-boost with a snappy flip and a kick-off flourish.
       this.sprite.body.setVelocityY(-PLAYER_DOUBLE_JUMP_VELOCITY);
@@ -321,7 +333,7 @@ export default class Player {
     this.sprite.body.setVelocityY(-velocity);
     this.jumpCount = 1; // the ground jump is spent, but one air jump remains
     this.sprite.play('player_jump');
-    this.scene.tweens.add({ targets: this.sprite, scaleY: 1.22, scaleX: 0.82, duration: 120, yoyo: true });
+    this._squashPulse(0.82, 1.22, 120);
   }
 
   private _startRoll(): void {
@@ -347,19 +359,78 @@ export default class Player {
     this.sprite.setRotation(0);
   }
 
+  /**
+   * Fit the currently-shown animation frame to a constant on-screen size and re-derive the physics
+   * body, so frames of different source resolutions (walk vs. jump) and any transparent margins all
+   * render the scientist at PLAYER_CONTENT_H tall with the body grounded on his feet.
+   */
+  private _fitFrame(): void {
+    const box = this._frameBounds[this.sprite.texture.key];
+    if (!box) return;
+    this._frameScale = PLAYER_CONTENT_H / box.h;
+    this._applyScale();
+    // Hitbox = the character's opaque content box (the visible image), with its bottom on his feet.
+    // The Arcade body scales with the sprite, so a squash/stretch would otherwise shrink the body —
+    // and a vertical squash on landing would lift its bottom off the floor, retriggering the land in
+    // a jitter loop. Divide out the squash here so the *physics* body stays put while the sprite
+    // still deforms visually. (At rest squash = 1, so this reduces to the plain content box.)
+    const ox = this.sprite.displayOriginX;
+    const oy = this.sprite.displayOriginY;
+    this.sprite.body.setSize(box.w / this._squashX, box.h / this._squashY, false);
+    this.sprite.body.setOffset(ox + (box.x - ox) / this._squashX, oy + (box.y - oy) / this._squashY);
+  }
+
+  /** Apply the current frame fit plus any momentary squash/stretch to the sprite. */
+  private _applyScale(): void {
+    this.sprite.setScale(this._frameScale * this._squashX, this._frameScale * this._squashY);
+  }
+
+  /**
+   * A brief squash/stretch flourish (jump takeoff, bounce). Expressed as multipliers on the frame
+   * fit — never as raw sprite scale — so it composes with the per-frame resolution normalization
+   * instead of fighting it. Yoyos back to neutral.
+   */
+  private _squashPulse(sx: number, sy: number, duration: number): void {
+    this.scene.tweens.killTweensOf(this);
+    this._squashX = 1;
+    this._squashY = 1;
+    this.scene.tweens.add({
+      targets: this,
+      _squashX: sx,
+      _squashY: sy,
+      duration,
+      yoyo: true,
+      onUpdate: () => this._fitFrame(),
+      onComplete: () => {
+        this._squashX = 1;
+        this._squashY = 1;
+        this._fitFrame();
+      },
+    });
+  }
+
   /** Touched down after being airborne — squash and clear the air roll. */
   private _onLand(): void {
     this.jumpCount = 0;
     this._endRoll();
     this._applyFallDamage();
-    // Landing squash
-    this.sprite.setScale(1.2, 0.8);
+    // Landing squash — expressed as multipliers on the frame fit so high-res frames stay boxed.
+    this.scene.tweens.killTweensOf(this);
+    this._squashX = 1.2;
+    this._squashY = 0.8;
+    this._applyScale();
     this.scene.tweens.add({
-      targets: this.sprite,
-      scaleX: 1,
-      scaleY: 1,
+      targets: this,
+      _squashX: 1,
+      _squashY: 1,
       duration: 120,
       ease: 'Quad.Out',
+      onUpdate: () => this._fitFrame(),
+      onComplete: () => {
+        this._squashX = 1;
+        this._squashY = 1;
+        this._fitFrame();
+      },
     });
   }
 
@@ -421,37 +492,22 @@ export default class Player {
     this.scene.events.emit('combo-update', this.comboCount, this.comboMultiplier);
   }
 
-  private _updateArms(): void {
-    if (!this.alive) return;
-    // Arms are drawn upright; during a front roll they'd detach from the spinning body, so hide them
-    if (this._isRolling) {
-      this._armsGraphic.clear();
+  /**
+   * The player shows no arms while idle/walking — only the single punch arm spawned by
+   * `_spawnPunchArm` (in the facing direction) while attacking. This keeps that arm glued to the
+   * body each frame; it's hidden during a front roll, where it'd detach from the spinning sprite.
+   */
+  private _updatePunchArm(): void {
+    const arm = this._punchArmGraphic;
+    if (!arm) return;
+    if (!this.alive || this._isRolling) {
+      arm.setVisible(false);
       return;
     }
-    if (this._punchArmGraphic) {
-      this._punchArmGraphic
-        .setPosition(this.sprite.x + this._punchArmDir * 11, this.sprite.y - 7)
-        .setDepth(this.sprite.depth + 1);
-    }
-    this._armsGraphic
-      .setPosition(this.sprite.x, this.sprite.y)
-      .setDepth(this.sprite.depth + 1)
-      .clear();
-    const punchDir = this._isPunching ? (this.facingRight ? 1 : -1) : 0;
-    // Left arm (world-left side of character, local x = -16 to -11)
-    if (punchDir !== -1) {
-      this._armsGraphic.fillStyle(0xe8e8f2);
-      this._armsGraphic.fillRect(-16, -7, 5, 15);
-      this._armsGraphic.fillStyle(0x88ccdd);
-      this._armsGraphic.fillRect(-16, 6, 5, 5);
-    }
-    // Right arm (world-right side, local x = +11 to +16)
-    if (punchDir !== 1) {
-      this._armsGraphic.fillStyle(0xe8e8f2);
-      this._armsGraphic.fillRect(11, -7, 5, 15);
-      this._armsGraphic.fillStyle(0x88ccdd);
-      this._armsGraphic.fillRect(11, 6, 5, 5);
-    }
+    arm
+      .setVisible(true)
+      .setPosition(this.sprite.x + this._punchArmDir * 11, this.sprite.y - 7)
+      .setDepth(this.sprite.depth + 1);
   }
 
   private _spawnPunchArm(
@@ -472,7 +528,6 @@ export default class Player {
     const sleeveH = opts.sleeveH ?? 9;
     const fistX = sleeveLen + fistRadius - 2;
 
-    this._isPunching = true;
     this._punchArmDir = dir;
     const arm = this.scene.add.graphics();
     const s = dir > 0 ? 1 : -1;
@@ -498,7 +553,6 @@ export default class Player {
       onComplete: () => {
         arm.destroy();
         this._punchArmGraphic = null;
-        this._isPunching = false;
       },
     });
   }
@@ -1063,10 +1117,13 @@ export default class Player {
   private _die(): void {
     this.alive = false;
     this.freeze(); // stop dead in place — no post-death slide or fall
-    this.sprite.setScale(1, 1);
+    this._squashX = 1;
+    this._squashY = 1;
+    this._fitFrame();
     this.sprite.setRotation(0);
     this._jumpShadow.clear();
-    this._armsGraphic.clear();
+    this._punchArmGraphic?.destroy();
+    this._punchArmGraphic = null;
     SoundSystem.play(this.scene.audioCtx, 'player_death');
     this.sprite.setTint(0x888888);
     // The bawling tantrum plays out on the death screen, not in the world (see GameScene._showDeathScreen)

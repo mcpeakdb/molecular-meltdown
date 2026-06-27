@@ -12,6 +12,12 @@ Source: [`src/entities/Player.ts`](../../src/entities/Player.ts). Attack effects
   not frozen, and own its own `ElementSystem`.
 - **REQ-PLAYER-003** — On construction, the player shall set its invincibility window from the
   difficulty (`DIFFICULTY_SCALE[difficulty].invincMs`) and its weapon-slot count from the difficulty.
+- **REQ-PLAYER-004** — The player's on-screen size shall be enforced independently of its frame
+  textures' source resolutions: each animation frame's opaque content box (measured once at boot in
+  `BootScene` → registry `playerFrameBounds`) shall be fit to `PLAYER_CONTENT_H` tall as the
+  walk/idle/jump frames swap. The physics body (hitbox) shall be set to that content box, so the
+  hitbox matches the on-screen scientist with its bottom on his feet (`PLAYER_FEET_OFFSET` below the
+  sprite centre). Squash/stretch (e.g. the landing pop) shall be applied as a multiplier on the fit.
 
 ## Movement
 
@@ -49,6 +55,9 @@ Source: [`src/entities/Player.ts`](../../src/entities/Player.ts). Attack effects
   current combo multiplier, knocking back in the facing direction; it shall play the punch SFX, a
   punch-arm graphic, and a small shake.
 - **REQ-PLAYER-032** — WHEN a punch hits at least one enemy, the player shall register a combo hit.
+- **REQ-PLAYER-033** — The player shall draw no separate arm graphics while idle/walking (the sprite
+  art carries its own arms). Only WHILE attacking shall a single punch arm appear, extended in the
+  facing direction (`_spawnPunchArm` → `_updatePunchArm`); it is hidden during a front roll.
 
 ## Combo
 

@@ -1,8 +1,9 @@
 import type Phaser from 'phaser';
+import { fitHeightScale } from '../spriteFit';
 import SoundSystem from './SoundSystem';
 
-/** Base scale of the tiny player-avatar menu cursor. */
-const CURSOR_SCALE = 0.34;
+/** On-screen height (px) of the tiny player-avatar menu cursor, independent of source resolution. */
+const CURSOR_HEIGHT = 26;
 
 /**
  * The selected-menu-item marker: a tiny version of the player sprite (replaces the old "›" carat).
@@ -10,7 +11,8 @@ const CURSOR_SCALE = 0.34;
  * positions it (and may set scrollFactor/depth); move it with `.setY(...)` as the cursor changes.
  */
 export function makeCursorIcon(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Image {
-  return scene.add.image(x, y, 'player_0').setOrigin(0.5, 0.5).setScale(CURSOR_SCALE);
+  const icon = scene.add.image(x, y, 'player_0').setOrigin(0.5, 0.5);
+  return icon.setScale(fitHeightScale(icon.height, CURSOR_HEIGHT));
 }
 
 /**

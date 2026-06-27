@@ -24,6 +24,11 @@ Enemy types and AI, status effects (bleed/slow), and boss phases/attacks. Source
 - **REQ-ENEMY-001** — On spawn, an enemy shall take HP/speed from `CONFIGS` scaled by the difficulty
   (`enemyHp`, `enemySpeed`); flyers shall disable gravity, ground types shall fall under gravity and
   get a floor/ledge collider from `GameScene`.
+- **REQ-ENEMY-002** — On spawn, an enemy's on-screen size shall be enforced independently of its
+  source texture's pixel resolution: the sprite shall be fit (by its longest edge) into a
+  `BASE_DISPLAY × cfg.scale` box, never upscaled beyond `cfg.scale`. The computed `baseScale` shall
+  be the basis for all squash/stretch animation. The physics body (hitbox) shall be the full sprite
+  frame, so that — with art cropped tight to the creature — the hitbox matches the on-screen image.
 
 ## Activation gate
 

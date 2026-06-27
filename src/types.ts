@@ -40,6 +40,13 @@ export type InputKeys = {
 
 export type ElementState = { type: ElementType; level: number };
 
+/**
+ * Opaque content box of a player animation frame, in source pixels (computed at boot in BootScene).
+ * Lets Player fit each frame to a constant on-screen size and ground the body on the feet even when
+ * frames have different source resolutions / transparent margins.
+ */
+export type PlayerFrameBox = { x: number; y: number; w: number; h: number };
+
 /** One available attack, as derived from the owned atoms. */
 export type AttackSlot = {
   id: AttackId;

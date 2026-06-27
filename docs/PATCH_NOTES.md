@@ -1,5 +1,65 @@
 # Patch Notes
 
+## v0.30.3 - 2026-06-26
+
+### No more idle arms
+
+- The player no longer draws the separate stick-arm overlay while idle/walking — the hand-drawn
+  sprite already includes arms, so the overlay was doubling them up. Only the single punch arm now
+  appears, extended in the facing direction, while attacking.
+
+### Camera zooms in on the player
+
+- During normal play the camera now zooms in on the player (`PLAY_ZOOM`). It smoothly pulls back to
+  a full screen (`BOSS_ZOOM` = 1.0) for boss fights — so the whole one-screen arena fits — and for
+  any screen-fixed cutscene UI: M.E.G. dialogue/quips/tips, and the stage-clear and death overlays
+  (these only frame correctly at 1.0). The tutorial stays at 1.0.
+- The two full-screen framing overlays (the mood vignette and the petri-dish iris mask) are
+  counter-scaled to the live zoom so they stay glued to the screen edges instead of inflating.
+
+### Player squish fix
+
+- Removed the remaining absolute `setScale` tweens on the player (jump takeoff, bounce) that fought
+  the per-frame resolution fit, and decoupled the physics body from the squash/stretch. The landing
+  squash had been shrinking the (now full-height) body off the floor each frame, retriggering the
+  landing in a loop that left the scientist permanently squashed.
+
+## v0.30.2 - 2026-06-23
+
+### Enforced sprite size, resolution-independent (enemies + player)
+
+- Hand-drawn enemy PNGs supplied at high resolution (e.g. 2048×2732) were rendering enormous because
+  `Enemy` applied `cfg.scale` directly to the raw texture. Enemy size is now enforced independently of
+  the source PNG's pixel resolution: each sprite is fit (by its longest edge) into a
+  `BASE_DISPLAY × cfg.scale` box, and that fit factor (`baseScale`) drives all squash/stretch
+  animation. Small native art (ant/fly/bee) is never upscaled, so it looks unchanged.
+- The physics body is now sized in source pixels (footprint ÷ `baseScale`) so it still lands at the
+  intended world size after scaling, keeping hit/attack ranges consistent across textures.
+- The **player** gets the same treatment, complicated by walk/idle/jump frames at different source
+  resolutions sharing one animated sprite. `BootScene` measures each frame's opaque content box at
+  boot; `Player` fits whichever frame is showing to `PLAYER_CONTENT_H` tall and re-derives the
+  physics body per frame, so the scientist stays a constant size (and grounded on his feet) as the
+  animation swaps frames. Squash/stretch (landing) is layered on the fit, not the raw scale.
+- Other raw uses of the high-res textures were boxed too via the new `fitHeightScale` helper: the
+  title-screen floating germs, the death-screen crying-scientist cameo, and the touch-menu cursor.
+
+### Hitboxes match the sprite art
+
+- Enemy and player hitboxes are now the full (cropped) sprite image rather than a fixed footprint.
+  Because the art is cropped tight to the creature, the physics body lines up with what's drawn.
+  This also fixed enemies that were rendering small / floating: e.g. the **mite** and **dustbunny**
+  had large transparent margins, and since the fit used the whole frame they appeared at roughly
+  half size with their body offset below the visible creature.
+
+### Asset optimization
+
+- The oversized sprite PNGs (2048×2732) are downscaled to ~**192×256** (Lanczos) and then **cropped
+  to their opaque bounds** (1px pad). At that size the runtime never minifies much past 1:1, which
+  fixes the grainy/aliased look the huge textures had in-game, and cuts the enemies sprite folder
+  from ~7 MB to ~0.5 MB (and a large chunk of GPU memory). Hi-res originals are preserved under
+  `art-masters/`. See [notes_for_megan.md](../notes_for_megan.md) for the recommended export size
+  (~256–384px longest edge).
+
 ## v0.30.1 - 2026-06-21
 
 ### Static assets for the lab-floor creatures

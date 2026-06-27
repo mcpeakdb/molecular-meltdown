@@ -33,10 +33,23 @@ interface EnemyConfig {
   damage: number;
   attackRate: number;
   texture: string;
+  /**
+   * Relative size multiplier vs. a standard enemy (1.0). The on-screen size is enforced
+   * independently of the source PNG's pixel resolution — see {@link BASE_DISPLAY}. A small
+   * native sprite is never upscaled past this value; a huge sprite is shrunk to fit the box.
+   */
   scale: number;
   /** Flyers hover in the air (no gravity); ground types fall and walk on the floor/ledges. */
   fly: boolean;
 }
+
+/**
+ * Target on-screen size (px, longest edge) for a standard enemy (scale 1.0). Whatever the
+ * source artwork's resolution, the sprite is fit into a BASE_DISPLAY × cfg.scale box so a
+ * 2048×2732 PNG and a 32×32 PNG end up the same size in-game. The physics body is sized in
+ * source pixels to land at the intended world size after this scaling (see constructor).
+ */
+const BASE_DISPLAY = 56;
 
 const CONFIGS: Record<EnemyType, EnemyConfig> = {
   bacterium: { hp: 35, speed: 90, damage: 10, attackRate: 1600, texture: 'bacterium', scale: 1.0, fly: false },
@@ -69,6 +82,12 @@ export default class Enemy {
   readonly fly: boolean;
 
   sprite: EnemySprite;
+  /**
+   * Display scale that fits this enemy's source texture into its size box. All squash/stretch
+   * animation must be expressed relative to this value, never as a raw scale, or a high-res PNG
+   * would snap back to full resolution the instant an animation sets scale.
+   */
+  private baseScale = 1;
   state: EnemyState = STATES.PATROL;
   patrolDir: number = Math.random() < 0.5 ? 1 : -1;
   patrolTimer = 0;
@@ -96,9 +115,19 @@ export default class Enemy {
     this.fly = cfg.fly;
 
     const base = scene.physics.add.sprite(x, y, cfg.texture) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-    base.setScale(cfg.scale);
+
+    // Enforce a consistent on-screen size regardless of the source PNG's pixel resolution.
+    // Fit the texture into a BASE_DISPLAY × cfg.scale box (by its longest edge), but never
+    // upscale a sprite that's already smaller than its box — small native art stays as authored.
+    const src = base.texture.getSourceImage();
+    const box = BASE_DISPLAY * cfg.scale;
+    const fit = Math.min(box / src.width, box / src.height);
+    this.baseScale = Math.min(cfg.scale, fit);
+    base.setScale(this.baseScale);
     base.setDepth(DEPTH.ENEMY);
-    base.body.setSize(30, 40);
+    // Hitbox = the full (cropped) sprite image. The Arcade body is in source pixels and scales with
+    // the sprite, so the full frame at baseScale lands a body matching the on-screen creature.
+    base.body.setSize(src.width, src.height, true);
     base.body.setCollideWorldBounds(true);
     // Flyers hover (no gravity); ground types fall onto the floor/ledges (collider added by GameScene).
     if (cfg.fly) base.body.setAllowGravity(false);
@@ -241,13 +270,13 @@ export default class Enemy {
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleX: 1.4,
-      scaleY: 0.65,
+      scaleX: this.baseScale * 1.4,
+      scaleY: this.baseScale * 0.65,
       duration: 60,
       ease: 'Power2',
       yoyo: true,
       onComplete: () => {
-        if (this.sprite.active) this.sprite.setScale(1);
+        if (this.sprite.active) this.sprite.setScale(this.baseScale);
       },
     });
 
@@ -264,10 +293,12 @@ export default class Enemy {
   }
 
   private _applyIdleAnim(time: number, delta: number): void {
+    // Squash/stretch is expressed as a factor around baseScale so high-res textures stay boxed.
+    const b = this.baseScale;
     switch (this.type) {
       case 'bacterium':
         // Cytoplasm pulse — vertical elongation driven by a per-instance phase offset
-        this.sprite.setScale(1, 1 + Math.sin(time * 0.002 + this.sprite.x * 0.005) * 0.07);
+        this.sprite.setScale(b, b * (1 + Math.sin(time * 0.002 + this.sprite.x * 0.005) * 0.07));
         break;
       case 'virus':
         // Slow continuous spin — protein coat rotating
@@ -281,13 +312,13 @@ export default class Enemy {
         // Squash/stretch breathing while grounded between hops
         if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.003) * 0.04;
-          this.sprite.setScale(1 + s, 1 - s);
+          this.sprite.setScale(b * (1 + s), b * (1 - s));
         }
         break;
       case 'amoeba': {
         // Slow gelatinous wobble — wide, sloshing pseudopod blob
         const w = Math.sin(time * 0.0016 + this.sprite.x * 0.004) * 0.09;
-        this.sprite.setScale(1.15 * (1 + w), 1.15 * (1 - w));
+        this.sprite.setScale(b * (1 + w), b * (1 - w));
         break;
       }
       case 'spore':
@@ -298,23 +329,23 @@ export default class Enemy {
         // Squash/stretch breathing while grounded between hops (lighter than dustbunny)
         if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.004) * 0.05;
-          this.sprite.setScale(0.9 * (1 + s), 0.9 * (1 - s));
+          this.sprite.setScale(b * (1 + s), b * (1 - s));
         }
         break;
       case 'ant':
         // Quick scuttling jitter — fast little body shudder as it scurries
         if (this.sprite.body.onFloor()) {
           const s = Math.sin(time * 0.02 + this.sprite.x) * 0.04;
-          this.sprite.setScale(0.95 * (1 + s), 0.95 * (1 - s));
+          this.sprite.setScale(b * (1 + s), b * (1 - s));
         }
         break;
       case 'fly':
         // Frantic buzzing wing-blur — fast tiny vertical shimmer
-        this.sprite.setScale(0.85, 0.85 * (1 + Math.sin(time * 0.05) * 0.08));
+        this.sprite.setScale(b, b * (1 + Math.sin(time * 0.05) * 0.08));
         break;
       case 'bee':
         // Heavier hovering buzz
-        this.sprite.setScale(1 + Math.sin(time * 0.035) * 0.05, 1 - Math.sin(time * 0.035) * 0.05);
+        this.sprite.setScale(b * (1 + Math.sin(time * 0.035) * 0.05), b * (1 - Math.sin(time * 0.035) * 0.05));
         break;
     }
   }
@@ -339,13 +370,13 @@ export default class Enemy {
       this.scene.tweens.killTweensOf(this.sprite);
       this.scene.tweens.add({
         targets: this.sprite,
-        scaleX: 0.78,
-        scaleY: 1.3,
+        scaleX: this.baseScale * 0.78,
+        scaleY: this.baseScale * 1.3,
         duration: 90,
         ease: 'Power2',
         yoyo: true,
         onComplete: () => {
-          if (this.sprite.active) this.sprite.setScale(this.type === 'mite' ? 0.9 : 1);
+          if (this.sprite.active) this.sprite.setScale(this.baseScale);
         },
       });
     }

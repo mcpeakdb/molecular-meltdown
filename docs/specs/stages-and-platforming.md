@@ -35,6 +35,12 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-WORLD-003** — The world shall render parallax background tiles, per-sector decorative scenery
   and horizon props, a ground line with tick marks, and a screen-fixed vignette.
 - **REQ-WORLD-004** — The camera shall follow the player smoothly within the world bounds.
+- **REQ-WORLD-005** — During free play the camera shall zoom in on the player (`PLAY_ZOOM`); it shall
+  pull back to a full screen (`BOSS_ZOOM` = 1.0) for the boss arena, any dialogue/quip/tip panel, and
+  the stage-clear / death overlays — all of which are screen-fixed UI that only frames correctly at
+  1.0. The zoom is applied after the stage intro (the tutorial stays at 1.0). The screen-fixed
+  framing overlays (vignette, petri-dish iris mask) shall be counter-scaled to the current zoom so
+  they stay glued to the screen edges (`_applyZoom` / `_rescaleOverlays`).
 
 ## Spawning
 
