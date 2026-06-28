@@ -1,4 +1,4 @@
-import type { BaseAtom, NobleGasId } from './constants';
+import { type BaseAtom, GROUND_TOP_Y, type NobleGasId } from './constants';
 import type { BossVariant } from './entities/Boss';
 import type { EnemyType } from './entities/Enemy';
 
@@ -13,6 +13,8 @@ import type { EnemyType } from './entities/Enemy';
 export interface StageEnemy {
   x: number;
   type: EnemyType;
+  /** Perch height (sprite y) for an enemy placed on a ledge; defaults to the floor band. */
+  y?: number;
 }
 
 export interface StageDef {
@@ -32,6 +34,12 @@ export interface StageDef {
   gaps: [number, number][];
   /** Solid ledges to jump onto: [xLeft, yTop, width]. The floor surface sits at GROUND_TOP_Y (470). */
   platforms?: [number, number, number][];
+  /**
+   * Slanted ramps the player can walk up/down: [xLeft, yLeftTop, width, yRightTop]. The surface is
+   * the line from (xLeft, yLeftTop) to (xLeft+width, yRightTop); GameScene draws the wedge and snaps
+   * the player to the slope (Arcade bodies are AABB, so there is no real angled collider).
+   */
+  ramps?: [number, number, number, number][];
   /** Acid pools / spike beds — floor strips that sear the player unless jumped over. */
   hazards?: [number, number][];
   /** Bounce-pad x-positions — step on a springy spore to launch a high arc. */
@@ -880,6 +888,91 @@ export const STAGES: StageDef[] = [
     boss: { variant: 'hornet', x: 5300 },
   },
 ];
+
+// ── Ramp-and-ledge clusters ───────────────────────────────────────────────────
+// Every stage is enriched with extra slanted ramps leading up to guarded ledges that hold a bonus
+// atom — more platforming, more pickups, and more foes posted on the platforms. Clusters are placed
+// only on clear flat ground (never over a gap, hazard, or the central sky-tower climb), so they can
+// be appended to all 18 hand-authored stages without disturbing the existing layouts.
+
+/** Ground-type foes posted on the new ledges, per sector (flyers would hover off a perch). */
+const CLUSTER_GUARD: Record<number, EnemyType[]> = {
+  1: ['bacterium', 'dustbunny'],
+  2: ['amoeba', 'bacterium'],
+  3: ['mite', 'amoeba'],
+  4: ['ant', 'mite'],
+  5: ['ant', 'mite'],
+  6: ['ant', 'mite'],
+};
+
+/** Atom choices on the new ledges, matched to each sector's existing palette. */
+const CLUSTER_ATOMS: Record<number, BaseAtom[]> = {
+  1: ['hydrogen', 'oxygen'],
+  2: ['oxygen', 'carbon'],
+  3: ['nitrogen', 'carbon'],
+  4: ['hydrogen', 'nitrogen'],
+  5: ['oxygen', 'nitrogen'],
+  6: ['carbon', 'oxygen'],
+};
+
+/** Append one ramp→ledge cluster (ramp, ledge platform, perched atom, posted guard) at world-x `x`. */
+function addRampCluster(s: StageDef, x: number, sector: number, variant: number): void {
+  const guards = CLUSTER_GUARD[sector];
+  const guard = guards[variant % guards.length];
+  const choices = CLUSTER_ATOMS[sector];
+  const rampW = 150;
+  const ledgeW = 170;
+  const ledgeTop = GROUND_TOP_Y - 90;
+  const ledgeX = x + rampW;
+  const ledgeMid = ledgeX + ledgeW / 2;
+  // End the ramp a few px ABOVE the ledge top so the player crests over the ledge's (thin, AABB)
+  // left face and drops onto it, instead of walking into that vertical face and stalling.
+  s.ramps = [...(s.ramps ?? []), [x, GROUND_TOP_Y, rampW, ledgeTop - 8] as [number, number, number, number]];
+  s.platforms = [...(s.platforms ?? []), [ledgeX, ledgeTop, ledgeW] as [number, number, number]];
+  s.atoms = [...s.atoms, { x: ledgeMid + 30, y: ledgeTop - 44, choices }];
+  s.enemies = [...s.enemies, { x: ledgeMid - 24, y: ledgeTop - 30, type: guard }];
+}
+
+const CLUSTER_SPAN = 150 + 170; // ramp width + ledge width
+
+/** Every x-span a new cluster must steer clear of: gaps, hazards, existing ledges/ramps, the tower. */
+function occupiedSpans(s: StageDef): [number, number][] {
+  const spans: [number, number][] = [[2350, 3060]]; // the central sky-tower climb
+  for (const [a, b] of s.gaps) spans.push([a, b]);
+  for (const [a, b] of s.hazards ?? []) spans.push([a, b]);
+  for (const [px, , pw] of s.platforms ?? []) spans.push([px, px + pw]);
+  for (const [rx, , rw] of s.ramps ?? []) spans.push([rx, rx + rw]);
+  return spans;
+}
+
+/** Nearest cluster origin to `target` whose [x, x+span] (plus margin) hits nothing in `blocked`. */
+function findClusterSpot(target: number, blocked: [number, number][], width: number): number | null {
+  let best: number | null = null;
+  for (let x = 220; x < width - 340; x += 40) {
+    const lo = x - 60;
+    const hi = x + CLUSTER_SPAN + 60;
+    if (blocked.some(([a, b]) => lo < b && hi > a)) continue;
+    if (best === null || Math.abs(x - target) < Math.abs(best - target)) best = x;
+  }
+  return best;
+}
+
+// Spread two ramp→ledge clusters across each stage — one toward the front, one toward the back —
+// placed only on ground clear of every existing structure, and never overlapping each other.
+for (let i = 0; i < STAGES.length; i++) {
+  const s = STAGES[i];
+  const sector = Math.ceil((i + 1) / 3);
+  const blocked = occupiedSpans(s);
+  for (const [variant, target] of [
+    [0, Math.round(s.width * 0.16)],
+    [1, Math.round(s.width * 0.72)],
+  ] as const) {
+    const x = findClusterSpot(target, blocked, s.width);
+    if (x === null) continue;
+    addRampCluster(s, x, sector, variant);
+    blocked.push([x, x + CLUSTER_SPAN]); // reserve it so the next cluster keeps its distance
+  }
+}
 
 /**
  * Noble-gas gems, spread one per sector across the 18 stages — each tucked at the top of the

@@ -198,6 +198,10 @@ export default class GameScene extends Phaser.Scene {
   // ── Boss arena (camera locks to one screen once the boss activates) ──
   private _bossArena: { left: number; right: number } | null = null;
   private _bossArenaHandler?: (anchorX: number) => void;
+  /** The active boss-arena bounds, or null during normal play. Enemies confine to it only when set. */
+  get bossArena(): { left: number; right: number } | null {
+    return this._bossArena;
+  }
 
   // Petri-dish iris mask on the camera. Its ellipse is drawn inverse to the camera zoom so the
   // framing stays fixed to the screen edges regardless of how far we're zoomed in (see _redrawDish).
@@ -242,6 +246,8 @@ export default class GameScene extends Phaser.Scene {
   private _lastSafeX = 120;
   // ── Platforming hazards (data-driven per stage in src/stages.ts) ──
   private _hazards: { x1: number; x2: number }[] = [];
+  /** Slanted ramp surfaces (top line) the player walks via per-frame slope snap. */
+  private _ramps: { x1: number; x2: number; y1: number; y2: number }[] = [];
   private _pads: { x: number; gfx: Phaser.GameObjects.Graphics }[] = [];
   private _crumbles: CrumbleTile[] = [];
   private readonly _tutAtomX = 900;
@@ -276,6 +282,7 @@ export default class GameScene extends Phaser.Scene {
     this._holes = [];
     this._lastSafeX = 120;
     this._hazards = [];
+    this._ramps = [];
     this._pads = [];
     this._crumbles = [];
     this._tutDone = false;
@@ -538,16 +545,6 @@ export default class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(250)
       .setAlpha(0.9);
-
-    const label = this.isTutorial ? '— TRAINING SECTOR —' : `— ${SECTORS[sector].name} · ${this.stageDef.name} —`;
-    this.add
-      .text(300, GROUND_TOP_Y - 60, label, {
-        fontSize: '18px',
-        color: theme.label,
-        fontStyle: 'italic',
-      })
-      .setDepth(5)
-      .setAlpha(0.65);
   }
 
   /** Build the static floor: one solid collider per gap-free span, plus visible ledge platforms. */
@@ -594,6 +591,37 @@ export default class GameScene extends Phaser.Scene {
     r.displayWidth = w;
     r.displayHeight = thickness;
     r.refreshBody();
+  }
+
+  /**
+   * A slanted ramp the player walks up/down. Arcade bodies are AABB-only, so there is no angled
+   * collider: the surface line is recorded in `_ramps` and the player is slope-snapped to it each
+   * frame (see `_computeRampContact`). It floats like a ledge — drawn as a thin slanted plank that
+   * follows the slope, no skirt down to the floor.
+   */
+  private _addRamp(xLeft: number, yLeftTop: number, w: number, yRightTop: number): void {
+    const theme = SECTOR_THEMES[this.sector];
+    const xRight = xLeft + w;
+    const thickness = 18;
+    this._ramps.push({ x1: xLeft, x2: xRight, y1: yLeftTop, y2: yRightTop });
+    const g = this.add.graphics().setDepth(DEPTH.PLATFORM);
+    // Slanted plank: a parallelogram of fixed thickness following the slope, with a soft drop shadow.
+    const plank = (off: number, h: number) => {
+      g.beginPath();
+      g.moveTo(xLeft, yLeftTop + off);
+      g.lineTo(xRight, yRightTop + off);
+      g.lineTo(xRight, yRightTop + off + h);
+      g.lineTo(xLeft, yLeftTop + off + h);
+      g.closePath();
+      g.fillPath();
+    };
+    g.fillStyle(theme.shadow, 0.9);
+    plank(0, thickness + 6);
+    g.fillStyle(theme.tick, 0.9);
+    plank(0, thickness);
+    // Bright leading edge along the walkable slope.
+    g.lineStyle(3, theme.floorLine, 0.85);
+    g.lineBetween(xLeft, yLeftTop, xRight, yRightTop);
   }
 
   /** Decorative, per-sector procedural scenery: faint background structures + a horizon prop row. */
@@ -688,6 +716,10 @@ export default class GameScene extends Phaser.Scene {
     def.platforms?.forEach(([x, y, w]) => {
       this._addPlatform(x, y, w);
     });
+    // Slanted ramps the player walks up/down (slope-snapped, see _computeRampContact).
+    def.ramps?.forEach(([x, yL, w, yR]) => {
+      this._addRamp(x, yL, w, yR);
+    });
     // Gaps first so an enemy overlapping a chasm can be skipped
     def.gaps.forEach(([a, b]) => {
       this._addGap(a, b);
@@ -706,7 +738,8 @@ export default class GameScene extends Phaser.Scene {
 
     def.enemies.forEach((en) => {
       if (inHole(en.x)) return;
-      this._spawnEnemy(en.x, this._spawnYFor(en.type), en.type);
+      // A perched enemy uses its authored y; otherwise the type's default floor/hover band.
+      this._spawnEnemy(en.x, en.y ?? this._spawnYFor(en.type), en.type);
     });
 
     // Later levels (lab floor, sectors 4–6) are flush with extra atoms so the most powerful,
@@ -764,6 +797,23 @@ export default class GameScene extends Phaser.Scene {
   /** Push the current germ tally (killed / total) to the HUD. */
   private _emitEnemyCount(): void {
     this.events.emit('enemies-update', { killed: this._enemyKilled, total: this._enemyTotal });
+  }
+
+  /**
+   * Y of the ramp surface directly under world-x `px`, or null when `px` is over no ramp. The
+   * contact range is extended a little past each end (clamped to the end height) so the player is
+   * carried slightly onto an adjoining ledge/floor before the snap releases — this prevents stalling
+   * against the thin AABB left face where a ramp meets a platform.
+   */
+  private _computeRampContact(px: number): number | null {
+    const M = 16;
+    for (const r of this._ramps) {
+      if (px >= r.x1 - M && px <= r.x2 + M) {
+        const t = Phaser.Math.Clamp((px - r.x1) / (r.x2 - r.x1), 0, 1);
+        return r.y1 + (r.y2 - r.y1) * t;
+      }
+    }
+    return null;
   }
 
   /** Spawn height by enemy type: flyers in the hover band, ground types just above the floor. */
@@ -1402,6 +1452,10 @@ export default class GameScene extends Phaser.Scene {
     touchControls?.setEnabled(!this.isPaused && !this.stageCleared);
 
     if (this.isPaused || this.stageCleared) return;
+
+    // Feed the player the ramp surface beneath it (if any) before its physics step so the slope
+    // snap is applied this frame (Arcade has no angled colliders — see Player ramp-snap).
+    this.player.rampSurfaceY = this._computeRampContact(this.player.sprite.x);
 
     this.player.update(_time, delta, {
       cursors: this.cursors,
@@ -2147,22 +2201,11 @@ export default class GameScene extends Phaser.Scene {
   /** A close-up of the scientist sobbing on the death screen — trembling, tears streaming into a puddle. */
   private _spawnCryingScientist(x: number, y: number): void {
     const S = 3.4;
-    // The in-world player draws its arms as a separate Graphics overlay (Player._armsGraphic),
-    // so the bare 'player_0' texture has none. Re-create the idle arms at his sides and group them
-    // with the sprite in a container so every sob tween moves it together.
+    // The hand-drawn player art already includes arms, so the cameo is just the sprite in a
+    // container (so every sob tween moves it together). Normalize the high-res art to a ~70px cameo.
     const sprite = this.add.sprite(0, 0, 'player_0');
-    // player_0 is high-res hand-drawn art; normalize it to the ~70px cameo the arms/tears expect.
     sprite.setScale(fitHeightScale(sprite.height, 70));
-    const arms = this.add.graphics();
-    arms.fillStyle(0xe8e8f2);
-    arms.fillRect(-16, -7, 5, 15); // left sleeve
-    arms.fillStyle(0x88ccdd);
-    arms.fillRect(-16, 6, 5, 5); // left glove
-    arms.fillStyle(0xe8e8f2);
-    arms.fillRect(11, -7, 5, 15); // right sleeve
-    arms.fillStyle(0x88ccdd);
-    arms.fillRect(11, 6, 5, 5); // right glove
-    const guy = this.add.container(x, y, [sprite, arms]).setScrollFactor(0).setDepth(501).setScale(S);
+    const guy = this.add.container(x, y, [sprite]).setScrollFactor(0).setDepth(501).setScale(S);
 
     // pop in
     guy.setScale(S * 0.4);

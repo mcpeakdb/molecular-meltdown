@@ -27,12 +27,27 @@ export type EnemyType =
   | 'fly'
   | 'bee';
 
+/** Ranged-attack profile for enemies that shoot projectiles instead of (only) meleeing. */
+interface RangedConfig {
+  /** Max distance at which the enemy will open fire and hold a standoff hover. */
+  range: number;
+  /** Number of projectiles per volley (>1 → fan spread). */
+  shots: number;
+  /** Radians between adjacent shots in a spread volley. */
+  spread: number;
+  /** Per-projectile damage and travel speed. */
+  damage: number;
+  speed: number;
+}
+
 interface EnemyConfig {
   hp: number;
   speed: number;
   damage: number;
   attackRate: number;
   texture: string;
+  /** IF present, this enemy fires projectiles at the player from `ranged.range` (see `_tryFire`). */
+  ranged?: RangedConfig;
   /**
    * Relative size multiplier vs. a standard enemy (1.0). The on-screen size is enforced
    * independently of the source PNG's pixel resolution — see {@link BASE_DISPLAY}. A small
@@ -53,9 +68,29 @@ const BASE_DISPLAY = 56;
 
 const CONFIGS: Record<EnemyType, EnemyConfig> = {
   bacterium: { hp: 35, speed: 90, damage: 10, attackRate: 1600, texture: 'bacterium', scale: 1.0, fly: false },
-  virus: { hp: 22, speed: 130, damage: 8, attackRate: 1200, texture: 'virus', scale: 1.0, fly: true },
+  // Ranged flyer — keeps a standoff and spits a single fast virion at the player.
+  virus: {
+    hp: 22,
+    speed: 130,
+    damage: 8,
+    attackRate: 1400,
+    texture: 'virus',
+    scale: 1.0,
+    fly: true,
+    ranged: { range: 300, shots: 1, spread: 0, damage: 6, speed: 210 },
+  },
   dustbunny: { hp: 50, speed: 60, damage: 14, attackRate: 2000, texture: 'dustbunny', scale: 1.0, fly: false },
-  pollen: { hp: 18, speed: 160, damage: 6, attackRate: 900, texture: 'pollen', scale: 1.0, fly: true },
+  // Ranged flyer — drifts at range and puffs a 3-shot spread of irritant pollen.
+  pollen: {
+    hp: 18,
+    speed: 160,
+    damage: 6,
+    attackRate: 1100,
+    texture: 'pollen',
+    scale: 1.0,
+    fly: true,
+    ranged: { range: 280, shots: 3, spread: 0.22, damage: 4, speed: 160 },
+  },
   // Sector 2+ newcomers
   amoeba: { hp: 80, speed: 48, damage: 16, attackRate: 2200, texture: 'amoeba', scale: 1.15, fly: false }, // slow tank
   spore: { hp: 14, speed: 180, damage: 7, attackRate: 800, texture: 'spore', scale: 0.9, fly: true }, // fast, hovers
@@ -70,6 +105,20 @@ const CONFIGS: Record<EnemyType, EnemyConfig> = {
 const DETECT_RANGE = 320;
 const ATTACK_RANGE = 58;
 
+/**
+ * Types whose hand-drawn art ships interchangeable visual variants (`_2`/`_3` keys, all loaded in
+ * BootScene). Each spawn picks one at random so a swarm of the same enemy type reads as a varied
+ * crowd rather than identical clones. Types absent here use their single `cfg.texture`.
+ */
+const TEXTURE_VARIANTS: Partial<Record<EnemyType, readonly string[]>> = {
+  bacterium: ['bacterium', 'bacterium_2'],
+  virus: ['virus', 'virus_2'],
+  pollen: ['pollen', 'pollen_2', 'pollen_3'],
+  amoeba: ['amoeba', 'amoeba_2', 'amoeba_3'],
+  spore: ['spore', 'spore_2', 'spore_3'],
+  mite: ['mite', 'mite_2'],
+};
+
 export default class Enemy {
   scene: GameScene;
   type: EnemyType;
@@ -80,6 +129,8 @@ export default class Enemy {
   attackRate: number;
   isBoss = false;
   readonly fly: boolean;
+  /** Ranged-attack profile, or null for melee-only enemies. */
+  private readonly ranged: RangedConfig | null;
 
   sprite: EnemySprite;
   /**
@@ -113,8 +164,12 @@ export default class Enemy {
     this.damage = cfg.damage;
     this.attackRate = cfg.attackRate;
     this.fly = cfg.fly;
+    this.ranged = cfg.ranged ?? null;
 
-    const base = scene.physics.add.sprite(x, y, cfg.texture) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+    // Pick a random art variant for types that have them; otherwise the single configured texture.
+    const variants = TEXTURE_VARIANTS[type];
+    const texture = variants ? Phaser.Utils.Array.GetRandom(variants as string[]) : cfg.texture;
+    const base = scene.physics.add.sprite(x, y, texture) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 
     // Enforce a consistent on-screen size regardless of the source PNG's pixel resolution.
     // Fit the texture into a BASE_DISPLAY × cfg.scale box (by its longest edge), but never
@@ -185,12 +240,18 @@ export default class Enemy {
     if (dist < DETECT_RANGE && this.state === STATES.PATROL) this.state = STATES.CHASE;
     if (dist >= DETECT_RANGE && this.state === STATES.CHASE) this.state = STATES.PATROL;
 
+    // Ranged enemies open fire as soon as the player is within range — independent of melee state,
+    // sharing the attack cooldown so they don't also melee in the same window.
+    if (this.ranged && this.hasEnteredView && dist < this.ranged.range) this._tryFire(dx, dy);
+
     switch (this.state) {
       case STATES.PATROL:
         this._patrol(speed);
         break;
       case STATES.CHASE:
-        this._chase(dx, dy, dist, speed);
+        // Ranged flyers hold a standoff and strafe rather than ramming into melee range.
+        if (this.ranged && dist < this.ranged.range) this._standoff(dx, dy, dist, speed);
+        else this._chase(dx, dy, dist, speed);
         break;
       case STATES.ATTACK:
         this._tryAttack(playerSprite);
@@ -208,12 +269,12 @@ export default class Enemy {
     // Flyers stay within the hover band; ground types are held on the floor/ledges by gravity + colliders.
     if (this.fly) this.sprite.y = Phaser.Math.Clamp(this.sprite.y, FLYER_MIN_Y, FLYER_MAX_Y);
 
-    // Once an enemy has joined the fight, confine it to the visible arena. Without this a
-    // patrolling germ can drift off to an unreachable corner, leaving the exit sealed with
-    // "no enemies in view" and the player unable to progress.
-    if (this.hasEnteredView) {
-      const view = this.scene.cameras.main.worldView;
-      this.sprite.x = Phaser.Math.Clamp(this.sprite.x, view.x + 24, view.right - 24);
+    // During a locked boss fight, confine enemies to the boss arena so they stay reachable while the
+    // player is penned in. In normal play enemies roam freely and may wander off-screen (the world
+    // bounds collider keeps them inside the level); they're still tracked for the stage clear.
+    const arena = this.scene.bossArena;
+    if (arena) {
+      this.sprite.x = Phaser.Math.Clamp(this.sprite.x, arena.left + 24, arena.right - 24);
     }
 
     this.sprite.setTint(this.slowTimer > 0 ? 0x44ffaa : 0xffffff);
@@ -234,6 +295,33 @@ export default class Enemy {
     this.sprite.body.setVelocityX((dx / dist) * speed);
     // Flyers also climb/dive toward the player's height; ground types leave Y to gravity.
     if (this.fly) this.sprite.body.setVelocityY((dy / dist) * speed * 0.6);
+  }
+
+  /**
+   * Ranged hover: maintain a comfortable firing distance from the player — back off when crowded,
+   * close a little when too far — while loosely tracking the player's height.
+   */
+  private _standoff(dx: number, dy: number, dist: number, speed: number): void {
+    if (dist < 1) return;
+    const hold = (this.ranged as RangedConfig).range * 0.6;
+    // Retreat when crowded, ease back in when drifted out, otherwise hold position.
+    let vx = 0;
+    if (dist < hold * 0.8) vx = -(dx / dist) * speed * 0.8;
+    else if (dist > hold * 1.2) vx = (dx / dist) * speed * 0.5;
+    this.sprite.body.setVelocityX(vx);
+    if (this.fly) this.sprite.body.setVelocityY((dy / dist) * speed * 0.3);
+  }
+
+  /** Fire a projectile (or fan spread) at the player, gated by the shared attack cooldown. */
+  private _tryFire(dx: number, dy: number): void {
+    if (this.attackTimer > 0 || this.state === STATES.HURT) return;
+    this.attackTimer = this.attackRate;
+    const r = this.ranged as RangedConfig;
+    const base = Math.atan2(dy, dx);
+    const half = (r.shots - 1) / 2;
+    for (let i = 0; i < r.shots; i++) {
+      this.scene.spawnEnemyProjectile(this.sprite.x, this.sprite.y, base + (i - half) * r.spread, r.damage, r.speed);
+    }
   }
 
   private _tryAttack(_playerSprite: Phaser.Physics.Arcade.Sprite): void {

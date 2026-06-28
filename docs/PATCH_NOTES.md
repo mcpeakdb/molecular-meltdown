@@ -1,5 +1,43 @@
 # Patch Notes
 
+## v0.32.0 - 2026-06-27
+
+### Ramps + denser platforming on every stage
+
+- **New ramp terrain.** Stages can now define slanted `ramps` (`[xLeft, yLeftTop, width, yRightTop]`)
+  that the player walks up and down. They float like ledges. Arcade physics is AABB-only, so there's
+  no angled collider — the player is slope-snapped to the ramp surface each frame while settling onto
+  it, so a ramp reads as solid ground you can stand and jump on.
+- **More platforms, atoms, and foes — across all 18 stages.** Every stage is now enriched with up to
+  two ramp→ledge clusters: a ramp leading up to a floating ledge that holds a bonus atom and a posted
+  ground-type guard. The clusters are spread out (one toward the front of the stage, one toward the
+  back) and placed only on ground clear of every existing structure — gaps, hazards, ledges, ramps,
+  the sky-tower climb, and each other — so they never overlap the hand-authored platforms.
+- Enemies can now be **perched** on platforms (an optional `y` on a stage enemy), instead of only
+  spawning in the floor/hover band.
+- Enemies are **no longer pinned to the visible screen** — they roam the whole level and can wander
+  off-camera (kept in-bounds by the world collider). They're still confined to the boss arena while
+  a boss fight is locked.
+
+## v0.31.0 - 2026-06-27
+
+### Ranged enemies — virus & pollen now shoot
+
+- **virus** holds a standoff hover and spits a single fast virion at the player whenever you come
+  within range, rather than only ramming for contact damage.
+- **pollen** drifts at range and puffs a 3-shot spread of irritant pollen.
+- Both share their existing attack cooldown, retreat when you crowd them, and ease back in when you
+  drift out — they no longer dive into melee range. Attack rates were eased slightly (virus
+  1200→1400, pollen 900→1100) to balance the new ranged threat. Projectiles reuse the boss
+  projectile/overlap pipeline.
+
+### Random art variants for repeated enemies
+
+- Enemy types that ship multiple hand-drawn art variants now pick one at random per spawn, so a
+  swarm of the same type reads as a varied crowd instead of identical clones: **amoeba** (3),
+  **pollen** (3), **spore** (3), **bacterium** (2), **virus** (2), **mite** (2). The choice is
+  purely cosmetic — stats, hitbox, and behaviour are unchanged.
+
 ## v0.30.3 - 2026-06-26
 
 ### No more idle arms

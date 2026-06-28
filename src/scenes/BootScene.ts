@@ -15,14 +15,24 @@ const ASSET_SPECS: AssetSpec[] = [
   { key: 'player_jump', file: 'player/player_jump.png' },
   // NPC
   { key: 'meg', file: 'npc/meg.png' },
-  // Enemies
+  // Enemies — several types ship interchangeable art variants (key `_2`/`_3`); a spawn picks one
+  // at random (see TEXTURE_VARIANTS in Enemy.ts). All variants must be loaded here by key.
   { key: 'bacterium', file: 'enemies/bacterium.png' },
+  { key: 'bacterium_2', file: 'enemies/bacterium_2.png' },
   { key: 'virus', file: 'enemies/virus.png' },
+  { key: 'virus_2', file: 'enemies/virus_2.png' },
   { key: 'dustbunny', file: 'enemies/dustbunny.png' },
   { key: 'pollen', file: 'enemies/pollen.png' },
+  { key: 'pollen_2', file: 'enemies/pollen_2.png' },
+  { key: 'pollen_3', file: 'enemies/pollen_3.png' },
   { key: 'amoeba', file: 'enemies/amoeba.png' },
+  { key: 'amoeba_2', file: 'enemies/amoeba_2.png' },
+  { key: 'amoeba_3', file: 'enemies/amoeba_3.png' },
   { key: 'spore', file: 'enemies/spore.png' },
+  { key: 'spore_2', file: 'enemies/spore_2.png' },
+  { key: 'spore_3', file: 'enemies/spore_3.png' },
   { key: 'mite', file: 'enemies/mite.png' },
+  { key: 'mite_2', file: 'enemies/mite_2.png' },
   { key: 'ant', file: 'enemies/ant.png' },
   { key: 'fly', file: 'enemies/fly.png' },
   { key: 'bee', file: 'enemies/bee.png' },

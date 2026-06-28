@@ -10,9 +10,16 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   level from it. Sectors: 1 PETRI DISH, 2 BLOOD AGAR, 3 MACCONKEY, 4 LAB FLOOR, 5 UNDER THE BENCH,
   6 THE WASTE BIN. Sectors 4–6 share the lab-floor biome/tiles (only 1–3 have unique tile art).
 - **REQ-STAGE-002** — A `StageDef` shall carry: `name`, `width`, `atoms` (choice nodes, optionally
-  perched at `y`), `enemies`, `gaps`, and optionally `rise` (climbable sky height), `platforms`,
-  `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or `exitX` (reach-the-exit clear).
-  `boss` and `exitX` are mutually exclusive.
+  perched at `y`), `enemies` (optionally perched at `y`), `gaps`, and optionally `rise` (climbable sky
+  height), `platforms`, `ramps`, `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or
+  `exitX` (reach-the-exit clear). `boss` and `exitX` are mutually exclusive.
+- **REQ-STAGE-005** — After the hand-authored `STAGES` literal, every stage shall be enriched with up
+  to two ramp→ledge clusters (`addRampCluster`): a slanted ramp up to a floating ledge that carries a
+  bonus atom and a posted ground-type guard. The two clusters shall be spread out (one biased toward
+  the front ~16% of the stage, one toward ~72%) and placed only on the nearest origin to that target
+  whose footprint is clear of every existing structure — gaps, hazards, ledges, ramps, the central
+  sky-tower band, and any already-placed cluster (`occupiedSpans` / `findClusterSpot`). A cluster is
+  skipped when no clear span exists.
 - **REQ-STAGE-003** — Theme/art shall be keyed by sector (not per-stage): `SECTOR_THEMES` colours and
   the `bg_tile_${sector}` / `ground_tile_${sector}` textures. All three stages of a sector share a
   biome.
@@ -32,6 +39,12 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-WORLD-002** — The floor shall be built as solid static colliders spanning every gap-free
   range, with real holes at each gap and crumble range (`_buildFloorColliders`); ledge platforms
   shall be added as visible solid colliders the player can jump onto.
+- **REQ-WORLD-002a** — A `ramps` entry `[xLeft, yLeftTop, width, yRightTop]` shall render as a
+  floating slanted plank along the surface line. Because Arcade bodies are AABB-only there is no
+  angled collider; instead the surface is recorded and, each frame, the player is fed the ramp-surface
+  y under it (`_computeRampContact`) and slope-snapped onto it WHILE settling (not jumping upward),
+  which treats the slope as solid ground for standing and jumping (Player ramp-snap). Enemies are not
+  slope-snapped.
 - **REQ-WORLD-003** — The world shall render parallax background tiles, per-sector decorative scenery
   and horizon props, a ground line with tick marks, and a screen-fixed vignette.
 - **REQ-WORLD-004** — The camera shall follow the player smoothly within the world bounds.
@@ -47,8 +60,9 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-SPAWN-001** — Each stage atom shall spawn as a choice node (see
   [elements-and-progression.md](elements-and-progression.md)); a rare 1% roll shall turn a node into a
   Gold wildcard (any base atom, +2).
-- **REQ-SPAWN-002** — Enemies shall spawn at their authored x; flyers spawn in the hover band, ground
-  types just above the floor. IF an enemy's x falls inside a hole, THEN that enemy shall be skipped.
+- **REQ-SPAWN-002** — Enemies shall spawn at their authored x; a perched enemy uses its authored `y`,
+  otherwise flyers spawn in the hover band and ground types just above the floor. IF an enemy's x
+  falls inside a hole, THEN that enemy shall be skipped.
 - **REQ-SPAWN-003** — WHERE a stage defines a `noble` pickup, the gem shall spawn at its position and,
   WHERE a `guard` is set, a guard enemy shall spawn at the gem.
 - **REQ-SPAWN-004** — The stage's germ total (boss counted as one) shall be snapshotted at spawn for

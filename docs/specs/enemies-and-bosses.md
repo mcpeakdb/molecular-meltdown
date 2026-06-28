@@ -11,9 +11,9 @@ Enemy types and AI, status effects (bleed/slow), and boss phases/attacks. Source
 | Type | HP | Speed | Dmg | AtkRate | Fly | Notes |
 |------|----|-------|-----|---------|-----|-------|
 | bacterium | 35 | 90 | 10 | 1600 | no | baseline ground |
-| virus | 22 | 130 | 8 | 1200 | yes | hovers |
+| virus | 22 | 130 | 8 | 1400 | yes | hovers, ranged (single virion) |
 | dustbunny | 50 | 60 | 14 | 2000 | no | hops, tanky |
-| pollen | 18 | 160 | 6 | 900 | yes | fast flyer |
+| pollen | 18 | 160 | 6 | 1100 | yes | fast flyer, ranged (3-shot spread) |
 | amoeba | 80 | 48 | 16 | 2200 | no | slow tank (sector 2+) |
 | spore | 14 | 180 | 7 | 800 | yes | fast hoverer (sector 2+) |
 | mite | 30 | 115 | 11 | 1300 | no | hops, crawler (sector 3+) |
@@ -29,6 +29,10 @@ Enemy types and AI, status effects (bleed/slow), and boss phases/attacks. Source
   `BASE_DISPLAY × cfg.scale` box, never upscaled beyond `cfg.scale`. The computed `baseScale` shall
   be the basis for all squash/stretch animation. The physics body (hitbox) shall be the full sprite
   frame, so that — with art cropped tight to the creature — the hitbox matches the on-screen image.
+- **REQ-ENEMY-003** — On spawn, an enemy of a type with interchangeable art variants
+  (`TEXTURE_VARIANTS`: bacterium, virus, pollen, amoeba, spore, mite) shall pick one of its variant
+  textures at random; all other types use their single configured texture. Variant choice is purely
+  visual and does not affect stats, body, or behaviour.
 
 ## Activation gate
 
@@ -36,8 +40,10 @@ Enemy types and AI, status effects (bleed/slow), and boss phases/attacks. Source
   camera's world view at least once.
 - **REQ-ENEMY-011** — IF an enemy has not entered view, THEN it shall be immune to all damage and
   bleed (`takeDamage`/`applyBleed` no-op). This prevents screen-wide specials killing offscreen foes.
-- **REQ-ENEMY-012** — WHILE an enemy has entered view, it shall be clamped to the visible arena
-  (`view.x+24 … view.right-24`) so it cannot drift to an unreachable corner and seal the exit.
+- **REQ-ENEMY-012** — In normal play enemies shall roam freely and may wander off-screen (kept inside
+  the level only by the world-bounds collider). WHILE a boss arena is locked, enemies shall instead be
+  clamped to the arena (`arena.left+24 … arena.right-24`) so they stay reachable while the player is
+  penned in.
 
 ## AI states
 
@@ -53,6 +59,11 @@ States: PATROL, CHASE, ATTACK, HURT, DEAD.
   return to CHASE when the player moves beyond `ATTACK_RANGE × 1.4`.
 - **REQ-ENEMY-024** — WHILE attacking and off cooldown (`attackRate`), the enemy shall deal contact
   damage to the player, UNLESS the player is cleanly clearing it mid-jump (REQ-PLAYER-054).
+- **REQ-ENEMY-027** — A ranged enemy (`cfg.ranged`: virus, pollen) shall, WHILE the player is within
+  `ranged.range` and on-screen, fire a projectile volley toward the player off the shared
+  `attackRate` cooldown (`spawnEnemyProjectile`), and WHILE chasing within that range shall hold a
+  standoff hover (~`range × 0.6`) — retreating when crowded, easing in when too far — instead of
+  closing to melee. virus fires a single fast shot; pollen fires a 3-shot spread.
 - **REQ-ENEMY-025** — Flyers shall be clamped to the `FLYER_MIN_Y…FLYER_MAX_Y` band and bob while not
   chasing; dustbunny/mite shall perform real arcade hops on a timer while grounded.
 - **REQ-ENEMY-026** — Each type shall have a distinct idle animation (pulse, spin, tumble, wobble,
