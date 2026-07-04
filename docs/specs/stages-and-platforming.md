@@ -29,6 +29,13 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   biome.
 - **REQ-STAGE-004** — The 3rd stage of each sector shall be a boss finale (`boss` set); the other six
   shall clear via `exitX`.
+- **REQ-STAGE-007** — Sectors that share a biome shall still be differentiated by a signature
+  platforming style so late-game stages do not feel like copies: **Sector 4 (LAB FLOOR)** shall use
+  wide low benches and few gaps; **Sector 5 (UNDER THE BENCH)** shall use narrow footholds and
+  stepping pillars over additional pits (precision jumping); **Sector 6 (THE WASTE BIN)** shall use
+  extra bounce pads and staggered footholds so ascent is by launching (vertical bounce shafts). In
+  every case the central sky-tower climb (and its summit reward / noble gem) is preserved unchanged;
+  only the front approach, back run-up, and gap/pad layout carry the signature.
 
 ## World construction
 

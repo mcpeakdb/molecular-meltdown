@@ -74,6 +74,33 @@ Damage values are multiples of `PLAYER_MELEE_DAMAGE` (12).
 - **REQ-ATK-190 Carbonic Acid** — Lv1/Lv2 *Acid Drop / Corrosive Spray*: 5/9 acid drops rain in front
   of the player (~1.2× dmg each), Lv2 also applies bleed. Lv3 *Acid Rain*: one drop targeted on each
   active enemy (~2× dmg + bleed).
+- **REQ-ATK-200 Sulfur** — brimstone: Lv1 *Brimstone Lash* a searing arc (~1.6× dmg + burn bleed);
+  Lv2 *Sulfur Burn* a lingering burning cloud (r 150, ~2× dmg + bleed); Lv3 *Brimstone Storm* a big
+  firestorm nova (r 280, ~3.5× dmg + heavy bleed).
+- **REQ-ATK-210 Chlorine** — poison gas: Lv1/Lv2 *Chlorine Gas / Bleach Cloud* a lingering green cloud
+  (r 110/165, ~1.5/2× dmg + bleed, Lv2 slows); Lv3 *Mustard Fog* a screen-filling haze (~2× dmg +
+  strong bleed on all).
+- **REQ-ATK-220 Phosphorus** — incendiary: Lv1 *Ember Spark* an igniting bolt (~2× dmg); Lv2 *White
+  Phosphorus* a blinding burst (r 170, ~2.5× dmg + burn bleed); Lv3 *Incendiary Rain* burning
+  phosphorus on every enemy (~2.5× dmg + heavy bleed).
+- **REQ-ATK-230 Hydrogen Sulfide (H₂S)** — a toxic gas radius (r 100/160/210) that damages
+  (~1.4/1.9/2.4×) and poisons (bleed) everything inside.
+- **REQ-ATK-240 Sulfur Dioxide (SO₂)** — a choking smog: Lv1/Lv2 a fog + suffocation radius
+  (r 110/185, ~2× dmg, Lv2 slows); Lv3 *Sulfur Cloudburst* a whole-screen choke (~3× dmg on all).
+- **REQ-ATK-250 Sulfuric Acid (H₂SO₄)** — the strongest corrosive: Lv1 *Vitriol Splash* an acid arc
+  (~2× dmg + bleed); Lv2 *Oil of Vitriol* a searing pool (r 165, ~2.8× dmg + bleed); Lv3 *Sulfuric
+  Dissolve* a colossal blast (r 300, ~4× dmg + heavy bleed, all slowed).
+- **REQ-ATK-260 Hydrochloric Acid (HCl)** — Lv1 *Muriatic Spit* a corrosive bolt (~2× dmg); Lv2
+  *Hydrochloric Spray* a corrosive fan (~2.4× dmg + bleed); Lv3 *Chloride Meltdown* a wide corrosive
+  detonation (r 260, ~3.2× dmg + bleed).
+- **REQ-ATK-270 Phosphine (PH₃)** — a travelling flammable gas bolt (like Methane) that detonates on
+  first enemy contact or after 650 ms into green fire (r 100/145/220, ~3/3.5/5.5× dmg, Lv2+ bleed).
+- **REQ-ATK-280 Phosphoric Acid (H₃PO₄)** — an etching acid rain (like Carbonic Acid): 5/9 drops in
+  front (~1.4× each, Lv2 bleed); Lv3 *Phosphoric Rain* one drop per enemy (~2× dmg + bleed).
+- **REQ-ATK-290 Phosphorus Trichloride (PCl₃)** — fumes (cross-combo of the two new atoms): Lv1
+  *Fuming Splash* a corrosive arc leaving smoke (~1.8× dmg + bleed); Lv2 *Smoking Corrosive* a bolt
+  bursting into a corrosive cloud (r 150, ~2× dmg + bleed, slows); Lv3 *Trichloride Storm* a billowing
+  corrosive detonation (r 280, ~3.4× dmg + bleed).
 
 ## Super weapon — Prismatic Beam
 

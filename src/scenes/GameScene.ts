@@ -3,10 +3,16 @@ import type { AttackId, BaseAtom, Difficulty, NobleGasId, SectorId } from '../co
 import {
   ATTACK_ORDER,
   BASE_ATOMS,
+  COIN_BONUS,
+  COIN_COLOR,
+  COIN_SCORE,
+  COINS_PER_STAGE,
   CRUMBLE_DELAY_MS,
   DEPTH,
   DIFFICULTY_SCALE,
+  ELEMENT_COLORS,
   ELEMENT_NAMES,
+  ELEMENTS,
   FLYER_MAX_Y,
   FLYER_MIN_Y,
   GAME_HEIGHT,
@@ -178,6 +184,11 @@ export default class GameScene extends Phaser.Scene {
   private _lastTimeBonus = 0;
   private _lastNoHitBonus = 0;
   private _runSubmitted = false;
+
+  // ── Silver coins (per-stage collectible; a full sweep awards COIN_BONUS) ──
+  private _coinsTotal = 0;
+  private _coinsCollected = 0;
+  private _coinBonusAwarded = false;
 
   /** Biome/theme group this stage belongs to (1–3). */
   get sector(): SectorId {
@@ -404,6 +415,7 @@ export default class GameScene extends Phaser.Scene {
         this._stageStartMs = this.time.now;
         // Sync the HUD to the carried run score (it defaults to 0 until an event arrives).
         this.events.emit('score-update', this.score);
+        this.events.emit('coins-update', { collected: this._coinsCollected, total: this._coinsTotal });
         this._emitEnemyCount();
       });
     }
@@ -716,10 +728,14 @@ export default class GameScene extends Phaser.Scene {
 
     // Atoms — branching choice nodes (see src/stages.ts for the per-stage ramp). They float at a
     // reachable height, or at an authored `y` when perched on a ledge.
-    // A rare 1% roll turns a node into a Gold wildcard (pick any base atom, +2).
+    // Rare rolls upgrade a node into a wildcard: ~0.1% Platinum (pick any atom, +3) or, failing that,
+    // ~1% Gold (pick any atom, +2). Platinum is checked first so its slice is carved out of the roll.
     def.atoms.forEach((a) => {
-      const gold = Math.random() < 0.01;
-      const atom = new Atom(this, a.x, a.y ?? GROUND_TOP_Y - 36, gold ? [...BASE_ATOMS] : a.choices, gold);
+      const roll = Math.random();
+      const platinum = roll < 0.001;
+      const gold = !platinum && roll < 0.01;
+      const choices = platinum || gold ? [...BASE_ATOMS] : a.choices;
+      const atom = new Atom(this, a.x, a.y ?? GROUND_TOP_Y - 36, choices, gold, undefined, false, platinum);
       this.atomGroup.add(atom.sprite);
     });
 
@@ -777,6 +793,8 @@ export default class GameScene extends Phaser.Scene {
       if (n.guard) this._spawnEnemy(n.x, n.y, n.guard);
     }
 
+    this._spawnCoins();
+
     if (def.boss) {
       // Sector finale — the boss closes out the level
       const boss = new Boss(this, def.boss.x, GROUND_TOP_Y - 80, def.boss.variant);
@@ -803,6 +821,66 @@ export default class GameScene extends Phaser.Scene {
     // Snapshot how many germs this stage holds (boss included) for the HUD counter.
     this._enemyTotal = this.enemyGroup.countActive(true);
     this._enemyKilled = 0;
+  }
+
+  /**
+   * Place COINS_PER_STAGE silver coins so every one is reachable and they read as a trail through the
+   * level rather than a flat line: coins ride the platform tops (including the sky-tower steps), arc
+   * over each gap at jump height, and the remainder fill the walkable ground (skipping pits/acid). All
+   * placements sit on or above ground/ledges the player already reaches, so a full sweep is possible.
+   */
+  private _spawnCoins(): void {
+    const def = this.stageDef;
+    const inHole = (x: number) => this._holes.some((g) => x > g.x1 - 24 && x < g.x2 + 24);
+    const onHazard = (x: number) => this._hazards.some((h) => x > h.x1 - 16 && x < h.x2 + 16);
+    const coins: { x: number; y: number }[] = [];
+    const push = (x: number, y: number) => coins.push({ x: Math.round(x), y: Math.round(y) });
+
+    // 1) Coins riding each ledge & sky-tower step — 1–3 per platform, spaced across its width, sitting
+    //    just above the surface so standing on the platform (however you reach it) sweeps them up.
+    for (const [px, py, pw] of def.platforms ?? []) {
+      const n = pw >= 200 ? 3 : pw >= 120 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        push(px + 16 + t * (pw - 32), py - 18);
+      }
+    }
+    // 2) One coin arcing over each gap, low enough to be caught during any jump across.
+    for (const [a, b] of def.gaps) push((a + b) / 2, GROUND_TOP_Y - 70);
+
+    // 3) Fill the remainder along the walkable ground, evenly spread over solid footing (never a pit or
+    //    acid pool), with a gentle wave so the ground run isn't a dead-straight line.
+    const left = 240;
+    const right = Math.max(left + 100, def.width - 220);
+    const need = COINS_PER_STAGE - coins.length;
+    if (need > 0) {
+      const valid: number[] = [];
+      for (let x = left; x <= right; x += 24) if (!inHole(x) && !onHazard(x)) valid.push(x);
+      for (let k = 0; k < need && valid.length > 0; k++) {
+        const x = valid[Math.min(valid.length - 1, Math.floor(((k + 0.5) / need) * valid.length))];
+        push(x, GROUND_TOP_Y - 26 - 20 * (0.5 + 0.5 * Math.sin(k * 0.8)));
+      }
+    }
+
+    // If the platforms/gaps alone overran the budget, sample an even horizontal spread back down to
+    // COINS_PER_STAGE so the coins still span the whole stage.
+    let list = coins;
+    if (list.length > COINS_PER_STAGE) {
+      const sorted = [...coins].sort((p, q) => p.x - q.x);
+      const step = sorted.length / COINS_PER_STAGE;
+      list = Array.from(
+        { length: COINS_PER_STAGE },
+        (_, k) => sorted[Math.min(sorted.length - 1, Math.floor(k * step))],
+      );
+    }
+
+    for (const c of list) {
+      const coin = new Atom(this, c.x, c.y, [], false, undefined, true);
+      this.atomGroup.add(coin.sprite);
+    }
+    this._coinsTotal = list.length;
+    this._coinsCollected = 0;
+    this._coinBonusAwarded = false;
   }
 
   /** Push the current germ tally (killed / total) to the HUD. */
@@ -1956,8 +2034,26 @@ export default class GameScene extends Phaser.Scene {
     atom.destroyGlow();
     atomSprite.destroy();
 
+    if (atom.coin) {
+      this._collectCoin(x, y);
+      return;
+    }
+
     if (atom.noble) {
       this._collectNoble(atom.noble, x, y);
+      return;
+    }
+
+    if (atom.platinum) {
+      // Platinum wildcard — the flashiest pickup; grants +3 to a chosen base atom
+      const col = ELEMENT_COLORS[ELEMENTS.PLATINUM];
+      this.spawnHitFlash(x, y, col, 60);
+      this.spawnHitFlash(x, y, 0xffffff, 32);
+      this.spawnNova(x, y, col, 150, { rings: 3, life: 26, lineWidth: 3, fill: true });
+      this.spawnAtomBurst(x, y, col);
+      this.shake(240, 0.009);
+      SoundSystem.play(this.audioCtx, 'element_upgrade');
+      this._showElementChoice(atom.choices ?? [...BASE_ATOMS], { platinum: true, grant: 3 });
       return;
     }
 
@@ -1978,6 +2074,49 @@ export default class GameScene extends Phaser.Scene {
 
     // Every atom is now a choice node — pick a base atom to grow the molecular tree
     this._showElementChoice(atom.choices ?? ['hydrogen', 'oxygen']);
+  }
+
+  /** Grab a silver coin: a small score pickup. Sweeping every coin in the stage awards COIN_BONUS. */
+  private _collectCoin(x: number, y: number): void {
+    this.score += COIN_SCORE;
+    this._coinsCollected++;
+    this.events.emit('score-update', this.score);
+    this.events.emit('coins-update', { collected: this._coinsCollected, total: this._coinsTotal });
+
+    // Light pickup blip + a small silver sparkle.
+    this.spawnHitFlash(x, y, COIN_COLOR, 16);
+    SoundSystem.play(this.audioCtx, 'atom_collect');
+
+    if (this._coinsCollected >= this._coinsTotal && !this._coinBonusAwarded) {
+      this._coinBonusAwarded = true;
+      this.score += COIN_BONUS;
+      this.events.emit('score-update', this.score);
+      this.spawnNova(x, y, COIN_COLOR, 150, { rings: 3, life: 26, lineWidth: 3, fill: true });
+      this.spawnBurst(x, y, COIN_COLOR, { count: 24, speed: [120, 300], lifespan: 650, scale: 1.2 });
+      this.shake(200, 0.007);
+      SoundSystem.play(this.audioCtx, 'element_upgrade');
+      const label = this.add
+        .text(x, y - 18, `ALL COINS!  +${COIN_BONUS.toLocaleString()}`, {
+          fontSize: '20px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5)
+        .setDepth(120);
+      this.tweens.add({
+        targets: label,
+        y: y - 70,
+        alpha: 0,
+        duration: 1200,
+        ease: 'Quad.Out',
+        onComplete: () => label.destroy(),
+      });
+      this._megQuip(
+        `Every last silver coin — all ${this._coinsTotal} of them! +${COIN_BONUS.toLocaleString()} for a clean sweep!`,
+      );
+    }
   }
 
   /** Grab a noble gas: a big score bonus, a flashy burst, a permanent find, and a M.E.G. shout-out. */
@@ -2034,7 +2173,10 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
-  private _showElementChoice(choices: BaseAtom[], opts: { gold?: boolean; grant?: number } = {}): void {
+  private _showElementChoice(
+    choices: BaseAtom[],
+    opts: { gold?: boolean; platinum?: boolean; grant?: number } = {},
+  ): void {
     const grant = opts.grant ?? 1;
     this.isPaused = true;
     this.physics.pause();
@@ -2042,6 +2184,7 @@ export default class GameScene extends Phaser.Scene {
       choices,
       counts: this.player.elementSystem.getCounts(),
       gold: opts.gold ?? false,
+      platinum: opts.platinum ?? false,
       grant,
       callback: (chosen: BaseAtom) => {
         this.isPaused = false;
@@ -2466,6 +2609,11 @@ export default class GameScene extends Phaser.Scene {
     const breakdown: string[] = [];
     if (this._lastTimeBonus > 0) breakdown.push(`Time bonus   +${this._lastTimeBonus.toLocaleString()}`);
     if (this._lastNoHitBonus > 0) breakdown.push(`Flawless     +${this._lastNoHitBonus.toLocaleString()}`);
+    if (this._coinsTotal > 0) {
+      const swept = this._coinsCollected >= this._coinsTotal;
+      const sweepTag = swept ? `  ★ +${COIN_BONUS.toLocaleString()}` : '';
+      breakdown.push(`Coins        ${this._coinsCollected}/${this._coinsTotal}${sweepTag}`);
+    }
     breakdown.push(`Run score    ${this.score.toLocaleString()}`);
     this.add
       .text(w / 2, titleY + 48, breakdown.join('\n'), {

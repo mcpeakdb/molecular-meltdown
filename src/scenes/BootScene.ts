@@ -77,7 +77,43 @@ export default class BootScene extends Phaser.Scene {
     this._makePlayerAnims();
     this._makeBackground();
     this._makeVignette();
+    this._makeCoinTexture();
+    this._makePlatinumTexture();
     this.scene.start('TitleScene');
+  }
+
+  // Platinum wildcard pickup — a bright, faceted white-blue orb (rarer & flashier than Gold). Sized to
+  // match the loaded atom art (64px) so it reads as an atom node in the pickup line.
+  private _makePlatinumTexture(): void {
+    const g = this._g();
+    g.fillStyle(0x7fa8c8, 0.9); // cool outer halo
+    g.fillCircle(32, 32, 30);
+    g.fillStyle(0x8fb8d8); // rim
+    g.fillCircle(32, 32, 24);
+    g.fillStyle(0xd6e6f4); // bright platinum face
+    g.fillCircle(32, 32, 20);
+    g.lineStyle(2, 0xffffff, 0.6);
+    g.strokeCircle(32, 32, 20);
+    g.fillStyle(0xffffff, 0.95); // sparkle highlight
+    g.fillCircle(24, 24, 6);
+    g.fillStyle(0xffffff, 0.6);
+    g.fillCircle(40, 40, 3);
+    g._done('atom_platinum', 64, 64);
+  }
+
+  // Silver coin pickup — a small procedural disc (rim, face, inner ring, highlight). It spins via a
+  // scaleX flip at runtime (see Atom), so a flat disc reads as a tumbling coin.
+  private _makeCoinTexture(): void {
+    const g = this._g();
+    g.fillStyle(0x8892a0); // dark outer rim
+    g.fillCircle(16, 16, 14);
+    g.fillStyle(0xd7dee6); // bright face
+    g.fillCircle(16, 16, 12);
+    g.lineStyle(1.5, 0x8892a0, 0.9); // inner engraved ring
+    g.strokeCircle(16, 16, 8);
+    g.fillStyle(0xf4f8fc, 0.9); // top-left highlight
+    g.fillCircle(12, 12, 3);
+    g._done('coin_silver', 32, 32);
   }
 
   // Graphics helper for the remaining procedural stage maps.

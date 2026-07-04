@@ -304,6 +304,16 @@ export default class Player {
     else if (id === ELEMENTS.METHANE) this._specialMethane(level, dir);
     else if (id === ELEMENTS.NITRIC_OXIDE) this._specialNitricOxide(level, dir);
     else if (id === ELEMENTS.CARBONIC_ACID) this._specialCarbonicAcid(level, dir);
+    else if (id === ELEMENTS.SULFUR) this._specialSulfur(level, dir);
+    else if (id === ELEMENTS.CHLORINE) this._specialChlorine(level, dir);
+    else if (id === ELEMENTS.PHOSPHORUS) this._specialPhosphorus(level, dir);
+    else if (id === ELEMENTS.HYDROGEN_SULFIDE) this._specialHydrogenSulfide(level, dir);
+    else if (id === ELEMENTS.SULFUR_DIOXIDE) this._specialSulfurDioxide(level, dir);
+    else if (id === ELEMENTS.SULFURIC_ACID) this._specialSulfuricAcid(level, dir);
+    else if (id === ELEMENTS.HYDROCHLORIC_ACID) this._specialHydrochloricAcid(level, dir);
+    else if (id === ELEMENTS.PHOSPHINE) this._specialPhosphine(level, dir);
+    else if (id === ELEMENTS.PHOSPHORIC_ACID) this._specialPhosphoricAcid(level, dir);
+    else if (id === ELEMENTS.PHOSPHORUS_TRICHLORIDE) this._specialPhosphorusTrichloride(level, dir);
     else if (id === ELEMENTS.PRISMATIC) this._specialPrismatic(level, dir);
   }
 
@@ -972,6 +982,379 @@ export default class Player {
         });
       });
       this._registerHit();
+    }
+  }
+
+  /** Apply a bleed/burn DOT to every active enemy within `radius` of (x, y). */
+  private _bleedInRadius(x: number, y: number, radius: number, perTick: number, ms: number): void {
+    this.scene.enemyGroup.getChildren().forEach((go) => {
+      const s = go as EnemySprite;
+      if (!s.active || !s.enemyRef) return;
+      if (Phaser.Math.Distance.Between(x, y, s.x, s.y) < radius) s.enemyRef.applyBleed(perTick, ms);
+    });
+  }
+
+  // ── Sulfur — brimstone (searing melee → burning cloud → firestorm) ───────────
+  private _specialSulfur(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level === 1) {
+      // Brimstone Lash — a searing sulfur-yellow slash that sets foes alight
+      this.scene.spawnSlashArc(x, y, dir, 0xf2c81e, 118, 66);
+      this.scene.spawnHitFlash(x + dir * 55, y, 0xffdd22, 45);
+      this.scene.spawnBurst(x + dir * 50, y, 0xffaa22, {
+        count: 12,
+        speed: [80, 220],
+        angle: dir > 0 ? [-45, 45] : [135, 225],
+        lifespan: 420,
+      });
+      if (this._damageArc(x + dir * 42, y, 112, 64, PLAYER_MELEE_DAMAGE * 1.6, dir, false, 4)) {
+        this._registerHit();
+        this._bleedInRadius(x + dir * 42, y, 112, 2, 2400);
+      }
+    } else if (level === 2) {
+      // Sulfur Burn — a lingering brimstone cloud that scorches over time
+      this.scene.spawnCloud(x, y, 150, 0xf2c81e, 1500, { alpha: 0.18 });
+      this.scene.spawnHitFlash(x, y, 0xffbb22, 80);
+      this.scene.spawnNova(x, y, 0xffcc33, 150, { rings: 1, life: 22 });
+      if (this._damageRadius(x, y, 150, PLAYER_MELEE_DAMAGE * 2)) this._registerHit();
+      this._bleedInRadius(x, y, 150, 3, 3000);
+    } else {
+      // Brimstone Storm — a raining firestorm of molten sulfur
+      this.scene.shake(320, 0.013);
+      this.scene.spawnHitFlash(x, y, 0xffaa22, 160);
+      this.scene.spawnNova(x, y, 0xffcc33, 280, { rings: 3, life: 32, lineWidth: 4, fill: true });
+      this.scene.spawnBurst(x, y - 20, 0xffbb33, { count: 30, speed: [120, 360], lifespan: 640, scale: 1.3 });
+      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.5)) this._registerHit();
+      this._bleedInRadius(x, y, 280, 4, 3600);
+    }
+  }
+
+  // ── Chlorine — poison gas cloud (lingers and chokes) ─────────────────────────
+  private _specialChlorine(level: number, _dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level < 3) {
+      const r = level === 1 ? 110 : 165;
+      this.scene.spawnCloud(x, y, r, 0x8fe04a, level === 1 ? 1300 : 1900, { alpha: 0.2, blobs: 6 });
+      this.scene.spawnHitFlash(x, y, 0xaaf055, level === 1 ? 55 : 85);
+      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.5 : 2), level === 2)) this._registerHit();
+      this._bleedInRadius(x, y, r, level === 1 ? 2 : 3, level === 1 ? 2600 : 3400);
+    } else {
+      // Mustard Fog — a choking green haze fills the whole screen
+      const haze = this.scene.add
+        .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x88cc44, 0)
+        .setScrollFactor(0)
+        .setDepth(340);
+      this.scene.tweens.add({
+        targets: haze,
+        alpha: 0.2,
+        duration: 300,
+        yoyo: true,
+        hold: 1800,
+        onComplete: () => haze.destroy(),
+      });
+      let hit = false;
+      this.scene.enemyGroup.getChildren().forEach((go) => {
+        const s = go as EnemySprite;
+        if (!s.active || !s.enemyRef) return;
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, 0);
+        s.enemyRef.applyBleed(4, 4200);
+        this.scene.spawnCloud(s.x, s.y, 44, 0x8fe04a, 1500, { blobs: 4, alpha: 0.22 });
+        hit = true;
+      });
+      if (hit) this._registerHit();
+    }
+  }
+
+  // ── Phosphorus — incendiary (ember bolt → white-hot burst → burning rain) ────
+  private _specialPhosphorus(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level === 1) {
+      // Ember Spark — a small incendiary bolt that ignites on contact
+      this.scene.spawnProjectile(x, y, dir, 0xffcf66, PLAYER_MELEE_DAMAGE * 2, 640, 3);
+      this.scene.spawnHitFlash(x + dir * 26, y, 0xfff0b0, 32);
+      this.scene.spawnBurst(x + dir * 24, y, 0xffaa44, {
+        count: 8,
+        speed: [100, 240],
+        angle: dir > 0 ? [-30, 30] : [150, 210],
+        lifespan: 380,
+      });
+    } else if (level === 2) {
+      // White Phosphorus — a blinding incendiary burst that scatters burning flecks
+      this.scene.spawnHitFlash(x, y, 0xffffff, 90);
+      this.scene.spawnNova(x, y, 0xffe0a0, 170, { rings: 2, life: 26, fill: true });
+      this.scene.spawnBurst(x, y, 0xffbb55, { count: 24, speed: [120, 320], lifespan: 560, scale: 1.2 });
+      this.scene.shake(180, 0.008);
+      if (this._damageRadius(x, y, 170, PLAYER_MELEE_DAMAGE * 2.5)) this._registerHit();
+      this._bleedInRadius(x, y, 170, 3, 3200);
+    } else {
+      // Incendiary Rain — burning phosphorus falls on every enemy
+      this.scene.shake(340, 0.012);
+      this.scene.enemyGroup.getChildren().forEach((go, i) => {
+        const s = go as EnemySprite;
+        if (!s.active || !s.enemyRef) return;
+        this.scene.time.delayedCall(i * 90, () => {
+          if (!s.active || !s.enemyRef) return;
+          this.scene.spawnHitFlash(s.x, s.y, 0xffdd88, 28);
+          this.scene.spawnBurst(s.x, s.y, 0xffaa44, { count: 10, speed: [60, 200], angle: [200, 340], lifespan: 420 });
+          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2.5, 0);
+          s.enemyRef.applyBleed(4, 4000);
+        });
+      });
+      this._registerHit();
+    }
+  }
+
+  // ── Hydrogen sulfide (H₂S) — a rotten, toxic gas that poisons over time ───────
+  private _specialHydrogenSulfide(level: number, _dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    const r = level === 1 ? 100 : level === 2 ? 160 : 210;
+    this.scene.spawnCloud(x, y, r, 0xc9d94a, level === 1 ? 1300 : 2000, { alpha: 0.2, blobs: 6 });
+    this.scene.spawnHitFlash(x, y, 0xd8e85a, level === 1 ? 55 : 90);
+    if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.4 : level === 2 ? 1.9 : 2.4)))
+      this._registerHit();
+    this._bleedInRadius(x, y, r, level === 1 ? 3 : level === 2 ? 4 : 5, level === 3 ? 4200 : 3200);
+  }
+
+  // ── Sulfur dioxide (SO₂) — a heavy choking smog that suffocates ───────────────
+  private _specialSulfurDioxide(level: number, _dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    const fogAlpha = level === 1 ? 0.22 : level === 2 ? 0.32 : 0.46;
+    const fogDur = level === 1 ? 1000 : level === 2 ? 1800 : 2600;
+    const fog = this.scene.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x8a8250, 0)
+      .setScrollFactor(0)
+      .setDepth(350);
+    this.scene.tweens.add({
+      targets: fog,
+      alpha: fogAlpha,
+      duration: 300,
+      yoyo: true,
+      hold: fogDur - 600,
+      onComplete: () => fog.destroy(),
+    });
+    if (level < 3) {
+      const r = level === 1 ? 110 : 185;
+      this.scene.spawnCloud(x, y, r, 0xd8cf88, level === 1 ? 1100 : 1800, { alpha: 0.22 });
+      this.scene.spawnNova(x, y, 0xe0d898, r, { rings: 1, life: 22 });
+      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * 2, level === 2)) this._registerHit();
+    } else {
+      // Sulfur Cloudburst — the whole screen chokes
+      this.scene.shake(380, 0.012);
+      let hit = false;
+      this.scene.enemyGroup.getChildren().forEach((go) => {
+        const s = go as EnemySprite;
+        if (!s.active || !s.enemyRef) return;
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 3, 0);
+        this.scene.spawnCloud(s.x, s.y, 50, 0xd8cf88, 1500, { blobs: 4, alpha: 0.25 });
+        hit = true;
+      });
+      if (hit) this._registerHit();
+    }
+  }
+
+  // ── Sulfuric acid (H₂SO₄) — the strongest corrosive: eats through everything ──
+  private _specialSulfuricAcid(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level === 1) {
+      // Vitriol Splash — a corrosive slash that keeps dissolving
+      this.scene.spawnSlashArc(x, y, dir, 0xf6e61e, 122, 68);
+      this.scene.spawnHitFlash(x + dir * 55, y, 0xfff04a, 48);
+      this.scene.spawnBurst(x + dir * 50, y, 0xf6e61e, {
+        count: 12,
+        speed: [80, 210],
+        angle: dir > 0 ? [-45, 45] : [135, 225],
+        lifespan: 420,
+      });
+      if (this._damageArc(x + dir * 42, y, 116, 66, PLAYER_MELEE_DAMAGE * 2, dir, true)) {
+        this._registerHit();
+        this._bleedInRadius(x + dir * 42, y, 116, 3, 3000);
+      }
+    } else if (level === 2) {
+      // Oil of Vitriol — a searing corrosive pool
+      this.scene.spawnCloud(x, y, 165, 0xf6e61e, 1600, { alpha: 0.2 });
+      this.scene.spawnHitFlash(x, y, 0xfff04a, 100);
+      this.scene.spawnNova(x, y, 0xf6e61e, 165, { rings: 2, life: 24 });
+      if (this._damageRadius(x, y, 165, PLAYER_MELEE_DAMAGE * 2.8, true)) this._registerHit();
+      this._bleedInRadius(x, y, 165, 4, 3600);
+    } else {
+      // Sulfuric Dissolve — a colossal corrosive blast
+      this.scene.shake(360, 0.014);
+      this.scene.spawnHitFlash(x, y, 0xf6e61e, 210);
+      this.scene.spawnNova(x, y, 0xfff04a, 300, { rings: 3, life: 34, lineWidth: 5, fill: true });
+      this.scene.spawnBurst(x, y, 0xf6e61e, { count: 32, speed: [130, 360], lifespan: 640, scale: 1.4 });
+      if (this._damageRadius(x, y, 300, PLAYER_MELEE_DAMAGE * 4, true)) this._registerHit();
+      this._bleedInRadius(x, y, 300, 5, 4200);
+    }
+  }
+
+  // ── Hydrochloric acid (HCl) — a corrosive spit/spray ─────────────────────────
+  private _specialHydrochloricAcid(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level === 1) {
+      // Muriatic Spit — a corrosive bolt
+      this.scene.spawnProjectile(x, y, dir, 0xa8e86a, PLAYER_MELEE_DAMAGE * 2, 680, 3);
+      this.scene.spawnHitFlash(x + dir * 26, y, 0xc4f088, 30);
+    } else if (level === 2) {
+      // Hydrochloric Spray — a corrosive fan
+      this.scene.spawnSlashArc(x + dir * 30, y, dir, 0xa8e86a, 180, 110);
+      this.scene.spawnHitFlash(x + dir * 70, y, 0xc4f088, 90);
+      this.scene.spawnBurst(x + dir * 80, y, 0xa8e86a, {
+        count: 14,
+        speed: [120, 300],
+        angle: dir > 0 ? [-40, 40] : [140, 220],
+        lifespan: 460,
+      });
+      if (this._damageArc(x + dir * 70, y, 200, 110, PLAYER_MELEE_DAMAGE * 2.4, dir, true)) {
+        this._registerHit();
+        this._bleedInRadius(x + dir * 70, y, 200, 3, 2800);
+      }
+    } else {
+      // Chloride Meltdown — a wide corrosive detonation
+      this.scene.shake(300, 0.012);
+      this.scene.spawnHitFlash(x, y, 0xa8e86a, 180);
+      this.scene.spawnNova(x, y, 0xc4f088, 260, { rings: 3, life: 30, lineWidth: 4, fill: true });
+      this.scene.spawnBurst(x, y, 0xa8e86a, { count: 28, speed: [120, 340], lifespan: 600, scale: 1.3 });
+      if (this._damageRadius(x, y, 260, PLAYER_MELEE_DAMAGE * 3.2, true)) this._registerHit();
+      this._bleedInRadius(x, y, 260, 4, 3400);
+    }
+  }
+
+  // ── Phosphine (PH₃) — a flammable gas bolt that detonates into green fire ─────
+  private _specialPhosphine(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    const proj = this.scene.physics.add.sprite(x, y, 'projectile') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+    proj.setTint(0xbfe87a).setDepth(80).setScale(1.8);
+    proj.body.setAllowGravity(false);
+    proj.body.setVelocity(dir * 220, 0);
+    this.scene.spawnHitFlash(x + dir * 24, y, 0xd4f090, 30);
+    const trail = this.scene.time.addEvent({
+      delay: 40,
+      loop: true,
+      callback: () => {
+        if (proj.active)
+          this.scene.spawnBurst(proj.x, proj.y, 0x9fe060, { count: 2, speed: [10, 50], lifespan: 280, scale: 0.8 });
+      },
+    });
+    const detonate = () => {
+      if (!proj.active) return;
+      trail.remove();
+      const ex = proj.x,
+        ey = proj.y;
+      proj.destroy();
+      const r = level === 1 ? 100 : level === 2 ? 145 : 220;
+      this.scene.spawnHitFlash(ex, ey, 0xbfe87a, 80);
+      this.scene.spawnNova(ex, ey, 0x9fe060, r, { rings: 2, life: 24, fill: true });
+      this.scene.spawnBurst(ex, ey, 0xd4f090, {
+        count: level === 3 ? 30 : 18,
+        speed: [120, 340],
+        lifespan: 560,
+        scale: 1.3,
+      });
+      this.scene.shake(200, 0.008);
+      const dmg =
+        level === 1 ? PLAYER_MELEE_DAMAGE * 3 : level === 2 ? PLAYER_MELEE_DAMAGE * 3.5 : PLAYER_MELEE_DAMAGE * 5.5;
+      if (this._damageRadius(ex, ey, r, dmg)) this._registerHit();
+      if (level >= 2) this._bleedInRadius(ex, ey, r, 3, 3200);
+    };
+    this.scene.time.delayedCall(650, detonate);
+    this.scene.physics.add.overlap(proj, this.scene.enemyGroup, () => detonate());
+  }
+
+  // ── Phosphoric acid (H₃PO₄) — an etching acid rain ───────────────────────────
+  private _specialPhosphoricAcid(level: number, dir: number): void {
+    const groundY = this._feetY;
+    const drop = (tx: number, extraBleed: boolean) => {
+      const g = this.scene.add.graphics().setDepth(88);
+      g.fillStyle(0xdff0a0, 0.9);
+      g.fillCircle(tx, groundY - 140, 6);
+      this.scene.tweens.add({
+        targets: g,
+        y: '+=140',
+        duration: 290,
+        ease: 'Quad.In',
+        onComplete: () => {
+          this.scene.spawnHitFlash(tx, groundY, 0xdff0a0, 22);
+          this.scene.spawnBurst(tx, groundY, 0xeaf6b8, {
+            count: 6,
+            speed: [40, 140],
+            angle: [200, 340],
+            lifespan: 340,
+          });
+          this.scene.spawnCloud(tx, groundY, 28, 0xdff0a0, 760, { blobs: 3, alpha: 0.22 });
+          this._damageRadius(tx, groundY, 36, PLAYER_MELEE_DAMAGE * 1.4);
+          if (extraBleed) this._bleedInRadius(tx, groundY, 36, 2, 1800);
+          g.destroy();
+        },
+      });
+    };
+    if (level < 3) {
+      const count = level === 1 ? 5 : 9;
+      const spread = level === 1 ? 120 : 200;
+      for (let i = 0; i < count; i++) {
+        const tx = this.sprite.x + dir * Phaser.Math.FloatBetween(30, spread);
+        this.scene.time.delayedCall(i * 80, () => {
+          if (this.alive) drop(tx, level === 2);
+        });
+      }
+      this._registerHit();
+    } else {
+      // Phosphoric Rain — a drop on every enemy
+      this.scene.shake(300, 0.01);
+      this.scene.enemyGroup.getChildren().forEach((go, i) => {
+        const s = go as EnemySprite;
+        if (!s.active || !s.enemyRef) return;
+        this.scene.time.delayedCall(i * 100, () => {
+          if (!s.active || !s.enemyRef) return;
+          this.scene.spawnHitFlash(s.x, s.y, 0xdff0a0, 24);
+          this.scene.spawnBurst(s.x, s.y, 0xeaf6b8, { count: 7, speed: [50, 150], angle: [200, 340], lifespan: 340 });
+          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, 0);
+          s.enemyRef.applyBleed(3, 2200);
+        });
+      });
+      this._registerHit();
+    }
+  }
+
+  // ── Phosphorus trichloride (PCl₃) — fumes: a corrosive splash + smoking gas ───
+  private _specialPhosphorusTrichloride(level: number, dir: number): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    if (level === 1) {
+      // Fuming Splash — a corrosive slash that leaves smoking fumes
+      this.scene.spawnSlashArc(x, y, dir, 0xbfe0a0, 118, 66);
+      this.scene.spawnCloud(x + dir * 45, y, 70, 0xbfe0a0, 1000, { alpha: 0.18, blobs: 4 });
+      this.scene.spawnHitFlash(x + dir * 55, y, 0xd4f0b8, 45);
+      if (this._damageArc(x + dir * 42, y, 114, 64, PLAYER_MELEE_DAMAGE * 1.8, dir, true)) {
+        this._registerHit();
+        this._bleedInRadius(x + dir * 42, y, 114, 3, 2800);
+      }
+    } else if (level === 2) {
+      // Smoking Corrosive — a bolt that bursts into a choking corrosive cloud
+      this.scene.spawnProjectile(x, y, dir, 0xbfe0a0, PLAYER_MELEE_DAMAGE * 2.2, 560, 3);
+      this.scene.time.delayedCall(260, () => {
+        const cx = x + dir * 150;
+        this.scene.spawnCloud(cx, y, 150, 0xbfe0a0, 1700, { alpha: 0.2, blobs: 6 });
+        this.scene.spawnNova(cx, y, 0xd4f0b8, 150, { rings: 1, life: 22 });
+        if (this._damageRadius(cx, y, 150, PLAYER_MELEE_DAMAGE * 2, true)) this._registerHit();
+        this._bleedInRadius(cx, y, 150, 3, 3200);
+      });
+    } else {
+      // Trichloride Storm — a billowing corrosive detonation
+      this.scene.shake(340, 0.013);
+      this.scene.spawnHitFlash(x, y, 0xbfe0a0, 190);
+      this.scene.spawnNova(x, y, 0xd4f0b8, 280, { rings: 3, life: 32, lineWidth: 4, fill: true });
+      this.scene.spawnCloud(x, y, 280, 0xbfe0a0, 2000, { alpha: 0.18, blobs: 8 });
+      this.scene.spawnBurst(x, y, 0xbfe0a0, { count: 30, speed: [120, 350], lifespan: 620, scale: 1.3 });
+      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.4, true)) this._registerHit();
+      this._bleedInRadius(x, y, 280, 4, 3800);
     }
   }
 

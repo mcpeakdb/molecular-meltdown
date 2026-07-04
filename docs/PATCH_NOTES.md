@@ -1,5 +1,79 @@
 # Patch Notes
 
+## v0.35.0 - 2026-07-04
+
+### Silver coins on every level
+
+- **50 collectable silver coins per stage.** A trail of spinning silver coins now threads every level —
+  each is worth `COIN_SCORE` (25) points, and sweeping up **all 50** in a stage awards a one-time
+  `COIN_BONUS` (3000) with a M.E.G. shout and a burst. The HUD shows a live `n/50` coin tally (with a
+  ✔ when complete), and the stage-clear breakdown lists your coin count and the sweep bonus.
+- **Coins are placed to reward exploration, and every one is reachable.** Rather than a flat line,
+  coins ride the platform tops and climb the **sky-towers**, arc over each gap at jump height, and
+  fill the remaining walkable ground (never stranded in a pit or acid pool). Verified across all 18
+  stages: exactly 50 reachable coins each, a mix of tower/platform/gap/ground placements.
+
+### Silver, Gold's rarer cousin Platinum, on the Periodic Table
+
+- **Silver (Ag) joins the Periodic Table.** It sits in group 11 directly above Gold — the coin metal.
+  Its tile explains the 50-coins-per-stage mechanic.
+- **New Platinum (Pt) wildcard.** Platinum works like Gold but grants **+3** of a chosen atom (three
+  level-ups at once) and is far rarer — **~0.1%** of atom nodes (vs Gold's ~1%). It has its own
+  flashier pickup art and pickup framing, and takes its true place beside Gold in the transition-metal
+  block (group 10, period 6), completing a precious-metals cluster (Ag / Pt / Au).
+
+## v0.34.0 - 2026-07-04
+
+### Three new atoms: Sulfur, Chlorine & Phosphorus
+
+- **Seven base atoms now, up from four.** Sulfur (S), Chlorine (Cl) and Phosphorus (P) join
+  H/O/C/N — collect them from the free-choice / Gold nodes (and the lab-floor sectors headline one
+  each: phosphorus on the bench, sulfur beneath it, chlorine in the waste bin).
+- **Ten new attacks.** Each new atom is a weapon in its own right — Sulfur *brimstone*, Chlorine
+  *poison gas*, Phosphorus *incendiary* — and they assemble seven new molecules with the existing
+  atoms and each other: **H₂S** (rotten toxic gas), **SO₂** (choking smog), **H₂SO₄** (the strongest
+  corrosive yet), **HCl** (hydrochloric acid), **PH₃** (a flammable gas that detonates), **H₃PO₄**
+  (etching acid rain), and **PCl₃** (a fuming cross-combo of the two new atoms). Each has three tiers.
+- **The Periodic Table screen shows them all.** P/S/Cl take their true period-3 cells, and the
+  compounds strip now **wraps into two rows** so the (now thirteen) molecules stay legible instead of
+  running off the screen.
+- **The atom-pick screen wraps too.** When a pick offers more than four atoms (a Gold/free-choice
+  find now offers all seven), the cards lay out in **two rows** with a compact card design, instead of
+  squeezing into one skinny row.
+
+### Periodic Table screen redrawn as a real periodic table
+
+- **True periodic layout.** The reference screen is now arranged like the genuine article on an
+  18-group × 7-period lattice: **Hydrogen** alone top-left, **C / N / O** on the right of period 2,
+  and — new — the **six noble gases** (He · Ne · Ar · Kr · Xe · Rn) stacked down group 18 on the far
+  right, under a highlighted "NOBLE" band. **Gold (Au)** sits in the transition-metal block, and the
+  **Prismatic** super weapon (✦) caps the bottom of the noble-gas column — right where the gases you
+  collect unlock it. Every real element shows its true atomic number and standard atomic weight.
+- **Compounds moved to a detached bottom strip.** The assembled molecules (H₂O, NH₃, CO₂, CH₄, NO,
+  H₂CO₃) now form a labelled row along the very bottom, like the lanthanide/actinide strip, with
+  wider cells so the formulas stay legible.
+- **Legend-style detail panel.** The inspector now lives in the classic empty upper-middle void of
+  the table and is kind-aware: a base atom shows its attack tiers; a compound shows its recipe +
+  tiers; **Gold** explains the +2 wildcard; each **noble gas** notes it is inert but that collecting
+  all six arms the Prismatic Beam; and the **super weapon** spells out that requirement and its
+  screen-clearing effect.
+- **Directional cursor navigation** — ←/→/↑/↓ jump to the nearest tile in the pressed direction, so
+  the noble-gas column, Gold, the super weapon, and the detached compounds are all reachable.
+
+### Distinct per-sector platforming (sectors 4–6)
+
+- **The lab-floor sectors no longer feel like copies.** Sectors 4, 5 and 6 share a biome but had
+  near-identical, copy-pasted platform layouts. Each now has a signature terrain style, so late-game
+  traversal stays fresh:
+  - **Sector 4 — LAB FLOOR:** wide low benches and few gaps — broad, forgiving footing.
+  - **Sector 5 — UNDER THE BENCH:** narrow footholds and stepping pillars over extra pits — precision
+    jumping.
+  - **Sector 6 — THE WASTE BIN:** extra bounce pads and staggered footholds — ascend by launching
+    through vertical bounce shafts.
+- **Central climbs preserved.** Every stage's sky-tower (and its summit reward / noble gem) is
+  untouched; only the front approach, back run-up, and gap/pad layout carry the new signature, so all
+  existing rewards remain exactly where they were.
+
 ## v0.33.2 - 2026-07-04
 
 - **No more hard-landing fall damage.** Dropping from a high platform (or a tall bounce) and landing

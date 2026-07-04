@@ -3,6 +3,7 @@ import {
   type AttackId,
   BASE_ATOMS,
   type BaseAtom,
+  COIN_COLOR,
   ELEMENT_COLORS,
   GAME_WIDTH,
   MAX_ELEMENT_LEVEL,
@@ -21,6 +22,9 @@ const ATOM_SYMBOL: Record<BaseAtom, string> = {
   oxygen: 'O',
   carbon: 'C',
   nitrogen: 'N',
+  sulfur: 'S',
+  chlorine: 'Cl',
+  phosphorus: 'P',
 };
 
 const ATTACK_SYMBOL: Record<AttackId, string> = {
@@ -34,6 +38,16 @@ const ATTACK_SYMBOL: Record<AttackId, string> = {
   methane: 'CH₄',
   nitric_oxide: 'NO',
   carbonic_acid: 'H₂CO₃',
+  sulfur: 'S',
+  chlorine: 'Cl',
+  phosphorus: 'P',
+  hydrogen_sulfide: 'H₂S',
+  sulfur_dioxide: 'SO₂',
+  sulfuric_acid: 'H₂SO₄',
+  hydrochloric_acid: 'HCl',
+  phosphine: 'PH₃',
+  phosphoric_acid: 'H₃PO₄',
+  phosphorus_trichloride: 'PCl₃',
   prismatic: '✦',
 };
 
@@ -62,6 +76,8 @@ export default class HUDScene extends Phaser.Scene {
   private comboText!: Phaser.GameObjects.Text;
   private comboSub!: Phaser.GameObjects.Text;
   private enemiesText!: Phaser.GameObjects.Text;
+  private coinsText!: Phaser.GameObjects.Text;
+  private coinsIcon!: Phaser.GameObjects.Arc;
 
   /** On-screen touch controls, polled by GameScene each frame. Null when touch controls are off. */
   touch: TouchControls | null = null;
@@ -103,7 +119,7 @@ export default class HUDScene extends Phaser.Scene {
       .setDepth(202);
 
     this.atomBadges = BASE_ATOMS.map((atom, i) => {
-      const cx = PAD + 14 + i * 50;
+      const cx = PAD + 14 + i * 40;
       const cy = PAD + 60;
       const col = ELEMENT_COLORS[atom];
       this.add
@@ -134,6 +150,26 @@ export default class HUDScene extends Phaser.Scene {
         .setOrigin(0, 0.5);
       return { circle, label };
     });
+
+    // ── SILVER COINS (per-stage collectible tally) ────────────────────────────
+    const coinsY = PAD + 92;
+    this.coinsIcon = this.add
+      .circle(PAD + 8, coinsY, 6, COIN_COLOR)
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setStrokeStyle(1.5, 0x8892a0)
+      .setVisible(false);
+    this.coinsText = this.add
+      .text(PAD + 20, coinsY, '', {
+        fontSize: '13px',
+        color: '#cfd8e2',
+        fontFamily: MONO,
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setOrigin(0, 0.5)
+      .setVisible(false);
 
     // ── ATTACK BAR (numpad arsenal) ───────────────────────────────────────────
     const totalW = CHIP_COUNT * CHIP_W + (CHIP_COUNT - 1) * CHIP_GAP;
@@ -232,6 +268,7 @@ export default class HUDScene extends Phaser.Scene {
     gameScene.events.on('arsenal-update', this._onArsenal, this);
     gameScene.events.on('score-update', (score: number) => this.scoreText.setText(score.toLocaleString()), this);
     gameScene.events.on('enemies-update', this._onEnemies, this);
+    gameScene.events.on('coins-update', this._onCoins, this);
     gameScene.events.on(
       'combo-update',
       (count: number, mult: number) => {
@@ -288,6 +325,20 @@ export default class HUDScene extends Phaser.Scene {
     for (const chip of this.chips) chip.container.setVisible(false);
     this.enemiesText.setVisible(false);
     this.touch?.setEnabled(false);
+  }
+
+  private _onCoins({ collected, total }: { collected: number; total: number }): void {
+    if (total <= 0) {
+      this.coinsIcon.setVisible(false);
+      this.coinsText.setVisible(false);
+      return;
+    }
+    const done = collected >= total;
+    this.coinsIcon.setVisible(true);
+    this.coinsText
+      .setVisible(true)
+      .setText(`${collected}/${total}${done ? '  ✔' : ''}`)
+      .setColor(done ? '#aef0c0' : '#cfd8e2');
   }
 
   private _onEnemies({ killed, total }: { killed: number; total: number }): void {

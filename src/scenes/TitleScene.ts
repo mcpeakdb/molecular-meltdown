@@ -6,7 +6,7 @@ import Settings from '../systems/Settings';
 import { attachTap, makeCursorIcon, punchCursorIcon } from '../systems/touchMenu';
 
 const MONO = 'monospace';
-const ITEMS = ['START', 'MOLECULE TREE', 'LEADERBOARD', 'CONTROLS', 'SETTINGS'] as const;
+const ITEMS = ['START', 'PERIODIC TABLE', 'LEADERBOARD', 'CONTROLS', 'SETTINGS'] as const;
 const MENU_TOP = 286; // y of the first menu item
 const MENU_DY = 38; // vertical spacing between menu items
 

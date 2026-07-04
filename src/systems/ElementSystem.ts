@@ -23,7 +23,15 @@ import type { AttackSlot, ElementState } from '../types';
  *   rebinds them by hand via the Compound Selection menu.
  */
 export default class ElementSystem {
-  private counts: Record<BaseAtom, number> = { hydrogen: 0, oxygen: 0, carbon: 0, nitrogen: 0 };
+  private counts: Record<BaseAtom, number> = {
+    hydrogen: 0,
+    oxygen: 0,
+    carbon: 0,
+    nitrogen: 0,
+    sulfur: 0,
+    chlorine: 0,
+    phosphorus: 0,
+  };
   /** Number of bindable weapon slots (keys 1..slotCount) — set from the difficulty. */
   private slotCount = 3;
   /** The attack bound to each slot (index 0 = key 1); null = empty. Length always === slotCount. */

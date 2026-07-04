@@ -459,6 +459,7 @@ export const STAGES: StageDef[] = [
 
   // ── Sector 4 — LAB FLOOR ──────────────────────────────────────────────────
   // Escaped the dishes onto the lab bench/floor: ants swarm and mites crawl, ending at the Roach King.
+  // Signature terrain: WIDE LOW BENCHES and few gaps — broad, forgiving footing to learn the biome.
   // 4-1 — emerging onto the bench: ants arrive alongside the familiar mites.
   {
     name: 'BENCHTOP SPILL',
@@ -476,23 +477,22 @@ export const STAGES: StageDef[] = [
       ...spread(1700, 2600, ['mite', 'ant', 'ant', 'mite', 'ant']),
       ...spread(2950, 3950, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant']),
     ],
-    gaps: [
-      [1450, 1590],
-      [2950, 3090],
-    ],
+    gaps: [[1450, 1590]],
     platforms: [
-      [650, 390, 120],
-      [1150, 350, 130],
-      [1600, 310, 130],
-      [2050, 360, 140],
+      // Wide low lab-bench surfaces — broad footing, few gaps: the gentle bench biome.
+      [560, 410, 180],
+      [1080, 370, 240],
+      [1600, 400, 240],
+      [1900, 380, 200],
       // sky tower
       [2600, 360, 140],
       [2790, 250, 130],
       [2600, 140, 130],
       [2790, 30, 130],
       [2600, -80, 150],
-      [3300, 340, 150],
-      [3850, 360, 140],
+      [3250, 400, 240],
+      [3750, 400, 240],
+      [4150, 400, 220],
     ],
     hazards: [[2150, 2300]],
     pads: [900],
@@ -519,15 +519,14 @@ export const STAGES: StageDef[] = [
     ],
     gaps: [
       [1450, 1590],
-      [2400, 2540],
       [3500, 3640],
-      [4100, 4320], // wide — clear it via the mid-gap stepping stone or a double-jump
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Wide low lab-bench surfaces — broad footing, few gaps.
+      [560, 410, 200],
+      [1080, 370, 240],
+      [1650, 400, 200],
+      [2100, 380, 200],
       // sky tower
       [2680, 360, 140],
       [2870, 250, 130],
@@ -535,15 +534,15 @@ export const STAGES: StageDef[] = [
       [2870, 30, 130],
       [2680, -80, 130],
       [2870, -190, 150],
-      [3700, 330, 150],
-      [4170, 410, 110], // stepping stone in the wide gap
-      [4600, 340, 150],
+      [3250, 400, 240],
+      [3750, 400, 240],
+      [4300, 400, 220],
     ],
     hazards: [
       [900, 1080],
       [3150, 3320],
     ],
-    pads: [1900, 3800],
+    pads: [1900],
     crumble: [[2250, 2390]],
     exitX: 4680,
   },
@@ -567,15 +566,14 @@ export const STAGES: StageDef[] = [
     ],
     gaps: [
       [1450, 1590],
-      [2400, 2540],
       [3500, 3640],
-      [4100, 4330], // wide — clear it via the mid-gap stepping stone or a double-jump
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Wide low lab-bench surfaces — broad footing, few gaps.
+      [560, 410, 200],
+      [1150, 370, 240],
+      [1650, 400, 200],
+      [2100, 380, 200],
       // sky tower — the tallest climb in the game
       [2680, 360, 140],
       [2870, 250, 140],
@@ -584,22 +582,22 @@ export const STAGES: StageDef[] = [
       [2680, -90, 140],
       [2870, -200, 150],
       [2680, -320, 160],
-      [2900, 350, 140],
-      [3600, 320, 150],
-      [4170, 410, 110], // stepping stone in the wide gap
-      [4650, 340, 150],
+      [3300, 400, 240],
+      [3800, 400, 240],
+      [4400, 400, 240],
     ],
     hazards: [
       [950, 1120],
       [3000, 3180],
     ],
-    pads: [1900, 4500],
+    pads: [1900],
     crumble: [[2250, 2390]],
     boss: { variant: 'roach', x: 5100 },
   },
 
   // ── Sector 5 — UNDER THE BENCH ────────────────────────────────────────────
   // Deeper into the lab: flies and bees join the ant/mite crawlers; finale is the Dung Beetle.
+  // Signature terrain: TIGHT PILLARS OVER PITS — narrow footholds and more chasms, precision jumping.
   // 5-1 — spill tray: first flyers harass the climbs.
   {
     name: 'SPILL TRAY',
@@ -619,29 +617,37 @@ export const STAGES: StageDef[] = [
       ...spread(3000, 4050, ['ant', 'fly', 'mite', 'ant', 'fly', 'ant']),
     ],
     gaps: [
-      [1450, 1590],
+      [1350, 1650],
       [2400, 2540],
-      [3500, 3640],
+      [3450, 3750],
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Narrow footholds and stepping pillars — precision hops over the pits.
+      [650, 400, 100],
+      [1000, 340, 100],
+      [1430, 405, 90], // stepping pillar in the front pit
+      [1570, 405, 90],
+      [1700, 360, 90],
+      [2050, 310, 90],
+      [2250, 360, 90],
+      // sky tower
       [2680, 360, 130],
       [2870, 250, 130],
       [2680, 140, 130],
       [2870, 30, 130],
       [2680, -80, 130],
       [2870, -190, 150],
-      [3700, 330, 150],
-      [4250, 350, 150],
+      [3530, 405, 90], // stepping pillars in the back pit
+      [3670, 405, 90],
+      [3950, 360, 90],
+      [4200, 340, 100],
+      [4400, 380, 100],
     ],
     hazards: [
       [900, 1080],
       [3150, 3320],
     ],
-    pads: [1900, 3800],
+    pads: [1900],
     crumble: [[2250, 2390]],
     exitX: 4580,
   },
@@ -664,31 +670,38 @@ export const STAGES: StageDef[] = [
       ...spread(3000, 4150, ['ant', 'fly', 'bee', 'mite', 'ant', 'fly']),
     ],
     gaps: [
-      [1450, 1590],
+      [1350, 1650],
       [2400, 2540],
-      [3500, 3640],
-      [4150, 4370], // wide — clear it via the mid-gap stepping stone or a double-jump
+      [3450, 3750],
+      [4200, 4400], // wide pit — cross via the pillar in the middle
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Narrow footholds and stepping pillars — precision hops over the pits.
+      [650, 400, 100],
+      [1000, 340, 100],
+      [1430, 405, 90],
+      [1570, 405, 90],
+      [1700, 360, 90],
+      [2050, 310, 90],
+      [2250, 360, 90],
+      // sky tower
       [2680, 360, 130],
       [2870, 250, 130],
       [2680, 140, 130],
       [2870, 30, 130],
       [2680, -80, 130],
       [2870, -190, 150],
-      [3700, 330, 150],
-      [4220, 410, 110], // stepping stone in the wide gap
-      [4650, 340, 150],
+      [3530, 405, 90],
+      [3670, 405, 90],
+      [3950, 360, 90],
+      [4270, 405, 90], // pillar in the wide pit
+      [4550, 380, 100],
     ],
     hazards: [
       [900, 1080],
       [3150, 3320],
     ],
-    pads: [1900, 3800],
+    pads: [1900],
     crumble: [[2250, 2390]],
     exitX: 4780,
   },
@@ -711,16 +724,21 @@ export const STAGES: StageDef[] = [
       ...spread(3000, 4100, ['ant', 'fly', 'bee', 'mite', 'ant', 'bee']),
     ],
     gaps: [
-      [1450, 1590],
+      [1350, 1650],
       [2400, 2540],
-      [3500, 3640],
+      [3450, 3750],
       [4100, 4330],
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Narrow footholds and stepping pillars — precision hops over the pits.
+      [650, 400, 100],
+      [1000, 340, 100],
+      [1430, 405, 90],
+      [1570, 405, 90],
+      [1700, 360, 90],
+      [2050, 310, 90],
+      [2250, 360, 90],
+      // sky tower
       [2680, 360, 140],
       [2870, 250, 140],
       [2680, 140, 140],
@@ -728,22 +746,24 @@ export const STAGES: StageDef[] = [
       [2680, -90, 140],
       [2870, -200, 150],
       [2680, -320, 160],
-      [2900, 350, 140],
-      [3600, 320, 150],
-      [4170, 410, 110], // stepping stone in the wide gap
-      [4650, 340, 150],
+      [3530, 405, 90],
+      [3670, 405, 90],
+      [3950, 360, 90],
+      [4210, 405, 90], // pillar in the wide pit
+      [4550, 380, 100],
     ],
     hazards: [
       [950, 1120],
       [3000, 3180],
     ],
-    pads: [1900, 4500],
+    pads: [1900],
     crumble: [[2250, 2390]],
     boss: { variant: 'beetle', x: 5100 },
   },
 
   // ── Sector 6 — THE WASTE BIN ──────────────────────────────────────────────
   // The grimy depths where the Hornet Queen nests — the hardest run, ending the game.
+  // Signature terrain: VERTICAL BOUNCE SHAFTS — extra pads and staggered footholds; climb by launching.
   // 6-1 — grease trap.
   {
     name: 'GREASE TRAP',
@@ -769,25 +789,28 @@ export const STAGES: StageDef[] = [
       [4150, 4370],
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Staggered footholds strung between the bounce shafts — climb by pad, not by walking.
+      [1000, 350, 120],
+      [1250, 290, 120],
+      [1600, 380, 120],
+      [2050, 300, 120],
+      // sky tower
       [2680, 360, 130],
       [2870, 250, 130],
       [2680, 140, 130],
       [2870, 30, 130],
       [2680, -80, 130],
       [2870, -190, 150],
-      [3700, 330, 150],
-      [4220, 410, 110], // stepping stone in the wide gap
-      [4650, 340, 150],
+      [3250, 300, 120],
+      [3550, 400, 120],
+      [4270, 410, 110], // stepping stone in the wide gap
+      [4600, 340, 130],
     ],
     hazards: [
       [900, 1080],
       [3150, 3320],
     ],
-    pads: [1900, 3800],
+    pads: [700, 1900, 3800],
     crumble: [[2250, 2390]],
     exitX: 4780,
   },
@@ -816,25 +839,28 @@ export const STAGES: StageDef[] = [
       [4200, 4420],
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Staggered footholds strung between the bounce shafts.
+      [1000, 350, 120],
+      [1250, 290, 120],
+      [1600, 380, 120],
+      [2050, 300, 120],
+      // sky tower
       [2680, 360, 130],
       [2870, 250, 130],
       [2680, 140, 130],
       [2870, 20, 130],
       [2680, -100, 130],
       [2870, -220, 150],
-      [3700, 330, 150],
-      [4270, 410, 110], // stepping stone in the wide gap
-      [4700, 340, 150],
+      [3250, 300, 120],
+      [3550, 400, 120],
+      [4310, 410, 110], // stepping stone in the wide gap
+      [4650, 340, 130],
     ],
     hazards: [
       [900, 1080],
       [3150, 3320],
     ],
-    pads: [1900, 3900],
+    pads: [700, 1900, 3900],
     crumble: [[2250, 2390]],
     exitX: 4980,
   },
@@ -863,10 +889,12 @@ export const STAGES: StageDef[] = [
       [4100, 4330],
     ],
     platforms: [
-      [700, 390, 130],
-      [1150, 350, 130],
-      [1600, 300, 130],
-      [2050, 350, 130],
+      // Staggered footholds strung between the bounce shafts.
+      [1000, 350, 120],
+      [1250, 290, 120],
+      [1600, 380, 120],
+      [2050, 300, 120],
+      // sky tower
       [2680, 360, 140],
       [2870, 240, 140],
       [2680, 120, 140],
@@ -874,16 +902,16 @@ export const STAGES: StageDef[] = [
       [2680, -120, 140],
       [2870, -240, 150],
       [2680, -340, 160],
-      [2900, 350, 140],
-      [3600, 320, 150],
-      [4170, 410, 110], // stepping stone in the wide gap
-      [4700, 340, 150],
+      [3250, 300, 120],
+      [3550, 400, 120],
+      [4210, 410, 110], // stepping stone in the wide gap
+      [4640, 340, 130],
     ],
     hazards: [
       [950, 1120],
       [3000, 3180],
     ],
-    pads: [1900, 4500],
+    pads: [700, 1900, 4500],
     crumble: [[2250, 2390]],
     boss: { variant: 'hornet', x: 5300 },
   },
@@ -905,14 +933,16 @@ const CLUSTER_GUARD: Record<number, EnemyType[]> = {
   6: ['ant', 'mite'],
 };
 
-/** Atom choices on the new ledges, matched to each sector's existing palette. */
+/** Atom choices on the new ledges, matched to each sector's existing palette. The lab-floor sectors
+ *  (4–6) each headline one of the new heavy atoms so its molecules become buildable where it fits the
+ *  theme: phosphorus on the bench, sulfur beneath it, chlorine in the waste bin. */
 const CLUSTER_ATOMS: Record<number, BaseAtom[]> = {
   1: ['hydrogen', 'oxygen'],
   2: ['oxygen', 'carbon'],
   3: ['nitrogen', 'carbon'],
-  4: ['hydrogen', 'nitrogen'],
-  5: ['oxygen', 'nitrogen'],
-  6: ['carbon', 'oxygen'],
+  4: ['phosphorus', 'hydrogen'],
+  5: ['sulfur', 'oxygen'],
+  6: ['chlorine', 'carbon'],
 };
 
 /** Append one ramp→ledge cluster (ramp, ledge platform, perched atom, posted guard) at world-x `x`. */

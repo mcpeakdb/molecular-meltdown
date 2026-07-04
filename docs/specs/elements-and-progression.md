@@ -10,10 +10,13 @@ weapon loadout (Compound Selection). Sources:
 ## Atom pickups
 
 - **REQ-PROG-001** — Most atom pickups shall be **choice nodes**: walking into one opens a 2–3 way
-  choice of base atoms. A rare **Gold** node grants +2 of any chosen base atom. A **noble** pickup is
-  inert (no choice) — see [scoring-and-persistence.md](scoring-and-persistence.md).
+  choice of base atoms. On spawn each node rolls a wildcard upgrade: ~0.1% **Platinum** (pick any base
+  atom, +3) checked first, else ~1% **Gold** (pick any base atom, +2); a wildcard node offers all
+  seven base atoms and uses the Platinum/Gold framing in `ElementChoiceScene`. A **noble** pickup and
+  a **silver coin** are inert score pickups (no choice) — see
+  [scoring-and-persistence.md](scoring-and-persistence.md).
 - **REQ-PROG-001a** — Later levels (lab-floor sectors 4–6) shall spawn additional free-choice atom
-  nodes (all four base atoms) beyond those authored in the stage, scaled by sector (`(sector-3)*3`),
+  nodes (all seven base atoms) beyond those authored in the stage, scaled by sector (`(sector-3)*3`),
   spread across the stage and skipping holes/hazards — so the most atom-hungry compounds become
   reachable. (`GameScene._spawnStage`.)
 - **REQ-PROG-002** — An atom shall bob and rotate; a noble gem shall additionally render a pulsing
@@ -49,7 +52,12 @@ weapon loadout (Compound Selection). Sources:
   `ElementChoiceScene` with the choices, current counts, grant amount, and gold flag.
 - **REQ-CHOICE-002** — Each choice card shall preview the attacks that picking it would unlock or
   level (★ NEW vs ▲ Lv n), show the element name, symbol watermark, and a random real-world fact, and
-  the cards shall resize to fit (Gold offers all four base atoms).
+  the cards shall resize to fit.
+- **REQ-CHOICE-002a** — WHERE there are more than four choices (a Gold/free-choice pick offers all
+  seven base atoms), the cards shall wrap into **two rows** (`ceil(n/2)` per row) and switch to a
+  compact layout — shorter cards, condensed unlock list (capped with a "+k more" line), and no
+  fun-fact footer — so the cards never become too skinny to read. Four or fewer choices keep the
+  single tall row unchanged.
 - **REQ-CHOICE-003** — ←/→ (or tapping) shall select a card; Z/Enter (or re-tapping a card) shall
   confirm, playing a pop animation, then invoking the callback with the chosen atom.
 - **REQ-CHOICE-004** — WHEN a choice is confirmed, `GameScene` shall resume, apply `grant` copies of

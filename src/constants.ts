@@ -79,7 +79,20 @@ export const ELEMENTS = {
   METHANE: 'methane',
   NITRIC_OXIDE: 'nitric_oxide',
   CARBONIC_ACID: 'carbonic_acid',
+  // Sulfur / chlorine / phosphorus base atoms and the molecules they assemble with the existing atoms.
+  SULFUR: 'sulfur',
+  CHLORINE: 'chlorine',
+  PHOSPHORUS: 'phosphorus',
+  HYDROGEN_SULFIDE: 'hydrogen_sulfide',
+  SULFUR_DIOXIDE: 'sulfur_dioxide',
+  SULFURIC_ACID: 'sulfuric_acid',
+  HYDROCHLORIC_ACID: 'hydrochloric_acid',
+  PHOSPHINE: 'phosphine',
+  PHOSPHORIC_ACID: 'phosphoric_acid',
+  PHOSPHORUS_TRICHLORIDE: 'phosphorus_trichloride',
   GOLD: 'gold',
+  // Platinum — an even rarer Gold: pick any atom and gain +3 (three level-ups). ~0.1% of atom nodes.
+  PLATINUM: 'platinum',
   // Super weapon — not an atom/compound. Permanently armed once all noble gases are collected.
   PRISMATIC: 'prismatic',
 } as const;
@@ -98,7 +111,18 @@ export const ELEMENT_COLORS: Record<ElementType, number> = {
   [ELEMENTS.METHANE]: 0xff9922,
   [ELEMENTS.NITRIC_OXIDE]: 0xdd44aa,
   [ELEMENTS.CARBONIC_ACID]: 0x33aadd,
+  [ELEMENTS.SULFUR]: 0xf2c81e,
+  [ELEMENTS.CHLORINE]: 0x8fe04a,
+  [ELEMENTS.PHOSPHORUS]: 0xd8ffa0,
+  [ELEMENTS.HYDROGEN_SULFIDE]: 0xc9d94a,
+  [ELEMENTS.SULFUR_DIOXIDE]: 0xd8cf88,
+  [ELEMENTS.SULFURIC_ACID]: 0xf6e61e,
+  [ELEMENTS.HYDROCHLORIC_ACID]: 0xa8e86a,
+  [ELEMENTS.PHOSPHINE]: 0xbfe87a,
+  [ELEMENTS.PHOSPHORIC_ACID]: 0xdff0a0,
+  [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: 0xbfe0a0,
   [ELEMENTS.GOLD]: 0xffd700,
+  [ELEMENTS.PLATINUM]: 0xb9d4e8,
   [ELEMENTS.PRISMATIC]: 0xff66ff,
 };
 
@@ -114,7 +138,18 @@ export const ELEMENT_NAMES: Record<ElementType, string> = {
   [ELEMENTS.METHANE]: 'Methane (CH₄)',
   [ELEMENTS.NITRIC_OXIDE]: 'Nitric Oxide (NO)',
   [ELEMENTS.CARBONIC_ACID]: 'Carbonic Acid (H₂CO₃)',
+  [ELEMENTS.SULFUR]: 'Sulfur',
+  [ELEMENTS.CHLORINE]: 'Chlorine',
+  [ELEMENTS.PHOSPHORUS]: 'Phosphorus',
+  [ELEMENTS.HYDROGEN_SULFIDE]: 'Hydrogen Sulfide (H₂S)',
+  [ELEMENTS.SULFUR_DIOXIDE]: 'Sulfur Dioxide (SO₂)',
+  [ELEMENTS.SULFURIC_ACID]: 'Sulfuric Acid (H₂SO₄)',
+  [ELEMENTS.HYDROCHLORIC_ACID]: 'Hydrochloric Acid (HCl)',
+  [ELEMENTS.PHOSPHINE]: 'Phosphine (PH₃)',
+  [ELEMENTS.PHOSPHORIC_ACID]: 'Phosphoric Acid (H₃PO₄)',
+  [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: 'Phosphorus Trichloride (PCl₃)',
   [ELEMENTS.GOLD]: 'Gold (Au)',
+  [ELEMENTS.PLATINUM]: 'Platinum (Pt)',
   [ELEMENTS.PRISMATIC]: 'Prismatic Beam',
 };
 
@@ -140,9 +175,9 @@ export const CRUMBLE_DELAY_MS = 620; // grace period after stepping on a crumbli
 export const MAX_ELEMENT_LEVEL = 3;
 
 // ── Attack registry (Phase 6: molecular tree + numpad arsenal) ──────────────
-// The four collectable base atoms.
-export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen';
-export const BASE_ATOMS: BaseAtom[] = ['hydrogen', 'oxygen', 'carbon', 'nitrogen'];
+// The seven collectable base atoms.
+export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen' | 'sulfur' | 'chlorine' | 'phosphorus';
+export const BASE_ATOMS: BaseAtom[] = ['hydrogen', 'oxygen', 'carbon', 'nitrogen', 'sulfur', 'chlorine', 'phosphorus'];
 
 // ── Noble gases ─────────────────────────────────────────────────────────────
 // Inert collectibles — one of each exists, tucked away on hard-to-reach platforms or guarded by a
@@ -168,9 +203,18 @@ export const NOBLE_GAS_BY_ID: Record<NobleGasId, NobleGasDef> = Object.fromEntri
 export const NOBLE_GAS_COUNT = NOBLE_GASES.length;
 export const NOBLE_GAS_BONUS = 500; // score awarded for collecting a noble gas
 
-// Every attack maps 1:1 to an element/compound. NONE has no attack; GOLD is a wildcard
-// pickup (it grants atoms rather than firing), so it is excluded too.
-export type AttackId = Exclude<ElementType, typeof ELEMENTS.NONE | typeof ELEMENTS.GOLD>;
+// ── Silver coins ──────────────────────────────────────────────────────────────
+// A trail of collectable coins lines every stage. Each is a small score pickup; sweeping up every
+// coin in a stage awards a one-time completion bonus. Silver is the coin metal — Ag sits just above
+// Gold in periodic group 11 (see the Periodic Table screen).
+export const COINS_PER_STAGE = 50; // coins scattered along each stage
+export const COIN_SCORE = 25; // points per coin
+export const COIN_BONUS = 3000; // bonus for collecting every coin in a stage
+export const COIN_COLOR = 0xd8e2ec; // silver
+
+// Every attack maps 1:1 to an element/compound. NONE has no attack; GOLD and PLATINUM are wildcard
+// pickups (they grant atoms rather than firing), so they are excluded too.
+export type AttackId = Exclude<ElementType, typeof ELEMENTS.NONE | typeof ELEMENTS.GOLD | typeof ELEMENTS.PLATINUM>;
 
 export interface AttackDef {
   id: AttackId;
@@ -267,6 +311,88 @@ export const ATTACKS: Record<AttackId, AttackDef> = {
     tierNames: ['Acid Drop', 'Corrosive Spray', 'Acid Rain'],
     cooldownMs: 1800,
   },
+  // ── Sulfur / chlorine / phosphorus base atoms ──────────────────────────────
+  [ELEMENTS.SULFUR]: {
+    id: ELEMENTS.SULFUR,
+    recipe: { sulfur: 1 },
+    slot: 11,
+    color: 0xf2c81e,
+    tierNames: ['Brimstone Lash', 'Sulfur Burn', 'Brimstone Storm'],
+    cooldownMs: 800,
+  },
+  [ELEMENTS.CHLORINE]: {
+    id: ELEMENTS.CHLORINE,
+    recipe: { chlorine: 1 },
+    slot: 12,
+    color: 0x8fe04a,
+    tierNames: ['Chlorine Gas', 'Bleach Cloud', 'Mustard Fog'],
+    cooldownMs: 900,
+  },
+  [ELEMENTS.PHOSPHORUS]: {
+    id: ELEMENTS.PHOSPHORUS,
+    recipe: { phosphorus: 1 },
+    slot: 13,
+    color: 0xd8ffa0,
+    tierNames: ['Ember Spark', 'White Phosphorus', 'Incendiary Rain'],
+    cooldownMs: 900,
+  },
+  // ── Compounds the new atoms assemble with the existing ones (and each other) ──
+  [ELEMENTS.HYDROGEN_SULFIDE]: {
+    id: ELEMENTS.HYDROGEN_SULFIDE,
+    recipe: { hydrogen: 2, sulfur: 1 },
+    slot: 14,
+    color: 0xc9d94a,
+    tierNames: ['Rotten Vapor', 'Sour Gas', 'Sulfide Miasma'],
+    cooldownMs: 1300,
+  },
+  [ELEMENTS.SULFUR_DIOXIDE]: {
+    id: ELEMENTS.SULFUR_DIOXIDE,
+    recipe: { sulfur: 1, oxygen: 2 },
+    slot: 15,
+    color: 0xd8cf88,
+    tierNames: ['Acrid Puff', 'Choking Smog', 'Sulfur Cloudburst'],
+    cooldownMs: 1400,
+  },
+  [ELEMENTS.SULFURIC_ACID]: {
+    id: ELEMENTS.SULFURIC_ACID,
+    recipe: { hydrogen: 2, sulfur: 1, oxygen: 4 },
+    slot: 16,
+    color: 0xf6e61e,
+    tierNames: ['Vitriol Splash', 'Oil of Vitriol', 'Sulfuric Dissolve'],
+    cooldownMs: 1900,
+  },
+  [ELEMENTS.HYDROCHLORIC_ACID]: {
+    id: ELEMENTS.HYDROCHLORIC_ACID,
+    recipe: { hydrogen: 1, chlorine: 1 },
+    slot: 17,
+    color: 0xa8e86a,
+    tierNames: ['Muriatic Spit', 'Hydrochloric Spray', 'Chloride Meltdown'],
+    cooldownMs: 1200,
+  },
+  [ELEMENTS.PHOSPHINE]: {
+    id: ELEMENTS.PHOSPHINE,
+    recipe: { phosphorus: 1, hydrogen: 3 },
+    slot: 18,
+    color: 0xbfe87a,
+    tierNames: ['Phosphine Puff', 'Marsh-Gas Flare', 'Phosphine Detonation'],
+    cooldownMs: 1400,
+  },
+  [ELEMENTS.PHOSPHORIC_ACID]: {
+    id: ELEMENTS.PHOSPHORIC_ACID,
+    recipe: { hydrogen: 3, phosphorus: 1, oxygen: 4 },
+    slot: 19,
+    color: 0xdff0a0,
+    tierNames: ['Phosphoric Drip', 'Etching Acid', 'Phosphoric Rain'],
+    cooldownMs: 1900,
+  },
+  [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: {
+    id: ELEMENTS.PHOSPHORUS_TRICHLORIDE,
+    recipe: { phosphorus: 1, chlorine: 3 },
+    slot: 20,
+    color: 0xbfe0a0,
+    tierNames: ['Fuming Splash', 'Smoking Corrosive', 'Trichloride Storm'],
+    cooldownMs: 1700,
+  },
   // Super weapon — has no atom recipe; availability is driven by the noble-gas collection, not
   // `levelFor`. It is excluded from ATTACK_ORDER so the recipe machinery never touches it.
   [ELEMENTS.PRISMATIC]: {
@@ -341,6 +467,21 @@ export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
     'The fizz in every carbonated drink.',
     'Forms when CO₂ dissolves in water.',
     'A weak acid, but it slowly carves out limestone caves.',
+  ],
+  [ELEMENTS.SULFUR]: [
+    'The brimstone of legend — it burns with an eerie blue flame.',
+    'Yellow and brittle, it reeks of rotten eggs as it reacts.',
+    'A building block of gunpowder and, as sulfuric acid, of industry itself.',
+  ],
+  [ELEMENTS.CHLORINE]: [
+    'A choking green-yellow gas — and the sting in every swimming pool.',
+    'Half of table salt: sodium plus chlorine makes NaCl.',
+    'A ferocious oxidizer that bleaches and disinfects.',
+  ],
+  [ELEMENTS.PHOSPHORUS]: [
+    'White phosphorus bursts into flame in open air.',
+    'It glows faintly in the dark — the origin of the word “phosphorescence”.',
+    'Vital to life: it forms the backbone of DNA and your bones.',
   ],
   [ELEMENTS.GOLD]: [
     'So nonreactive it never tarnishes — gold stays shiny forever.',

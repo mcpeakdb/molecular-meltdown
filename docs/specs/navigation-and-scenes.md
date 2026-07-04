@@ -125,12 +125,20 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 
 ## MoleculeTreeScene
 
-- **REQ-TREE-001** — `MoleculeTreeScene` shall present a periodic-table reference: the four base
-  atoms in their true periodic positions, with the compounds catalogued as a second row, each tile
-  data-driven from `ATTACKS` (symbol/formula, name, molar mass).
-- **REQ-TREE-002** — WHILE a tile is selected, the detail panel shall show its recipe (or "base atom"
-  for the four) and its three tier attack names.
-- **REQ-TREE-003** — ←/→/↑/↓ shall move the cursor (up/down hop between the atom and compound rows);
+- **REQ-TREE-001** — `MoleculeTreeScene` shall present a real periodic-table layout on an 18-group ×
+  7-period lattice: the seven base atoms in their true (group, period) cells (H alone; C/N/O in
+  period 2; P/S/Cl below them in period 3); the six noble gases down group 18 (far right) under a
+  highlight; the group-11 precious metals — Silver (period 5) above Gold (period 6) — with Platinum
+  beside Gold; and the Prismatic super weapon capping the foot of the noble-gas column. The assembled
+  compounds shall form a detached, labelled strip along the very bottom. Real elements show their true
+  atomic number and standard atomic weight; the super weapon shows neither.
+- **REQ-TREE-002** — WHILE a tile is selected, the central legend/detail panel shall show content per
+  tile kind: a base atom's atomic number + tier attack names; a compound's recipe + tier attack
+  names; Gold's wildcard note (grants +2 of one atom); Platinum's wildcard note (grants +3, ~0.1%);
+  Silver's note (silver coins — 50 per stage, each scores, full sweep bonus); a noble gas's inert note
+  (collect all six to arm the Prismatic Beam); and the super weapon's requirement + effect.
+- **REQ-TREE-003** — ←/→/↑/↓ shall move the cursor to the nearest tile in the pressed direction
+  (reaching the noble-gas column, the precious metals, the super weapon, and the detached compounds);
   ESC/Z/Enter or tapping the backdrop shall return to the `from` scene.
 
 ## HelpScene

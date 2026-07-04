@@ -22,7 +22,7 @@ The in-game HUD and the input model (keyboard + on-screen touch controls). Sourc
 ## HUD readouts
 
 - **REQ-HUD-001** — `HUDScene` shall display: an HP bar (colour shifts green→amber→red as HP drops)
-  with numeric HP, the owned base-atom badges (H/O/C/N counts), a centred weapon-chip bar, a germ
+  with numeric HP, the owned base-atom badges (H/O/C/N/S/Cl/P counts), a centred weapon-chip bar, a germ
   counter, the run score, and the combo readout.
 - **REQ-HUD-002** — WHEN `arsenal-update` fires, the HUD shall render one chip per weapon slot: a
   bound slot shows its compound symbol/name/level-pips/cooldown; an empty slot 1 falls back to a

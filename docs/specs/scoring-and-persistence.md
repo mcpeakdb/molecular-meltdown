@@ -12,13 +12,18 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
 - **REQ-SCORE-002** — WHEN an enemy dies, the game shall add its score: bacterium 100, virus 80,
   dustbunny 150, pollen 60, amoeba 200, spore 70, mite 120; a boss shall award 1000.
 - **REQ-SCORE-003** — WHEN a noble gas is collected, the game shall add `NOBLE_GAS_BONUS` (500).
+- **REQ-SCORE-003a** — Every stage shall scatter `COINS_PER_STAGE` (50) reachable silver coins across
+  its platforms/sky-towers, gaps, and ground. WHEN a coin is collected the game shall add `COIN_SCORE`
+  (25); WHEN the last coin of a stage is collected it shall additionally award `COIN_BONUS` (3000)
+  once, with a M.E.G. shout. The per-stage tally resets each stage.
 - **REQ-SCORE-004** — WHEN a stage is finalized, the game shall award a time bonus
   `max(0, round((par - elapsed) * 8))` where `par = worldWidth/160 + 25`, plus a flawless bonus of 750
   IF the player finished at full HP, and fold both into the run score.
 - **REQ-SCORE-005** — WHEN a stage is finalized, the game shall record the per-stage best score (this
   stage's own contribution = run score minus the score at stage start) and mark the stage cleared.
-- **REQ-SCORE-006** — The HUD shall reflect score, combo, HP, owned atoms, and the germ counter via
-  `score-update`, `combo-update`, `hud-update`, `arsenal-update`, and `enemies-update` events.
+- **REQ-SCORE-006** — The HUD shall reflect score, combo, HP, owned atoms, the germ counter, and the
+  per-stage coin tally via `score-update`, `combo-update`, `hud-update`, `arsenal-update`,
+  `enemies-update`, and `coins-update` events.
 
 ## Death & run summary
 
