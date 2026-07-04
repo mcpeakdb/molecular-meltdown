@@ -80,13 +80,9 @@ Source: [`src/entities/Player.ts`](../../src/entities/Player.ts). Attack effects
   clear its visuals, tint grey, play the death SFX, and after ~900 ms notify `GameScene.onPlayerDeath`.
 - **REQ-PLAYER-054** — WHILE airborne with downward velocity below a small threshold (`isClearingEnemy`),
   a well-timed jump shall let the player clear an enemy's *contact* attack (projectiles still hit).
-- **REQ-PLAYER-055** — WHEN the player lands, IF the net drop below the takeoff point exceeds
-  `FALL_DAMAGE_SAFE_HEIGHTS × PLAYER_HEIGHT` (≈3 body-heights), THEN the player shall take fall
-  damage scaling with the extra distance (`FALL_DAMAGE_PER_PX`), capped at `FALL_DAMAGE_MAX`, with a
-  landing thud/shake/burst. Fall distance is measured from the surface last left (takeoff), NOT the
-  jump apex, so jumping straight up and landing where you started never causes damage.
-- **REQ-PLAYER-056** — The takeoff reference shall be captured when the player leaves the ground and
-  reset on a pit respawn (`resetFall`), so a respawn teleport's drop is not counted as a fall.
+- **REQ-PLAYER-055** — Landing a high drop onto solid ground shall cause no damage — there is no
+  hard-landing fall damage. (Only falling into a pit/chasm hurts; see `GAP_FALL_DAMAGE` in
+  stages-and-platforming.md.)
 
 ## Freeze
 

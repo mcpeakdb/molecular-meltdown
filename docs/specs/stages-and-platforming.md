@@ -20,6 +20,10 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   whose footprint is clear of every existing structure — gaps, hazards, ledges, ramps, the central
   sky-tower band, and any already-placed cluster (`occupiedSpans` / `findClusterSpot`). A cluster is
   skipped when no clear span exists.
+- **REQ-STAGE-006** — After clusters and nobles are placed, every stage's tallest platform (its
+  sky-tower summit) shall be guaranteed a reward: WHERE no atom is already perched near/above it and
+  no noble gem sits there, a sector-appropriate choice atom shall be perched on it. On stages whose
+  summit already holds a reward this is a no-op. (Higher platforms always pay off.)
 - **REQ-STAGE-003** — Theme/art shall be keyed by sector (not per-stage): `SECTOR_THEMES` colours and
   the `bg_tile_${sector}` / `ground_tile_${sector}` textures. All three stages of a sector share a
   biome.
@@ -94,6 +98,11 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-PAD-001** — Pads shall be drawn as springy spore domes on the floor.
 - **REQ-PAD-002** — WHEN the player lands on the ground within ~30 px of a pad, the game shall launch
   them via `superJump(PLAYER_BOUNCE_VELOCITY)` with a boing SFX and squash animation.
+- **REQ-PAD-003** — Every pad shall carry a reward directly overhead: a one-way perch (`_addPlatform`
+  with `oneWay`, solid on its top face only) at `GROUND_TOP_Y - 330`, with a free-choice atom on it.
+  The perch height sits in the pad-only reachability window — above a double-jump's reach (feet
+  ≈ y166) yet below the pad launch's apex (feet ≈ y-265 at `PLAYER_BOUNCE_VELOCITY`) — so the perch
+  is reachable only by bouncing, and the bounce rises up through the one-way surface to land on top.
 
 ## Crumbling tiles
 

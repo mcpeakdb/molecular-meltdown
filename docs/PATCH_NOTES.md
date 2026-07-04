@@ -1,5 +1,48 @@
 # Patch Notes
 
+## v0.33.2 - 2026-07-04
+
+- **No more hard-landing fall damage.** Dropping from a high platform (or a tall bounce) and landing
+  on solid ground no longer hurts — it was punishing exactly the platforming the game encourages. The
+  whole takeoff-height tracking system and its constants (`FALL_DAMAGE_*`, `PLAYER_HEIGHT`) are gone.
+- **Pit falls still cost you.** Falling into a chasm/gap still deals `GAP_FALL_DAMAGE` (15) and
+  respawns you on the last safe ledge — missing a jump into a hole has stakes; landing a big drop
+  onto the floor does not.
+
+## v0.33.1 - 2026-07-04
+
+- **Bounce pads launch twice as high.** `PLAYER_BOUNCE_VELOCITY` raised 1150 → 1626 (peak height
+  scales with velocity², so ×√2 velocity ≈ ×2 height: apex ≈ 367px → ≈ 735px). The pad-reward perches
+  stay put and remain reachable only by bouncing — there's just more headroom over them now.
+
+## v0.33.0 - 2026-07-04
+
+### More meaningful level design
+
+- **Bounce pads now lead somewhere.** Every pad hangs a reward directly overhead: a one-way perch at
+  a height tuned to the pad-only reachability window — too high for a double-jump (feet reach ≈ y166)
+  but cleared by the pad's launch (feet reach ≈ y103). The bounce rises up *through* the perch's
+  one-way underside and lands on top, where a free-choice atom waits. Bopping a pad is now the way to
+  grab an otherwise-unreachable pickup, not a dead-end springboard.
+- **Every climb pays off.** A normalization pass guarantees each stage's tallest platform (its
+  sky-tower summit) carries a reward — an atom or noble gem. This closes four towers that previously
+  topped out at nothing (1-3, 2-3, 3-1, 3-3), whose summits were labelled for gems that actually live
+  on the sector's middle stage.
+- Ramps continue to lead up to guarded reward ledges (the per-stage ramp→ledge clusters), and atoms
+  stay spaced so new summit/perch rewards never clump onto an existing pickup.
+
+## v0.32.1 - 2026-07-04
+
+### Fix: enemies falling through solid floor could block the stage clear
+
+- **Enemies that clip through solid ground are now recovered.** A physics tunneling glitch (e.g. at a
+  crumble-tile seam) could drop a ground enemy through the floor where there is no gap; it would fall
+  off-screen and get stranded, leaving the stage impossible to clear. Ground enemies that sink below
+  the floor surface while **not** over a real hole are now snapped back to their spawn point with
+  cleared velocity and returned to patrolling, so they stay reachable.
+- Enemies over an **authored gap / open crumble pit** still fall to their death as before (counting
+  toward the clear). Flyers are unaffected.
+
 ## v0.32.0 - 2026-06-27
 
 ### Ramps + denser platforming on every stage

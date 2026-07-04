@@ -989,3 +989,25 @@ export const NOBLE_BY_STAGE: Record<number, { x: number; y: number; gas: NobleGa
   14: { x: 2945, y: -280, gas: 'xenon', guard: 'bee' }, // sector 5
   17: { x: 2945, y: -310, gas: 'radon', guard: 'bee' }, // sector 6
 };
+
+// ── Higher platforms must pay off ──────────────────────────────────────────────
+// A climb with nothing at the summit is a dead end. Guarantee every stage's tallest platform (the
+// top of its sky tower) carries a reward: if no atom or noble gem already sits up there, perch a
+// sector-appropriate atom on it. On stages whose summit already holds a reward this is a no-op.
+for (let i = 0; i < STAGES.length; i++) {
+  const s = STAGES[i];
+  const stageNo = i + 1;
+  const sector = Math.ceil(stageNo / 3);
+  let top: [number, number, number] | null = null;
+  for (const p of s.platforms ?? []) if (!top || p[1] < top[1]) top = p;
+  if (!top) continue;
+  const [px, py, pw] = top;
+  const cx = px + pw / 2;
+  // Already rewarded if an atom is perched near/above this platform, or the sector's gem lives here.
+  const hasAtom = s.atoms.some((a) => Math.abs(a.x - cx) < 150 && (a.y ?? GROUND_TOP_Y) < py + 80);
+  const gem = NOBLE_BY_STAGE[stageNo];
+  const hasGem = gem !== undefined && Math.abs(gem.x - cx) < 170;
+  if (!hasAtom && !hasGem) {
+    s.atoms.push({ x: Math.round(cx), y: py - 44, choices: CLUSTER_ATOMS[sector] });
+  }
+}

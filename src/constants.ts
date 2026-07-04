@@ -132,16 +132,8 @@ export const PLAYER_DOUBLE_JUMP_VELOCITY = 760; // px/s — a punchy airborne se
 export const PLAYER_MAX_JUMPS = 2;
 export const GAP_FALL_DAMAGE = 15; // taken when the player falls into a pit (then respawns on the last ledge)
 
-// Fall damage — landing after dropping (net, below your takeoff point) more than a few body-heights
-// hurts, scaling with how far you fell. Measured from takeoff (not the jump apex) so jumping straight
-// up and landing where you started never hurts.
-export const PLAYER_HEIGHT = 44; // physics body height, the unit for fall-distance thresholds
-export const FALL_DAMAGE_SAFE_HEIGHTS = 3; // free fall up to this many player-heights is harmless
-export const FALL_DAMAGE_PER_PX = 0.09; // damage per px fallen beyond the safe distance
-export const FALL_DAMAGE_MAX = 60; // cap so a huge drop hurts a lot but isn't an instant kill
-
 // Platforming hazards (added throughout the stages — see src/stages.ts)
-export const PLAYER_BOUNCE_VELOCITY = 1150; // bounce-pad launch velocity (peak ≈ 367px)
+export const PLAYER_BOUNCE_VELOCITY = 1626; // bounce-pad launch velocity (peak ≈ 735px — 2× a normal bop)
 export const HAZARD_DAMAGE = 10; // per invincibility-throttled tick while standing in acid/spikes
 export const CRUMBLE_DELAY_MS = 620; // grace period after stepping on a crumbling tile before it drops
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DEPTH, FLYER_MAX_Y, FLYER_MIN_Y, GAME_HEIGHT, GRAVITY } from '../constants';
+import { DEPTH, FLYER_MAX_Y, FLYER_MIN_Y, GAME_HEIGHT, GRAVITY, GROUND_TOP_Y } from '../constants';
 import type GameScene from '../scenes/GameScene';
 import type { EnemySprite } from '../types';
 
@@ -133,6 +133,9 @@ export default class Enemy {
   private readonly ranged: RangedConfig | null;
 
   sprite: EnemySprite;
+  /** Where this enemy was spawned — used to recover it if it ever clips through solid floor. */
+  private readonly spawnX: number;
+  private readonly spawnY: number;
   /**
    * Display scale that fits this enemy's source texture into its size box. All squash/stretch
    * animation must be expressed relative to this value, never as a raw scale, or a high-res PNG
@@ -156,6 +159,9 @@ export default class Enemy {
   constructor(scene: GameScene, x: number, y: number, type: EnemyType = 'bacterium') {
     this.scene = scene;
     this.type = type;
+
+    this.spawnX = x;
+    this.spawnY = y;
 
     const cfg = CONFIGS[type] ?? CONFIGS.bacterium;
     this.maxHp = cfg.hp;
@@ -196,10 +202,20 @@ export default class Enemy {
   update(time: number, delta: number, playerSprite: Phaser.Physics.Arcade.Sprite): void {
     if (!this.sprite.active || this.state === STATES.DEAD) return;
 
-    // Walked off a ledge into a pit — perish (counts toward the clear instead of getting stuck offscreen).
-    if (this.sprite.y > GAME_HEIGHT + 40) {
-      this._die();
-      return;
+    // Vertical recovery: a ground enemy sunk below the floor surface either fell into a real pit or
+    // clipped through solid floor. If it's over an actual hole (an authored gap / open crumble pit),
+    // let it drop off-screen and perish — that counts toward the clear. Otherwise it must have
+    // clipped through solid ground (a physics tunneling glitch), which would strand it off-screen and
+    // block the clear, so snap it back to where it spawned. Flyers have no gravity and never fall.
+    if (!this.fly && this.sprite.y > GROUND_TOP_Y + 60) {
+      if (this.scene.isOverHole(this.sprite.x)) {
+        if (this.sprite.y > GAME_HEIGHT + 40) {
+          this._die();
+          return;
+        }
+      } else {
+        this._recoverToSpawn();
+      }
     }
 
     if (!this.hasEnteredView) {
@@ -468,6 +484,18 @@ export default class Enemy {
         },
       });
     }
+  }
+
+  /**
+   * Clipped through solid floor — teleport back to the spawn point with a clean, grounded state so
+   * the enemy stays reachable rather than falling forever off-screen and blocking the stage clear.
+   */
+  private _recoverToSpawn(): void {
+    this.sprite.body.setVelocity(0, 0);
+    // Land just above the floor if the spawn point was itself below the surface for any reason.
+    const y = Math.min(this.spawnY, GROUND_TOP_Y - 30);
+    this.sprite.setPosition(this.spawnX, y);
+    this.state = STATES.PATROL;
   }
 
   private _die(): void {

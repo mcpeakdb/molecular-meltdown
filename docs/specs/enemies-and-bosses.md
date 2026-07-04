@@ -81,8 +81,13 @@ States: PATROL, CHASE, ATTACK, HURT, DEAD.
   per tick.
 - **REQ-ENEMY-033** — WHEN an enemy's HP reaches 0 (from a hit or a bleed tick), it shall die: enter
   DEAD, notify `GameScene.onEnemyDeath`, and fade/rise out before destroying its sprite.
-- **REQ-ENEMY-034** — IF an enemy falls off a ledge below the screen, THEN it shall die (counting
-  toward the clear rather than getting stuck offscreen).
+- **REQ-ENEMY-034** — IF a ground enemy sinks below the floor surface WHILE over a real hole (an
+  authored gap or open crumble pit) and drops below the screen, THEN it shall die (counting toward
+  the clear rather than getting stuck offscreen).
+- **REQ-ENEMY-035** — IF a ground enemy sinks below the floor surface while NOT over a hole (it has
+  clipped through solid floor), THEN it shall be recovered to its spawn point with zeroed velocity
+  and returned to PATROL, so it stays reachable and cannot strand the stage clear. Flyers have no
+  gravity and are exempt.
 
 ## Bosses
 

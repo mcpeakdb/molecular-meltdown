@@ -574,8 +574,12 @@ export default class GameScene extends Phaser.Scene {
     return r;
   }
 
-  /** A visible, solid ledge the player can jump onto: [xLeft, yTop, width]. */
-  private _addPlatform(xLeft: number, yTop: number, w: number): void {
+  /**
+   * A visible, solid ledge the player can jump onto: [xLeft, yTop, width]. When `oneWay`, only the
+   * top face collides — the player rises up through it (e.g. off a bounce pad) and lands on top,
+   * rather than smacking into its underside. Used for the high pad-reward perches.
+   */
+  private _addPlatform(xLeft: number, yTop: number, w: number, oneWay = false): void {
     const theme = SECTOR_THEMES[this.sector];
     const thickness = 18;
     const cx = xLeft + w / 2;
@@ -591,6 +595,13 @@ export default class GameScene extends Phaser.Scene {
     r.displayWidth = w;
     r.displayHeight = thickness;
     r.refreshBody();
+    if (oneWay) {
+      // Solid only on top: pass through it from below/the sides, settle onto its surface.
+      const body = r.body as Phaser.Physics.Arcade.StaticBody;
+      body.checkCollision.down = false;
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+    }
   }
 
   /**
@@ -939,21 +950,30 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /**
+   * True when world-x `x` sits over a real hole in the floor (an authored gap or an open crumble
+   * pit) — i.e. a spot where falling through is intended. Enemies use this to tell a legitimate
+   * pit-fall from clipping through solid floor (see `Enemy.update`). Padded to cover the hole edges.
+   */
+  isOverHole(x: number): boolean {
+    return this._holes.some((h) => x > h.x1 - 10 && x < h.x2 + 10);
+  }
+
+  /**
    * Pits must be jumped. Walk off a ledge or miss a jump and the player simply falls under gravity;
-   * once they drop below the screen, deal fall damage and respawn them on the last safe ledge.
+   * once they drop below the screen, deal pit-fall damage and respawn them on the last safe ledge.
+   * (Only falling into a chasm hurts — landing a high drop onto solid ground no longer does.)
    */
   private _updatePitFall(): void {
     const p = this.player;
     if (!p.alive) return;
     const px = p.sprite.x;
     // Remember the last solid footing that isn't a hole, so respawns land somewhere stable.
-    if (p.sprite.body.onFloor() && !this._holes.some((h) => px > h.x1 - 10 && px < h.x2 + 10)) {
+    if (p.sprite.body.onFloor() && !this.isOverHole(px)) {
       this._lastSafeX = px;
     }
     if (p.sprite.y > GAME_HEIGHT + 60) {
       p.sprite.body.setVelocity(0, 0);
       p.sprite.setPosition(this._lastSafeX, GROUND_TOP_Y - 60);
-      p.resetFall(); // the respawn drop to the ledge must not also incur landing fall damage
       SoundSystem.play(this.audioCtx, 'punch');
       this.shake(260, 0.012);
       p.takeDamage(GAP_FALL_DAMAGE); // respects i-frames; lethal only if HP runs out
@@ -1028,7 +1048,12 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Draw a springy bounce-spore dome on the floor. Centered on GROUND_TOP_Y so it squashes down. */
+  /**
+   * Draw a springy bounce-spore dome on the floor (centered on GROUND_TOP_Y so it squashes down),
+   * then hang its reward: a one-way perch high overhead — reachable only by the pad's launch, not a
+   * double-jump — with a free-choice atom on it. This gives every pad a purpose: bop it to reach an
+   * otherwise-unreachable pickup. See the reachability math in `_addPad`'s constants.
+   */
   private _addPad(x: number): void {
     const g = this.add
       .graphics()
@@ -1043,6 +1068,15 @@ export default class GameScene extends Phaser.Scene {
     g.fillStyle(0xbfffd8, 0.8);
     g.fillEllipse(-10, -20, 16, 10); // highlight
     this._pads.push({ x, gfx: g });
+
+    // Reward perch. The pad launches feet well above the perch (peak ≈ v²/2g ≈ y-265); a double-jump
+    // only reaches ~y166. A perch at y≈140 therefore sits in the pad-only window: unreachable by
+    // jumping, comfortably cleared by a bop (the player arcs above it and drops onto its top face).
+    const perchW = 130;
+    const perchTop = GROUND_TOP_Y - 330; // ≈ y140
+    this._addPlatform(x - perchW / 2, perchTop, perchW, true);
+    const reward = new Atom(this, x, perchTop - 40, [...BASE_ATOMS], false);
+    this.atomGroup.add(reward.sprite);
   }
 
   /** Land on a pad and you're launched into a high arc. */
