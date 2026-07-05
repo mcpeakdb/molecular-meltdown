@@ -11,15 +11,15 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   6 THE WASTE BIN. Sectors 4–6 share the lab-floor biome/tiles (only 1–3 have unique tile art).
 - **REQ-STAGE-002** — A `StageDef` shall carry: `name`, `width`, `atoms` (choice nodes, optionally
   perched at `y`), `enemies` (optionally perched at `y`), `gaps`, and optionally `rise` (climbable sky
-  height), `platforms`, `ramps`, `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or
+  height), `platforms`, `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or
   `exitX` (reach-the-exit clear). `boss` and `exitX` are mutually exclusive.
 - **REQ-STAGE-005** — After the hand-authored `STAGES` literal, every stage shall be enriched with up
-  to two ramp→ledge clusters (`addRampCluster`): a slanted ramp up to a floating ledge that carries a
-  bonus atom and a posted ground-type guard. The two clusters shall be spread out (one biased toward
-  the front ~16% of the stage, one toward ~72%) and placed only on the nearest origin to that target
-  whose footprint is clear of every existing structure — gaps, hazards, ledges, ramps, the central
-  sky-tower band, and any already-placed cluster (`occupiedSpans` / `findClusterSpot`). A cluster is
-  skipped when no clear span exists.
+  to two guarded ledge clusters (`addLedgeCluster`): a floating ledge (within a single jump of the
+  floor, ~90px up) that carries a bonus atom and a posted ground-type guard. The two clusters shall be
+  spread out (one biased toward the front ~16% of the stage, one toward ~72%) and placed only on the
+  nearest origin to that target whose footprint is clear of every existing structure — gaps, hazards,
+  ledges, the central sky-tower band, and any already-placed cluster (`occupiedSpans` /
+  `findClusterSpot`). A cluster is skipped when no clear span exists.
 - **REQ-STAGE-006** — After clusters and nobles are placed, every stage's tallest platform (its
   sky-tower summit) shall be guaranteed a reward: WHERE no atom is already perched near/above it and
   no noble gem sits there, a sector-appropriate choice atom shall be perched on it. On stages whose
@@ -50,12 +50,6 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-WORLD-002** — The floor shall be built as solid static colliders spanning every gap-free
   range, with real holes at each gap and crumble range (`_buildFloorColliders`); ledge platforms
   shall be added as visible solid colliders the player can jump onto.
-- **REQ-WORLD-002a** — A `ramps` entry `[xLeft, yLeftTop, width, yRightTop]` shall render as a
-  floating slanted plank along the surface line. Because Arcade bodies are AABB-only there is no
-  angled collider; instead the surface is recorded and, each frame, the player is fed the ramp-surface
-  y under it (`_computeRampContact`) and slope-snapped onto it WHILE settling (not jumping upward),
-  which treats the slope as solid ground for standing and jumping (Player ramp-snap). Enemies are not
-  slope-snapped.
 - **REQ-WORLD-003** — The world shall render parallax background tiles, per-sector decorative scenery
   and horizon props, a ground line with tick marks, and a screen-fixed vignette.
 - **REQ-WORLD-004** — The camera shall follow the player smoothly within the world bounds.

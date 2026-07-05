@@ -59,12 +59,6 @@ export default class Player {
   private jumpCount = 0;
   private _onGround = false;
   private _wasOnGround = false;
-  /**
-   * World-Y of the ramp surface directly under the player this frame, or null when not over a ramp.
-   * Set by {@link GameScene} before `update` (Arcade bodies are AABB-only, so sloped ledges are
-   * walked via a per-frame snap rather than a real collider). See the ramp-snap block in `update`.
-   */
-  rampSurfaceY: number | null = null;
   private _isRolling = false;
   private _rollTween: Phaser.Tweens.Tween | null = null;
   private _jumpShadow!: Phaser.GameObjects.Graphics;
@@ -139,17 +133,6 @@ export default class Player {
 
     // Grounded state drives jumping, animation, and the shadow (real arcade physics now).
     this._onGround = this.sprite.body.onFloor();
-    // Ramp snap: WHILE the player is over a slanted ledge and settling onto it (not jumping up),
-    // clamp the feet to the slope surface and treat it as solid ground — gives a true walk-up ramp
-    // on top of Arcade's AABB-only colliders. The upward-velocity guard keeps jumps off the ramp.
-    if (this.rampSurfaceY !== null && this.sprite.body.velocity.y >= -20) {
-      const feetY = this.sprite.y + PLAYER_FEET_OFFSET;
-      if (feetY >= this.rampSurfaceY - 12 && feetY <= this.rampSurfaceY + 30) {
-        this.sprite.y = this.rampSurfaceY - PLAYER_FEET_OFFSET;
-        this.sprite.body.setVelocityY(0);
-        this._onGround = true;
-      }
-    }
     if (this._onGround && this.sprite.body.velocity.y >= 0) this.jumpCount = 0;
     if (this._onGround && !this._wasOnGround) this._onLand();
     this._wasOnGround = this._onGround;

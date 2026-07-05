@@ -257,8 +257,6 @@ export default class GameScene extends Phaser.Scene {
   private _lastSafeX = 120;
   // ── Platforming hazards (data-driven per stage in src/stages.ts) ──
   private _hazards: { x1: number; x2: number }[] = [];
-  /** Slanted ramp surfaces (top line) the player walks via per-frame slope snap. */
-  private _ramps: { x1: number; x2: number; y1: number; y2: number }[] = [];
   private _pads: { x: number; gfx: Phaser.GameObjects.Graphics }[] = [];
   private _crumbles: CrumbleTile[] = [];
   private readonly _tutAtomX = 900;
@@ -293,7 +291,6 @@ export default class GameScene extends Phaser.Scene {
     this._holes = [];
     this._lastSafeX = 120;
     this._hazards = [];
-    this._ramps = [];
     this._pads = [];
     this._crumbles = [];
     this._tutDone = false;
@@ -616,37 +613,6 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * A slanted ramp the player walks up/down. Arcade bodies are AABB-only, so there is no angled
-   * collider: the surface line is recorded in `_ramps` and the player is slope-snapped to it each
-   * frame (see `_computeRampContact`). It floats like a ledge — drawn as a thin slanted plank that
-   * follows the slope, no skirt down to the floor.
-   */
-  private _addRamp(xLeft: number, yLeftTop: number, w: number, yRightTop: number): void {
-    const theme = SECTOR_THEMES[this.sector];
-    const xRight = xLeft + w;
-    const thickness = 18;
-    this._ramps.push({ x1: xLeft, x2: xRight, y1: yLeftTop, y2: yRightTop });
-    const g = this.add.graphics().setDepth(DEPTH.PLATFORM);
-    // Slanted plank: a parallelogram of fixed thickness following the slope, with a soft drop shadow.
-    const plank = (off: number, h: number) => {
-      g.beginPath();
-      g.moveTo(xLeft, yLeftTop + off);
-      g.lineTo(xRight, yRightTop + off);
-      g.lineTo(xRight, yRightTop + off + h);
-      g.lineTo(xLeft, yLeftTop + off + h);
-      g.closePath();
-      g.fillPath();
-    };
-    g.fillStyle(theme.shadow, 0.9);
-    plank(0, thickness + 6);
-    g.fillStyle(theme.tick, 0.9);
-    plank(0, thickness);
-    // Bright leading edge along the walkable slope.
-    g.lineStyle(3, theme.floorLine, 0.85);
-    g.lineBetween(xLeft, yLeftTop, xRight, yRightTop);
-  }
-
   /** Decorative, per-sector procedural scenery: faint background structures + a horizon prop row. */
   private _buildBiomeProps(sector: SectorId, w: number): void {
     const palette = SECTOR_THEMES[sector].particles;
@@ -726,8 +692,8 @@ export default class GameScene extends Phaser.Scene {
     const def = this.stageDef;
     const scale = DIFFICULTY_SCALE[this.difficulty];
 
-    // Atoms — branching choice nodes (see src/stages.ts for the per-stage ramp). They float at a
-    // reachable height, or at an authored `y` when perched on a ledge.
+    // Atoms — branching choice nodes (see src/stages.ts for the per-stage progression). They float at
+    // a reachable height, or at an authored `y` when perched on a ledge.
     // Rare rolls upgrade a node into a wildcard: ~0.1% Platinum (pick any atom, +3) or, failing that,
     // ~1% Gold (pick any atom, +2). Platinum is checked first so its slice is carved out of the roll.
     def.atoms.forEach((a) => {
@@ -742,10 +708,6 @@ export default class GameScene extends Phaser.Scene {
     // Ledge platforms to jump onto.
     def.platforms?.forEach(([x, y, w]) => {
       this._addPlatform(x, y, w);
-    });
-    // Slanted ramps the player walks up/down (slope-snapped, see _computeRampContact).
-    def.ramps?.forEach(([x, yL, w, yR]) => {
-      this._addRamp(x, yL, w, yR);
     });
     // Gaps first so an enemy overlapping a chasm can be skipped
     def.gaps.forEach(([a, b]) => {
@@ -886,23 +848,6 @@ export default class GameScene extends Phaser.Scene {
   /** Push the current germ tally (killed / total) to the HUD. */
   private _emitEnemyCount(): void {
     this.events.emit('enemies-update', { killed: this._enemyKilled, total: this._enemyTotal });
-  }
-
-  /**
-   * Y of the ramp surface directly under world-x `px`, or null when `px` is over no ramp. The
-   * contact range is extended a little past each end (clamped to the end height) so the player is
-   * carried slightly onto an adjoining ledge/floor before the snap releases — this prevents stalling
-   * against the thin AABB left face where a ramp meets a platform.
-   */
-  private _computeRampContact(px: number): number | null {
-    const M = 16;
-    for (const r of this._ramps) {
-      if (px >= r.x1 - M && px <= r.x2 + M) {
-        const t = Phaser.Math.Clamp((px - r.x1) / (r.x2 - r.x1), 0, 1);
-        return r.y1 + (r.y2 - r.y1) * t;
-      }
-    }
-    return null;
   }
 
   /** Spawn height by enemy type: flyers in the hover band, ground types just above the floor. */
@@ -1564,10 +1509,6 @@ export default class GameScene extends Phaser.Scene {
     touchControls?.setEnabled(!this.isPaused && !this.stageCleared);
 
     if (this.isPaused || this.stageCleared) return;
-
-    // Feed the player the ramp surface beneath it (if any) before its physics step so the slope
-    // snap is applied this frame (Arcade has no angled colliders — see Player ramp-snap).
-    this.player.rampSurfaceY = this._computeRampContact(this.player.sprite.x);
 
     this.player.update(_time, delta, {
       cursors: this.cursors,

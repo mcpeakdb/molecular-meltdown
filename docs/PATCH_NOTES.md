@@ -1,5 +1,18 @@
 # Patch Notes
 
+## v0.36.0 - 2026-07-04
+
+### Ramps removed
+
+- **Slanted ramps are gone.** The `ramps` terrain type and all of its plumbing — the per-frame
+  slope-snap that stood in for Arcade's missing angled colliders (`_computeRampContact`, the player's
+  `rampSurfaceY` snap), the slanted-plank rendering, and the `ramps` `StageDef` field — have been
+  removed.
+- **Reward ledges stay, now reached by a plain jump.** The per-stage bonus clusters (the floating
+  ledge with a perched atom and a posted guard) are unchanged in content: `addRampCluster` is now
+  `addLedgeCluster`, and each ledge sits ~90px up, within a single jump (peak ≈ 144px) of the floor.
+  No pickups or foes were lost — just the ramp leading up to them.
+
 ## v0.35.0 - 2026-07-04
 
 ### Silver coins on every level
