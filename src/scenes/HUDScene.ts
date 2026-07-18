@@ -9,6 +9,7 @@ import {
   MAX_ELEMENT_LEVEL,
   PLAYER_MAX_ARMOR,
   PLAYER_MAX_HP,
+  RUN_LIVES,
   SLOT_KEY_LABELS,
 } from '../constants';
 import Settings from '../systems/Settings';
@@ -83,6 +84,9 @@ export default class HUDScene extends Phaser.Scene {
   private enemiesText!: Phaser.GameObjects.Text;
   private coinsText!: Phaser.GameObjects.Text;
   private coinsIcon!: Phaser.GameObjects.Arc;
+  /** Run lives readout (hearts) at the top-right; hidden during the tutorial (livesRemaining < 0). */
+  private livesLabel!: Phaser.GameObjects.Text;
+  private livesText!: Phaser.GameObjects.Text;
 
   /** On-screen touch controls, polled by GameScene each frame. Null when touch controls are off. */
   touch: TouchControls | null = null;
@@ -289,8 +293,29 @@ export default class HUDScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setAlpha(0);
 
+    // ── LIVES ─────────────────────────────────────────────────────────────────
+    // Run lives, shown as hearts under the score/combo cluster. Hidden in the tutorial.
+    this.livesLabel = this.add
+      .text(GAME_WIDTH - PAD, PAD + 100, 'LIVES', { fontSize: '12px', color: '#4a7a4a', fontFamily: MONO })
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setOrigin(1, 0);
+    this.livesText = this.add
+      .text(GAME_WIDTH - PAD, PAD + 114, '', {
+        fontSize: '20px',
+        color: '#ff6a7a',
+        fontFamily: MONO,
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setOrigin(1, 0);
+
     // ── EVENTS ───────────────────────────────────────────────────────────────
     const gameScene = this.scene.get('GameScene');
+    // Seed the lives readout from the current run state (the GameScene instance already exists).
+    this._onLives((gameScene as Phaser.Scene & { livesRemaining?: () => number }).livesRemaining?.() ?? -1);
+    gameScene.events.on('lives-update', this._onLives, this);
     gameScene.events.on('hud-update', this._onUpdate, this);
     gameScene.events.on('arsenal-update', this._onArsenal, this);
     gameScene.events.on('score-update', (score: number) => this.scoreText.setText(score.toLocaleString()), this);
@@ -366,6 +391,18 @@ export default class HUDScene extends Phaser.Scene {
       .setVisible(true)
       .setText(`${collected}/${total}${done ? '  ✔' : ''}`)
       .setColor(done ? '#aef0c0' : '#cfd8e2');
+  }
+
+  /** Render the run's remaining lives as hearts. A negative value (tutorial) hides the readout. */
+  private _onLives(lives: number): void {
+    const show = lives >= 0;
+    this.livesLabel.setVisible(show);
+    this.livesText.setVisible(show);
+    if (!show) return;
+    const left = Math.min(RUN_LIVES, Math.max(0, lives));
+    this.livesText
+      .setText(`${'♥'.repeat(left)}${'♡'.repeat(RUN_LIVES - left)}`)
+      .setColor(left <= 1 ? '#ff4040' : '#ff6a7a');
   }
 
   private _onEnemies({ killed, total }: { killed: number; total: number }): void {

@@ -4,6 +4,7 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   isFinaleStage,
+  RUN_LIVES,
   SECTORS,
   type SectorId,
   STAGE_COUNT,
@@ -506,7 +507,11 @@ export default class StageSelectScene extends Phaser.Scene {
       });
     }
 
-    this.registry.set('runScore', 0); // a freshly selected stage begins a new run
+    // A freshly selected stage begins a new run: reset the score, empty the noble-gas collection, and
+    // restore a full set of lives.
+    this.registry.set('runScore', 0);
+    this.registry.set('runNobles', []);
+    this.registry.set('lives', RUN_LIVES);
     this.time.delayedCall(520, () => this.scene.start('GameScene', { stage, difficulty: this.difficulty }));
   }
 

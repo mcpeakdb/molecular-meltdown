@@ -136,6 +136,113 @@ const PLATINUM_NUMBER = 78;
 const PLATINUM_MASS = 195.08;
 const SUPER_POS: GP = { g: 18, p: 7 }; // caps the noble-gas column — the weapon they unlock
 
+// ── Full periodic table through Radon (Z = 86) ──────────────────────────────────
+// Every element up to Rn is shown so the table reads complete. The game's own elements are drawn as
+// bright, selectable cells (see create); every other element is a greyed, non-selectable reference
+// tile carrying just its atomic number and symbol. Lanthanides (57–71) sit in the detached f-block
+// strip on the period-7 row, below the main grid.
+interface PElem {
+  z: number;
+  sym: string;
+  g: number;
+  p: number;
+}
+// Main-grid elements 1–86 in their true (group, period) cells (lanthanides handled separately below).
+const FULL_TABLE: PElem[] = [
+  { z: 1, sym: 'H', g: 1, p: 1 },
+  { z: 2, sym: 'He', g: 18, p: 1 },
+  { z: 3, sym: 'Li', g: 1, p: 2 },
+  { z: 4, sym: 'Be', g: 2, p: 2 },
+  { z: 5, sym: 'B', g: 13, p: 2 },
+  { z: 6, sym: 'C', g: 14, p: 2 },
+  { z: 7, sym: 'N', g: 15, p: 2 },
+  { z: 8, sym: 'O', g: 16, p: 2 },
+  { z: 9, sym: 'F', g: 17, p: 2 },
+  { z: 10, sym: 'Ne', g: 18, p: 2 },
+  { z: 11, sym: 'Na', g: 1, p: 3 },
+  { z: 12, sym: 'Mg', g: 2, p: 3 },
+  { z: 13, sym: 'Al', g: 13, p: 3 },
+  { z: 14, sym: 'Si', g: 14, p: 3 },
+  { z: 15, sym: 'P', g: 15, p: 3 },
+  { z: 16, sym: 'S', g: 16, p: 3 },
+  { z: 17, sym: 'Cl', g: 17, p: 3 },
+  { z: 18, sym: 'Ar', g: 18, p: 3 },
+  { z: 19, sym: 'K', g: 1, p: 4 },
+  { z: 20, sym: 'Ca', g: 2, p: 4 },
+  { z: 21, sym: 'Sc', g: 3, p: 4 },
+  { z: 22, sym: 'Ti', g: 4, p: 4 },
+  { z: 23, sym: 'V', g: 5, p: 4 },
+  { z: 24, sym: 'Cr', g: 6, p: 4 },
+  { z: 25, sym: 'Mn', g: 7, p: 4 },
+  { z: 26, sym: 'Fe', g: 8, p: 4 },
+  { z: 27, sym: 'Co', g: 9, p: 4 },
+  { z: 28, sym: 'Ni', g: 10, p: 4 },
+  { z: 29, sym: 'Cu', g: 11, p: 4 },
+  { z: 30, sym: 'Zn', g: 12, p: 4 },
+  { z: 31, sym: 'Ga', g: 13, p: 4 },
+  { z: 32, sym: 'Ge', g: 14, p: 4 },
+  { z: 33, sym: 'As', g: 15, p: 4 },
+  { z: 34, sym: 'Se', g: 16, p: 4 },
+  { z: 35, sym: 'Br', g: 17, p: 4 },
+  { z: 36, sym: 'Kr', g: 18, p: 4 },
+  { z: 37, sym: 'Rb', g: 1, p: 5 },
+  { z: 38, sym: 'Sr', g: 2, p: 5 },
+  { z: 39, sym: 'Y', g: 3, p: 5 },
+  { z: 40, sym: 'Zr', g: 4, p: 5 },
+  { z: 41, sym: 'Nb', g: 5, p: 5 },
+  { z: 42, sym: 'Mo', g: 6, p: 5 },
+  { z: 43, sym: 'Tc', g: 7, p: 5 },
+  { z: 44, sym: 'Ru', g: 8, p: 5 },
+  { z: 45, sym: 'Rh', g: 9, p: 5 },
+  { z: 46, sym: 'Pd', g: 10, p: 5 },
+  { z: 47, sym: 'Ag', g: 11, p: 5 },
+  { z: 48, sym: 'Cd', g: 12, p: 5 },
+  { z: 49, sym: 'In', g: 13, p: 5 },
+  { z: 50, sym: 'Sn', g: 14, p: 5 },
+  { z: 51, sym: 'Sb', g: 15, p: 5 },
+  { z: 52, sym: 'Te', g: 16, p: 5 },
+  { z: 53, sym: 'I', g: 17, p: 5 },
+  { z: 54, sym: 'Xe', g: 18, p: 5 },
+  { z: 55, sym: 'Cs', g: 1, p: 6 },
+  { z: 56, sym: 'Ba', g: 2, p: 6 },
+  { z: 72, sym: 'Hf', g: 4, p: 6 },
+  { z: 73, sym: 'Ta', g: 5, p: 6 },
+  { z: 74, sym: 'W', g: 6, p: 6 },
+  { z: 75, sym: 'Re', g: 7, p: 6 },
+  { z: 76, sym: 'Os', g: 8, p: 6 },
+  { z: 77, sym: 'Ir', g: 9, p: 6 },
+  { z: 78, sym: 'Pt', g: 10, p: 6 },
+  { z: 79, sym: 'Au', g: 11, p: 6 },
+  { z: 80, sym: 'Hg', g: 12, p: 6 },
+  { z: 81, sym: 'Tl', g: 13, p: 6 },
+  { z: 82, sym: 'Pb', g: 14, p: 6 },
+  { z: 83, sym: 'Bi', g: 15, p: 6 },
+  { z: 84, sym: 'Po', g: 16, p: 6 },
+  { z: 85, sym: 'At', g: 17, p: 6 },
+  { z: 86, sym: 'Rn', g: 18, p: 6 },
+];
+// Lanthanides — the f-block strip (57–71), drawn on the detached period-7 row under group 3.
+const LANTHANIDES: { z: number; sym: string }[] = [
+  { z: 57, sym: 'La' },
+  { z: 58, sym: 'Ce' },
+  { z: 59, sym: 'Pr' },
+  { z: 60, sym: 'Nd' },
+  { z: 61, sym: 'Pm' },
+  { z: 62, sym: 'Sm' },
+  { z: 63, sym: 'Eu' },
+  { z: 64, sym: 'Gd' },
+  { z: 65, sym: 'Tb' },
+  { z: 66, sym: 'Dy' },
+  { z: 67, sym: 'Ho' },
+  { z: 68, sym: 'Er' },
+  { z: 69, sym: 'Tm' },
+  { z: 70, sym: 'Yb' },
+  { z: 71, sym: 'Lu' },
+];
+/** Atomic numbers already drawn as bright, selectable game cells (base atoms, noble gases, Ca/Zn/Fe,
+ *  Ag/Au/Pt) — skipped by the greyed filler so they are not drawn twice. */
+const GAME_ELEMENTS = new Set<number>([1, 2, 6, 7, 8, 10, 15, 16, 17, 18, 20, 26, 30, 36, 47, 54, 78, 79, 86]);
+
 const hex = (col: number): string => `#${col.toString(16).padStart(6, '0')}`;
 const isBaseAtom = (id: AttackId): id is BaseAtom => (BASE_ATOMS as string[]).includes(id);
 const shortName = (id: AttackId): string => ELEMENT_NAMES[id].replace(/\s*\(.*\)/, '');
@@ -155,7 +262,7 @@ const MGAP = 4;
 const GRID_W = GROUPS * MTW + (GROUPS - 1) * MGAP;
 const MLEFT = (GAME_WIDTH - GRID_W) / 2;
 const P_TOP = 100;
-const P_STEP = 46;
+const P_STEP = 44;
 const groupX = (g: number): number => MLEFT + (g - 1) * (MTW + MGAP) + MTW / 2;
 const periodY = (p: number): number => P_TOP + (p - 1) * P_STEP;
 
@@ -168,14 +275,14 @@ const CROW_GAP = 8; // vertical gap between the two compound rows
 const COMP_Y = 440; // centre-y of the first compound row (a 2nd row sits CTH+CROW_GAP below when needed)
 
 // The detail panel lives in the classic empty upper-middle void, exactly where a printed table prints
-// its key/legend. It spans the empty middle of periods 1–3 (wide, so long descriptions never wrap)
-// and its foot stops just above period 4 — which is where the life/power-up drops sit: Calcium
-// (group 2), Iron (group 8), and Zinc (group 12). Keeping the panel above period 4 leaves all three of
-// those cells (and the group-11 precious metals below them) clear.
-const DET_X = 84;
+// its key/legend. With the table now filled through Rn, the only genuinely empty span in periods 1–3
+// is groups 3–12 (period 2/3 jump straight from group 2 to group 13), so the panel is sized to sit
+// strictly inside that span — clear of the group-2 (Be/Mg) and group-13 (B/Al) cells on either side —
+// and its foot stops above period 4 (where Calcium/Iron/Zinc sit).
+const DET_X = 138;
 const DET_Y = 58;
-const DET_W = 592;
-const DET_H = 154;
+const DET_W = 484;
+const DET_H = 144;
 const DET_CX = DET_X + DET_W / 2;
 
 type CellKind = 'atom' | 'compound' | 'gold' | 'silver' | 'platinum' | 'noble' | 'super' | 'heal' | 'armor';
@@ -252,7 +359,7 @@ export default class MoleculeTreeScene extends Phaser.Scene {
       .text(cx, 22, 'PERIODIC TABLE', { fontSize: '24px', color: '#aaf0ff', fontFamily: MONO, fontStyle: 'bold' })
       .setOrigin(0.5);
     this.add
-      .text(cx, 44, 'Atoms & noble gases in their true groups · compounds assembled below', {
+      .text(cx, 44, 'Every element through Radon (86) · bright = in play, grey = reference · compounds below', {
         fontSize: '11px',
         color: '#6699aa',
         fontFamily: MONO,
@@ -260,6 +367,7 @@ export default class MoleculeTreeScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this._drawDecorations();
+    this._drawFillerElements();
 
     // Base atoms in true periodic positions.
     (Object.keys(ATOM_POS) as BaseAtom[]).forEach((a) => {
@@ -482,6 +590,47 @@ export default class MoleculeTreeScene extends Phaser.Scene {
         fontFamily: MONO,
       })
       .setOrigin(0.5);
+  }
+
+  /** Draw every non-game element (through Rn, 86) as a greyed, non-selectable reference tile so the
+   *  table reads as the complete real thing. Bright, selectable game cells are drawn separately. */
+  private _drawFillerElements(): void {
+    for (const e of FULL_TABLE) {
+      if (GAME_ELEMENTS.has(e.z)) continue; // its bright, selectable cell is drawn in create()
+      this._drawFiller(e.z, e.sym, groupX(e.g), periodY(e.p));
+    }
+    // Lanthanides (57–71) on the detached f-block strip, aligned from group 3 along the period-7 row.
+    LANTHANIDES.forEach((e, i) => {
+      this._drawFiller(e.z, e.sym, groupX(3 + i), periodY(7));
+    });
+    // The classic "*" placeholder in the group-3 / period-6 slot the lanthanides fold out of.
+    this.add
+      .text(groupX(3), periodY(6), '*', { fontSize: '16px', color: '#3f515a', fontFamily: MONO })
+      .setOrigin(0.5)
+      .setDepth(2);
+  }
+
+  /** One greyed reference tile: atomic number + symbol, dimmed and inert. It swallows taps (so a tap on
+   *  it does nothing, rather than dropping through to the backdrop's tap-to-exit) but is never added to
+   *  `this.cells`, so the keyboard cursor never lands on it. */
+  private _drawFiller(z: number, sym: string, x: number, y: number): void {
+    const left = x - MTW / 2;
+    const top = y - MTH / 2;
+    const g = this.add.graphics().setDepth(1);
+    g.fillStyle(0x0d151b, 0.9);
+    g.fillRect(left, top, MTW, MTH);
+    g.lineStyle(1, 0x24323b, 0.7);
+    g.strokeRect(left, top, MTW, MTH);
+    this.add
+      .text(left + 5, top + 4, `${z}`, { fontSize: '8px', color: '#3f515a', fontFamily: MONO })
+      .setOrigin(0, 0)
+      .setDepth(2);
+    this.add
+      .text(x, y + 2, sym, { fontSize: '14px', color: '#63747d', fontFamily: MONO, fontStyle: 'bold' })
+      .setOrigin(0.5)
+      .setDepth(2);
+    const zone = this.add.rectangle(x, y, MTW, MTH, 0x000000, 0).setDepth(4);
+    attachTap(zone, () => {}); // greyed elements are not selectable; just swallow the tap
   }
 
   private _addCell(cell: Cell): void {

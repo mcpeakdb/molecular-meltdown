@@ -46,11 +46,13 @@ export interface StageDef {
   exitX?: number;
 }
 
-/** Evenly lay out a list of enemy types between x=from and x=to. */
-function spread(from: number, to: number, types: EnemyType[]): StageEnemy[] {
-  if (types.length === 1) return [{ x: from, type: types[0] }];
-  const step = (to - from) / (types.length - 1);
-  return types.map((type, i) => ({ x: Math.round(from + i * step), type }));
+/** A hand-placed squad: enemies clustered tightly around `x` as one encounter — the opposite of an
+ *  even `spread`. The offsets only keep sprites from stacking; the design intent lives in *where* each
+ *  pack sits and *what* it contains, so stages can be paced (fights, breathers, a ramp) by hand. */
+function pack(x: number, ...types: EnemyType[]): StageEnemy[] {
+  const step = 58;
+  const mid = (types.length - 1) / 2;
+  return types.map((type, i) => ({ x: Math.round(x + (i - mid) * step), type }));
 }
 
 export const STAGES: StageDef[] = [
@@ -67,10 +69,15 @@ export const STAGES: StageDef[] = [
       // Reward for the climb — a third atom perched at the top of the tower.
       { x: 2610, y: -300, choices: ['hydrogen', 'carbon'] },
     ],
+    // Pacing: a gentle teaching ramp — one germ to learn on, a pair holding the gap, ranged harassers,
+    // then a clear breather over the pad + tower climb before the stage's only real crowd guards the exit.
     enemies: [
-      ...spread(600, 1300, ['bacterium', 'virus', 'bacterium']),
-      ...spread(1750, 2400, ['virus', 'bacterium', 'pollen']),
-      ...spread(2900, 3250, ['bacterium', 'dustbunny', 'virus']),
+      { x: 650, type: 'bacterium' }, // intro — a lone germ to practice basic combat on
+      ...pack(1120, 'bacterium', 'virus'), // a pair holding the run-up to the gap
+      ...pack(1850, 'pollen', 'virus'), // ranged harassers on the far side of the gap
+      // breather 2050–2900: the bounce pad and sky-tower climb are the beat here — no ground foes
+      ...pack(3060, 'bacterium', 'dustbunny', 'bacterium'), // the spike: the first real crowd
+      { x: 3270, type: 'virus' }, // exit sentry
     ],
     gaps: [[1500, 1620]],
     platforms: [
@@ -105,10 +112,15 @@ export const STAGES: StageDef[] = [
       { x: 2300, choices: ['hydrogen', 'oxygen'] },
       { x: 3300, choices: ['hydrogen', 'carbon'] },
     ],
+    // Pacing: intro pair → a rising fight → breather across the tower + Helium gem climb (and gap 2) →
+    // the spike after the gap → a final push past the crumbling agar to the exit.
     enemies: [
-      ...spread(550, 1250, ['virus', 'bacterium', 'virus', 'pollen']),
-      ...spread(1700, 2500, ['bacterium', 'dustbunny', 'virus', 'bacterium']),
-      ...spread(2750, 3650, ['virus', 'pollen', 'bacterium', 'dustbunny', 'virus']),
+      ...pack(600, 'bacterium', 'virus'), // intro skirmish
+      ...pack(1080, 'virus', 'pollen'), // ranged pair before the first gap
+      ...pack(1850, 'bacterium', 'dustbunny', 'virus'), // rising: a proper fight
+      // breather 2100–3070: sky tower to the Helium gem, then gap 2 — the platforming beat, no ground foes
+      ...pack(3250, 'virus', 'bacterium', 'pollen', 'virus'), // the spike, past gap 2
+      ...pack(3760, 'dustbunny', 'bacterium'), // exit push, just past the crumbling tiles
     ],
     gaps: [
       [1450, 1570],
@@ -147,10 +159,17 @@ export const STAGES: StageDef[] = [
       { x: 2900, choices: ['hydrogen', 'carbon'] },
       { x: 3700, choices: ['oxygen', 'hydrogen'] },
     ],
+    // Pacing (boss stage): a deliberate escalation toward the arena. The front is a light screen of
+    // lone foes; each encounter is bigger than the last; the heaviest crowd forms a wall right in
+    // front of the Super Bacterium.
     enemies: [
-      ...spread(550, 1300, ['bacterium', 'virus', 'bacterium', 'pollen']),
-      ...spread(1700, 2500, ['virus', 'dustbunny', 'bacterium', 'virus']),
-      ...spread(2950, 3800, ['bacterium', 'pollen', 'virus', 'dustbunny', 'bacterium']),
+      { x: 600, type: 'bacterium' }, // intro — a lone germ
+      { x: 1080, type: 'virus' }, // a single ranged harasser before the first gap
+      ...pack(1950, 'bacterium', 'virus'), // first pair, by the tower base / hazard
+      ...pack(2800, 'pollen', 'dustbunny'), // build-up before gap 2
+      // ramp into the boss (past gap 2 and the pad) — pressure climbs to a wall:
+      ...pack(3550, 'virus', 'bacterium', 'pollen'), // the pressure mounts
+      ...pack(4200, 'dustbunny', 'bacterium', 'bacterium', 'virus'), // the wall right before the arena
     ],
     gaps: [
       [1450, 1570],
@@ -190,10 +209,14 @@ export const STAGES: StageDef[] = [
       { x: 2675, y: -150, choices: ['oxygen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3200, choices: ['hydrogen', 'oxygen'] },
     ],
+    // Pacing: intro skirmish → rising fight → breather over the tower + gap 2 → spike → exit push.
     enemies: [
-      ...spread(550, 1250, ['spore', 'virus', 'spore', 'amoeba']),
-      ...spread(1700, 2500, ['virus', 'spore', 'amoeba', 'virus']),
-      ...spread(2750, 3650, ['spore', 'bacterium', 'spore', 'amoeba', 'virus']),
+      ...pack(600, 'spore', 'virus'), // intro
+      ...pack(1080, 'virus', 'amoeba'), // a tank joins, before the first gap
+      ...pack(1800, 'spore', 'virus', 'amoeba'), // rising fight
+      // breather 2300–3080: tower climb + gap 2
+      ...pack(3350, 'spore', 'bacterium', 'virus'), // the spike, past gap 2
+      ...pack(3720, 'spore', 'amoeba'), // exit push, past the crumbling tiles
     ],
     gaps: [
       [1450, 1580],
@@ -230,10 +253,15 @@ export const STAGES: StageDef[] = [
       { x: 2900, choices: ['hydrogen', 'oxygen'] },
       { x: 3800, choices: ['oxygen', 'carbon', 'nitrogen'] },
     ],
+    // Pacing: intro → rising fight → breather over the tower + Argon gem + gap 2 → spike → exit push.
     enemies: [
-      ...spread(550, 1350, ['spore', 'amoeba', 'spore', 'virus', 'spore']),
-      ...spread(1750, 2600, ['amoeba', 'spore', 'virus', 'spore', 'amoeba']),
-      ...spread(2900, 3900, ['spore', 'virus', 'amoeba', 'spore', 'virus', 'spore']),
+      ...pack(600, 'spore', 'amoeba'), // intro
+      ...pack(1100, 'spore', 'virus'), // ranged pair before the first gap
+      ...pack(1750, 'spore', 'amoeba', 'virus'), // rising fight
+      // breather 2350–3290: hazard, tower, Argon gem, gap 2
+      ...pack(3450, 'spore', 'virus', 'amoeba'), // the spike, past gap 2
+      ...pack(3800, 'spore', 'spore', 'amoeba'), // pressure holds
+      ...pack(4300, 'spore', 'spore', 'virus'), // exit push, past the crumbling tiles
     ],
     gaps: [
       [1500, 1640],
@@ -275,10 +303,15 @@ export const STAGES: StageDef[] = [
       { x: 2900, choices: ['hydrogen', 'oxygen'] },
       { x: 3700, choices: ['oxygen', 'carbon', 'nitrogen'] },
     ],
+    // Pacing (boss stage): light front → escalate → a wall of amoeba tanks right before the Amoeba Titan.
     enemies: [
-      ...spread(550, 1350, ['spore', 'amoeba', 'virus', 'spore']),
-      ...spread(1750, 2600, ['amoeba', 'spore', 'amoeba', 'virus']),
-      ...spread(2950, 3900, ['spore', 'amoeba', 'virus', 'spore', 'amoeba']),
+      { x: 600, type: 'spore' }, // intro — a lone spore
+      { x: 1100, type: 'virus' }, // a single harasser before the first gap
+      ...pack(1800, 'spore', 'amoeba'), // first pair, before the hazard
+      // breather 2400–3340: hazard, tower, gap 2
+      ...pack(3450, 'amoeba', 'spore', 'virus'), // the pressure mounts, past gap 2
+      ...pack(3950, 'spore', 'amoeba'), // build
+      ...pack(4400, 'amoeba', 'amoeba', 'spore', 'virus'), // the wall right before the arena
     ],
     gaps: [
       [1500, 1640],
@@ -319,10 +352,16 @@ export const STAGES: StageDef[] = [
       { x: 2900, choices: ['hydrogen', 'carbon'] },
       { x: 3700, choices: ['carbon', 'oxygen'] },
     ],
+    // Pacing: intro → early tower breather → mid fights around the pad → spike between the wide gaps →
+    // exit push past the widest chasm.
     enemies: [
-      ...spread(500, 1300, ['mite', 'spore', 'mite', 'amoeba']),
-      ...spread(1700, 2600, ['mite', 'amoeba', 'spore', 'mite', 'virus']),
-      ...spread(2900, 3850, ['mite', 'spore', 'amoeba', 'mite', 'spore', 'mite']),
+      ...pack(600, 'mite', 'spore'), // intro
+      ...pack(1150, 'mite', 'amoeba'), // a tank, before the first gap
+      // breather 1640–1820: the Xenon-gem tower climb
+      ...pack(2000, 'mite', 'virus'), // mid fight past the tower
+      ...pack(2550, 'mite', 'spore'), // by the pad, before gap 2
+      ...pack(3050, 'mite', 'amoeba', 'mite'), // the spike, between the chasms
+      ...pack(3800, 'mite', 'spore', 'amoeba'), // exit push, past the wide gap
     ],
     gaps: [
       [1450, 1590],
@@ -363,13 +402,18 @@ export const STAGES: StageDef[] = [
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
       { x: 2125, y: -130, choices: ['oxygen', 'nitrogen'] }, // summit reward atop the sky tower
       { x: 2700, choices: ['hydrogen', 'carbon'] },
-      { x: 3500, choices: ['carbon', 'oxygen'] },
+      { x: 3350, choices: ['carbon', 'oxygen'] }, // on solid ground just before the [3450,3590] gap (grab, then leap)
       { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → rising fight → breather over the tower + crumble + gap 2 → two spikes → exit push.
     enemies: [
-      ...spread(500, 1350, ['mite', 'amoeba', 'mite', 'spore', 'mite']),
-      ...spread(1750, 2650, ['amoeba', 'mite', 'spore', 'mite', 'amoeba']),
-      ...spread(3000, 4050, ['mite', 'spore', 'amoeba', 'mite', 'spore', 'mite', 'amoeba']),
+      ...pack(600, 'mite', 'amoeba'), // intro
+      ...pack(1150, 'mite', 'spore'), // before the first gap
+      ...pack(1750, 'mite', 'amoeba', 'mite'), // rising fight, by the pad
+      // breather 2300–2900: tower, crumbling tiles, gap 2
+      ...pack(3000, 'mite', 'amoeba', 'spore'), // spike, before the hazard + gap 3
+      ...pack(3650, 'mite', 'spore', 'amoeba'), // second spike, past gap 3
+      ...pack(4400, 'mite', 'mite', 'spore', 'amoeba'), // exit push, past the widest chasm
     ],
     gaps: [
       [1450, 1590],
@@ -413,10 +457,15 @@ export const STAGES: StageDef[] = [
       { x: 3400, choices: ['carbon', 'oxygen'] },
       { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing (boss stage): light front → escalate → a heavy wall right before the Phage Lord.
     enemies: [
-      ...spread(500, 1350, ['mite', 'amoeba', 'spore', 'mite']),
-      ...spread(1750, 2650, ['amoeba', 'mite', 'spore', 'amoeba', 'mite']),
-      ...spread(3000, 4100, ['mite', 'amoeba', 'spore', 'mite', 'amoeba', 'spore']),
+      { x: 600, type: 'mite' }, // intro — a lone mite
+      { x: 1100, type: 'mite' }, // a second scout before the first gap
+      ...pack(1750, 'mite', 'spore'), // by the pad / Radon tower base
+      // breather 1840–2540: the Radon-gem tower climb, gap 2
+      ...pack(2900, 'mite', 'amoeba'), // pressure resumes, before the hazard + gap 3
+      ...pack(3700, 'spore', 'mite', 'amoeba'), // build, past gap 3
+      ...pack(4600, 'amoeba', 'amoeba', 'spore', 'amoeba', 'mite', 'spore'), // a wall of three tanks before the arena
     ],
     gaps: [
       [1450, 1590],
@@ -466,10 +515,15 @@ export const STAGES: StageDef[] = [
       { x: 2675, y: -120, choices: ['hydrogen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3700, choices: ['carbon', 'oxygen'] },
     ],
+    // Pacing: intro → ant swarm builds → breather over the tower → spike → exit push.
     enemies: [
-      ...spread(500, 1300, ['ant', 'mite', 'ant', 'ant']),
-      ...spread(1700, 2600, ['mite', 'ant', 'ant', 'mite', 'ant']),
-      ...spread(2950, 3950, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant']),
+      ...pack(600, 'ant', 'mite'), // intro
+      ...pack(1100, 'ant', 'ant'), // an ant rush before the only gap
+      ...pack(1800, 'ant', 'mite', 'ant'), // rising, before the hazard
+      // breather 2350–3060: the tower climb
+      ...pack(3300, 'ant', 'mite', 'ant'), // the spike
+      ...pack(3700, 'ant', 'mite'), // hold
+      ...pack(4250, 'ant', 'ant', 'mite'), // exit push, past the crumbling tiles
     ],
     gaps: [[1450, 1590]],
     platforms: [
@@ -506,10 +560,15 @@ export const STAGES: StageDef[] = [
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → swarm builds → breather over the tower → two spikes → exit push.
     enemies: [
-      ...spread(500, 1350, ['ant', 'mite', 'ant', 'ant', 'mite']),
-      ...spread(1750, 2650, ['mite', 'ant', 'ant', 'mite', 'ant']),
-      ...spread(3000, 4100, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant', 'mite']),
+      ...pack(600, 'ant', 'mite'), // intro
+      ...pack(1150, 'ant', 'ant', 'mite'), // ant rush before the first gap
+      ...pack(1850, 'ant', 'mite'), // rising, by the pad
+      // breather 2350–3060: crumbling tiles, the tower climb
+      ...pack(3050, 'ant', 'mite', 'ant'), // spike, before the hazard + gap 2
+      ...pack(3700, 'ant', 'mite', 'ant'), // second spike, past gap 2
+      ...pack(4300, 'ant', 'ant', 'mite', 'mite'), // exit push
     ],
     gaps: [
       [1450, 1590],
@@ -553,10 +612,15 @@ export const STAGES: StageDef[] = [
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing (boss stage): light front → escalate → a swarming wall right before the Roach King.
     enemies: [
-      ...spread(500, 1350, ['ant', 'mite', 'ant', 'ant']),
-      ...spread(1750, 2650, ['mite', 'ant', 'ant', 'mite', 'ant']),
-      ...spread(3000, 4100, ['ant', 'mite', 'ant', 'ant', 'mite', 'ant']),
+      { x: 600, type: 'ant' }, // intro — a lone ant
+      { x: 1100, type: 'ant' }, // a scout before the first gap
+      ...pack(1800, 'ant', 'mite'), // by the pad
+      // breather 2350–3060: the tower climb
+      ...pack(3050, 'ant', 'mite'), // pressure resumes, before the hazard + gap 2
+      ...pack(3750, 'ant', 'ant', 'mite'), // build, past gap 2
+      ...pack(4700, 'ant', 'mite', 'ant', 'ant', 'mite', 'ant'), // the swarming wall before the arena
     ],
     gaps: [
       [1450, 1590],
@@ -605,10 +669,15 @@ export const STAGES: StageDef[] = [
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → flyers harass the pillars → breather over the tower → spike → exit push.
     enemies: [
-      ...spread(500, 1350, ['ant', 'fly', 'ant', 'mite', 'fly']),
-      ...spread(1750, 2650, ['mite', 'ant', 'fly', 'ant', 'mite']),
-      ...spread(3000, 4050, ['ant', 'fly', 'mite', 'ant', 'fly', 'ant']),
+      ...pack(600, 'ant', 'fly'), // intro
+      ...pack(1150, 'fly', 'mite'), // flyers over the first wide pit
+      ...pack(1850, 'ant', 'fly', 'ant'), // rising, by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'ant', 'mite', 'fly'), // spike, before the hazard + wide gap 3
+      ...pack(3900, 'ant', 'ant', 'mite', 'fly'), // hold, past the wide gap
+      ...pack(4350, 'ant', 'mite'), // exit push
     ],
     gaps: [
       [1350, 1650],
@@ -658,10 +727,15 @@ export const STAGES: StageDef[] = [
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → bees join → breather over the tower → spike → exit push past the wide pit.
     enemies: [
-      ...spread(500, 1350, ['ant', 'bee', 'mite', 'fly', 'ant']),
-      ...spread(1750, 2650, ['fly', 'ant', 'bee', 'mite', 'ant']),
-      ...spread(3000, 4150, ['ant', 'fly', 'bee', 'mite', 'ant', 'fly']),
+      ...pack(600, 'ant', 'fly'), // intro
+      ...pack(1150, 'ant', 'mite'), // before the first wide pit
+      ...pack(1850, 'bee', 'fly', 'ant'), // rising, by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'ant', 'ant', 'mite'), // spike, before the hazard + gap 3
+      ...pack(3850, 'ant', 'fly', 'mite'), // hold, between gaps 3 and 4
+      ...pack(4500, 'bee', 'bee', 'fly'), // exit push, past the wide pit
     ],
     gaps: [
       [1350, 1650],
@@ -710,12 +784,17 @@ export const STAGES: StageDef[] = [
       { x: 1950, choices: ['oxygen', 'nitrogen'] },
       { x: 2760, y: -360, choices: ['hydrogen', 'carbon'] }, // summit reward (tall climb)
       { x: 3500, choices: ['carbon', 'oxygen'] },
-      { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 4450, choices: ['hydrogen', 'oxygen', 'nitrogen'] }, // reward on the far side of the wide [4100,4330] pit
     ],
+    // Pacing (boss stage): light front → escalate → a mixed wall right before the Dung Beetle.
     enemies: [
-      ...spread(500, 1350, ['ant', 'bee', 'mite', 'fly']),
-      ...spread(1750, 2650, ['mite', 'ant', 'bee', 'fly', 'ant']),
-      ...spread(3000, 4100, ['ant', 'fly', 'bee', 'mite', 'ant', 'bee']),
+      { x: 600, type: 'ant' }, // intro — a lone ant
+      { x: 1100, type: 'fly' }, // a flyer before the first pit
+      ...pack(1800, 'ant', 'mite'), // by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'bee', 'fly', 'ant'), // pressure resumes, before the hazard + gap 3
+      ...pack(3800, 'bee', 'mite'), // build, past gap 3
+      ...pack(4600, 'bee', 'ant', 'fly', 'bee', 'ant', 'mite'), // the wall right before the arena
     ],
     gaps: [
       [1350, 1650],
@@ -771,10 +850,15 @@ export const STAGES: StageDef[] = [
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → bounce-shaft fights → breather over the tower → spike → exit push past the wide pit.
     enemies: [
-      ...spread(500, 1350, ['bee', 'ant', 'fly', 'mite', 'bee']),
-      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'mite', 'ant']),
-      ...spread(3000, 4150, ['bee', 'fly', 'ant', 'bee', 'mite', 'fly']),
+      ...pack(600, 'bee', 'ant'), // intro, by the first bounce pad
+      ...pack(1150, 'fly', 'mite'), // before the first gap
+      ...pack(1850, 'bee', 'fly', 'ant'), // rising, by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'bee', 'mite', 'fly'), // spike, before the hazard + gap 3
+      ...pack(3750, 'ant', 'bee'), // by the back pad, past gap 3
+      ...pack(4550, 'bee', 'ant', 'fly', 'mite'), // exit push, past the wide pit
     ],
     gaps: [
       [1450, 1590],
@@ -821,10 +905,15 @@ export const STAGES: StageDef[] = [
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4350, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
     ],
+    // Pacing: intro → swarm builds → breather over the tower → spike → exit push past the wide pit.
     enemies: [
-      ...spread(500, 1350, ['bee', 'ant', 'bee', 'fly', 'mite']),
-      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'bee', 'ant']),
-      ...spread(3000, 4250, ['bee', 'fly', 'ant', 'bee', 'mite', 'fly', 'bee']),
+      ...pack(600, 'bee', 'ant'), // intro
+      ...pack(1150, 'bee', 'fly', 'mite'), // before the first gap
+      ...pack(1850, 'ant', 'bee', 'fly'), // rising, by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'bee', 'fly', 'ant'), // spike, before the hazard + gap 3
+      ...pack(3850, 'bee', 'mite'), // by the back pad, past gap 3
+      ...pack(4600, 'bee', 'bee', 'ant', 'fly'), // exit push, past the wide pit
     ],
     gaps: [
       [1450, 1590],
@@ -869,12 +958,17 @@ export const STAGES: StageDef[] = [
       { x: 1950, choices: ['oxygen', 'nitrogen'] },
       { x: 2760, y: -380, choices: ['hydrogen', 'carbon'] }, // summit reward (highest climb in the game)
       { x: 3500, choices: ['carbon', 'oxygen'] },
-      { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 4450, choices: ['hydrogen', 'oxygen', 'nitrogen'] }, // reward on the far side of the wide [4100,4330] pit
     ],
+    // Pacing (final boss stage): light front → escalate → the game's heaviest wall right before the Hornet Queen.
     enemies: [
-      ...spread(500, 1350, ['bee', 'ant', 'fly', 'bee']),
-      ...spread(1750, 2650, ['ant', 'bee', 'fly', 'bee', 'ant']),
-      ...spread(3000, 4100, ['bee', 'fly', 'ant', 'bee', 'fly', 'bee']),
+      { x: 600, type: 'bee' }, // intro — a lone hornet, by the first pad
+      { x: 1100, type: 'ant' }, // a scout before the first gap
+      ...pack(1800, 'bee', 'fly'), // by the pad
+      // breather 2400–3060: the tower climb
+      ...pack(3050, 'bee', 'ant'), // pressure resumes, before the hazard + gap 3
+      ...pack(3750, 'bee', 'fly'), // build, past gap 3
+      ...pack(4750, 'bee', 'ant', 'fly', 'bee', 'ant', 'bee'), // the final wall before the arena
     ],
     gaps: [
       [1450, 1590],

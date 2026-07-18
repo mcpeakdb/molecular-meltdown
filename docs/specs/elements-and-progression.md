@@ -84,9 +84,9 @@ weapon loadout (Compound Selection). Sources:
 The firing/effect of the Prismatic Beam is in [combat-and-attacks.md](combat-and-attacks.md)
 (REQ-ATK-300…302).
 
-- **REQ-SUPER-001** — The Prismatic Beam shall be **permanently** unlocked once the saved noble-gas
-  collection is complete (`SaveSystem.getNoblesFound().length >= NOBLE_GAS_COUNT`), i.e. across runs —
-  not requiring all six in a single run.
+- **REQ-SUPER-001** — The Prismatic Beam shall be armed for the current run once the run's noble-gas
+  collection is complete (`GameScene._runNobles().length >= NOBLE_GAS_COUNT`) — i.e. all six must be
+  gathered within a single run. The collection (and the Prismatic Beam) resets when a new run starts.
 - **REQ-SUPER-002** — `ElementSystem` shall track the unlock as an instance flag
   (`setSuperUnlocked`/`isSuperUnlocked`); `getAttackLevel`/`getAvailableAttacks` shall report the
   super weapon only while that flag is set; the static `levelFor` shall always return 0 for it (it is

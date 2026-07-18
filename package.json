@@ -14,6 +14,7 @@
     "lint:fix": "biome check --write src/",
     "typecheck": "tsc --noEmit",
     "gen:sprites": "node scripts/gen-sprites.mjs",
+    "levels": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tools/ts-hooks.mjs tools/level-map.ts",
     "prepare": "husky"
   },
   "dependencies": {

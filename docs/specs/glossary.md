@@ -15,11 +15,11 @@ Shared vocabulary and the constants the rest of the specs lean on. Source of tru
 | **Compound** | An attack assembled from a stoichiometric recipe of base atoms (water, ammonia, etc.). |
 | **Attack / weapon** | Any element/compound the player can fire (`AttackId`); excludes `NONE` and `GOLD`. |
 | **Weapon slot** | A bindable attack key. 3 slots on Normal/Hard (Z/X/C), 2 on Extreme. |
-| **Noble gas** | An inert collectible (helium…radon) — a score bonus and a permanent collection find, never a weapon. |
+| **Noble gas** | An inert collectible (helium…radon) — a score bonus and a run-scoped collection find (reset each run), never a weapon. Completing the set arms the Prismatic Beam for that run. |
 | **Healing drop** | A Calcium (`Ca`, +30 HP) or Zinc (`Zn`, +15 HP) pickup (`HEAL_DROPS`) that restores player HP; never a weapon or tree node. |
 | **Armor drop** | An Iron (`Fe`, +25 armor) pickup (`ARMOR_DROPS`) that adds to the `armor` buffer, which soaks damage before HP (cap `PLAYER_MAX_ARMOR`); never a weapon or tree node. |
 | **M.E.G.** | "Main Element Guide" — the lab-assistant NPC who narrates the tutorial and pops in with quips. |
-| **Run** | A single playthrough; score is cumulative across stages within a run and resets when the run ends. |
+| **Run** | A single playthrough, begun by picking a stage from Stage Select. Grants `RUN_LIVES` (3) lives; score and the noble-gas collection are run-scoped and reset when a new run starts. Ends when lives run out or the final stage is cleared. |
 | **Molecular tree** | The run-scoped set of atoms collected and the attacks they unlock. Not persisted (arcade). |
 
 ## World geometry (2D side view)

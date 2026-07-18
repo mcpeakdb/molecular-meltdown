@@ -96,8 +96,9 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 - **REQ-STAGESEL-004** — WHILE a stage is highlighted and unlocked, its detail panel shall show the
   stage name, best score, and (for stages 2-9) its passcode.
 - **REQ-STAGESEL-005** — WHEN an unlocked stage is confirmed, the scene shall play the test-tube
-  reaction/eruption flourish, reset the run score to 0, and start `GameScene` with that stage and
-  difficulty.
+  reaction/eruption flourish, begin a new run — resetting the run score (`runScore`=0), emptying the
+  noble collection (`runNobles`=[]), and restoring lives (`lives`=`RUN_LIVES`) — and start `GameScene`
+  with that stage and difficulty. (This is the sole entry point for a new run; see REQ-LIVES-001.)
 - **REQ-STAGESEL-006** — IF a locked stage is confirmed, THEN the scene shall flash the tube red and
   shake, and shall not start the stage.
 - **REQ-STAGESEL-007** — Navigation: ←/→ move by 1, ↑/↓ move by 3 (between rows); ESC → Difficulty,
@@ -134,6 +135,12 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
   and the Prismatic super weapon capping the foot of the noble-gas column. The assembled compounds
   shall form a detached, labelled strip along the very bottom. Real elements show their true atomic
   number and standard atomic weight; the super weapon shows neither.
+- **REQ-TREE-001a** — The table shall be completed through Radon (Z = 86): every element that is not a
+  game element shall be drawn as a greyed, **non-selectable** reference tile in its true (group,
+  period) cell showing only its atomic number and symbol. The lanthanides (57–71) shall sit in a
+  detached f-block strip on the period-7 row (with a `*` placeholder in the group-3/period-6 slot).
+  Because periods 2–3 now fill groups 2 and 13, the detail panel shall be sized to sit strictly within
+  the still-empty groups 3–12 span so it never overlaps a cell.
 - **REQ-TREE-002** — WHILE a tile is selected, the central legend/detail panel shall show content per
   tile kind: a base atom's atomic number + tier attack names; a compound's recipe + tier attack
   names; Gold's wildcard note (grants +2 of one atom); Platinum's wildcard note (grants +3, ~0.1%);
@@ -141,9 +148,10 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
   (Ca/Zn restore HP — the amount and per-stage count); an armor drop's note (Fe grants armor that
   soaks damage before HP — the amount and per-stage count); a noble gas's inert note (collect all six
   to arm the Prismatic Beam); and the super weapon's requirement + effect.
-- **REQ-TREE-003** — ←/→/↑/↓ shall move the cursor to the nearest tile in the pressed direction
-  (reaching the noble-gas column, the precious metals, the super weapon, and the detached compounds);
-  ESC/Z/Enter or tapping the backdrop shall return to the `from` scene.
+- **REQ-TREE-003** — ←/→/↑/↓ shall move the cursor to the nearest **selectable** (game) tile in the
+  pressed direction (reaching the noble-gas column, the precious metals, the super weapon, and the
+  detached compounds); the greyed reference tiles are skipped by the cursor and swallow taps (a tap on
+  one does nothing). ESC/Z/Enter or tapping the backdrop shall return to the `from` scene.
 
 ## HelpScene
 

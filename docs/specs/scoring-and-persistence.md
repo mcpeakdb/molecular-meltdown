@@ -8,7 +8,9 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
 ## Scoring
 
 - **REQ-SCORE-001** — Score shall be the cumulative run total, carried across stages via the registry
-  key `runScore`, and reset to 0 when a fresh run starts (stage selected, run ended, or retry).
+  key `runScore`, and reset to 0 when a fresh run starts — a stage selected from Stage Select, or the
+  run ending (out of lives, or the final stage cleared). A life-loss retry keeps the run and does NOT
+  reset it.
 - **REQ-SCORE-002** — WHEN an enemy dies, the game shall add its score: bacterium 100, virus 80,
   dustbunny 150, pollen 60, amoeba 200, spore 70, mite 120; a boss shall award 1000.
 - **REQ-SCORE-003** — WHEN a noble gas is collected, the game shall add `NOBLE_GAS_BONUS` (500).
@@ -25,16 +27,25 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
   per-stage coin tally via `score-update`, `combo-update`, `hud-update`, `arsenal-update`,
   `enemies-update`, and `coins-update` events.
 
-## Death & run summary
+## Lives, death & run summary
 
-- **REQ-DEATH-001** — WHEN the player dies (non-tutorial), the game shall stop the music, hide the
-  HUD arsenal, fade in a YOU DIED overlay with a sobbing-scientist animation, submit the run to the
-  leaderboard, reset `runScore`, and show a run summary (score, stage reached, atoms, molecules built,
-  nobles found, leaderboard placement).
-- **REQ-DEATH-002** — WHEN Z is pressed (or the retry label is tapped) on the death screen, the game
-  shall retry (restart the current stage, or the tutorial); WHEN ESC is pressed (or the title label is
-  tapped), it shall return to `TitleScene`. Both labels shall be tappable so touch players (no
-  keyboard) can act, and the choice shall be guarded against a double-fire.
+- **REQ-LIVES-001** — A run shall grant `RUN_LIVES` (3) lives, held in the registry key `lives` and
+  seeded when a run starts (Stage Select — see REQ-SEL-001). The HUD shall show the remaining lives as
+  hearts (`lives-update` event / `GameScene.livesRemaining()`); the readout is hidden in the tutorial.
+- **REQ-DEATH-001** — WHEN the player dies (non-tutorial), the game shall spend one life. IF a life
+  remains, THEN it shall show a lighter LIFE LOST overlay (remaining hearts + a continue prompt) and,
+  on continue, restart the current stage with the run intact — `runScore`, the noble collection
+  (`runNobles`), and `lives` all preserved (no run submission).
+- **REQ-DEATH-001a** — IF no life remains (or the death is in the tutorial), THEN the game shall stop
+  the music, hide the HUD arsenal, fade in a YOU DIED overlay (a GAME OVER — out of lives subtitle for
+  a run) with a sobbing-scientist animation, submit the run to the leaderboard, reset the run-scoped
+  registry (`runScore`, `runNobles`, `lives`), and show a run summary (score, stage reached, atoms,
+  molecules built, nobles found, leaderboard placement).
+- **REQ-DEATH-002** — On the game-over screen, Z (or tapping the primary label) shall go to Stage
+  Select — where a new run begins — except in the tutorial, where it retries the tutorial; ESC (or the
+  title label) shall return to `TitleScene`. On the LIFE LOST overlay, Z (or a tap) shall continue.
+  Labels shall be tappable so touch players can act, and every choice shall be guarded against a
+  double-fire.
 - **REQ-DEATH-003** — IF the death is in the tutorial, THEN no run shall be recorded and no run
   summary shall be shown.
 
@@ -50,8 +61,8 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
 Persisted under `mm.save.v2`. Records are kept separately per difficulty.
 
 - **REQ-SAVE-001** — Save data shall hold, per difficulty (`normal`/`hard`/`extreme`): the highest
-  unlocked stage, per-stage best scores, and a top-5 leaderboard; plus a global list of noble gases
-  ever found.
+  unlocked stage, per-stage best scores, and a top-5 leaderboard. (Noble gases are NOT persisted — the
+  collection is run-scoped; see REQ-NOBLE-001.)
 - **REQ-SAVE-002** — `load` shall tolerate missing/corrupt/blocked storage by falling back to empty
   defaults rather than throwing; `unlockedStage` shall be clamped to `1…STAGE_COUNT`.
 - **REQ-SAVE-003** — On first read of v2 with no v2 data present, a pre-Phase-7 (`mm.save.v1`) save
@@ -62,23 +73,24 @@ Persisted under `mm.save.v2`. Records are kept separately per difficulty.
   returning whether it did.
 - **REQ-SAVE-006** — `submitRun` shall insert a run into its difficulty's leaderboard sorted by score
   descending, keep the top 5, and return the 0-based rank, or -1 if it did not place.
-- **REQ-SAVE-007** — `markNobleFound(id)` shall add a noble gas to the permanent collection, returning
-  true only on a first-time find.
-- **REQ-SAVE-008** — Atom/molecule progress shall NOT be persisted — the game is arcade and the
-  molecular tree is run-scoped (reset each stage/run).
+- **REQ-SAVE-007** — Neither the noble-gas collection nor atom/molecule progress shall be persisted —
+  the game is arcade: nobles are run-scoped (registry `runNobles`) and the molecular tree resets each
+  stage/run.
 
 ## Noble gas collection
 
 - **REQ-NOBLE-001** — WHEN a noble gas is collected, the game shall add the score bonus, record the
-  find via `SaveSystem`, play celebratory FX in the gas colour, float a "+bonus" label, and have
-  M.E.G. quip — first finds noting the running `n/6` total.
+  find in the run collection (registry `runNobles`, reset when a new run starts), play celebratory FX
+  in the gas colour, float a "+bonus" label, and have M.E.G. quip — first finds noting the running
+  `n/6` total.
 - **REQ-NOBLE-002** — The six noble gases shall be spread one per sector across the 18 stages
   (centralized in `NOBLE_BY_STAGE`, currently the 2nd stage of each sector: 2, 5, 8, 11, 14, 17),
   each near the top of that stage's sky tower. All are exit-clear stages, so any guard shall be a
   flyer (or none) — descending into reach so the optional climb never gates the stage clear. Where a
   stage already has a summit atom, the gem sits a little higher so both are worth grabbing.
-- **REQ-NOBLE-003** — WHEN the noble-gas collection becomes complete (all 6 ever found), the player
-  shall permanently unlock the Prismatic Beam super weapon (see
+- **REQ-NOBLE-003** — WHEN the run's noble-gas collection becomes complete (all 6 found this run), the
+  player shall arm the Prismatic Beam super weapon for the rest of the run; the collection (and thus the
+  Prismatic Beam) resets when a new run starts (see
   [elements-and-progression.md](elements-and-progression.md) REQ-SUPER-*).
 
 ## Passcodes

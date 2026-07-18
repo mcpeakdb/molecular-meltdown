@@ -68,6 +68,11 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-SPAWN-002** — Enemies shall spawn at their authored x; a perched enemy uses its authored `y`,
   otherwise flyers spawn in the hover band and ground types just above the floor. IF an enemy's x
   falls inside a hole, THEN that enemy shall be skipped.
+- **REQ-SPAWN-002a** — Each stage's `enemies` are hand-placed into paced encounters (the `pack` squad
+  helper, not an even fill): a light teaching intro, rising fights, a clear breather over the sky-tower
+  climb, then a spike — exit stages guard the exit, and boss stages escalate into a heavier crowd
+  right before the arena so threat builds toward the boss. `tools/level-map.ts` (`npm run levels`)
+  scores this (threat density, ramp, breather); placements sit on solid ground, not in gaps.
 - **REQ-SPAWN-003** — WHERE a stage defines a `noble` pickup, the gem shall spawn at its position and,
   WHERE a `guard` is set, a guard enemy shall spawn at the gem.
 - **REQ-SPAWN-004** — The stage's germ total (boss counted as one) shall be snapshotted at spawn for

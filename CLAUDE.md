@@ -23,7 +23,26 @@ npm run preview    # preview the dist build
 npm run lint       # biome check (read-only)
 npm run lint:fix   # biome check --write (auto-fix)
 npm run typecheck  # tsc --noEmit
+npm run levels     # level-design tool: solve reachability for all stages →
+                   # docs/level-maps.html (open in a browser) + a warning report to stdout
 ```
+
+## Level-design tooling
+
+`npm run levels` (`tools/level-map.ts`) reads the real `STAGES` data — including the
+clusters/summit/noble enrichment loops in [src/stages.ts](src/stages.ts) — and solves what the player
+can actually reach using the game's real jump physics (single/double jump, bounce pads, full air
+control). It writes an interactive SVG map of every stage to `docs/level-maps.html` (colour-coded
+reachable/unreachable ledges, jump arcs, rewards, hazards, enemies, with layer toggles) and prints a
+per-stage validation report: unreachable ledges, unreachable/mis-placed rewards (e.g. an atom floating
+inside a gap), and gaps that exceed a flat double-jump. It also does **pacing analysis** — a
+threat-weighted density strip under each map (threat per 250px, normalized across all stages), plus
+metrics per stage: total threat, CV (uniformity — low = monotone), ramp (does pressure build toward
+the finale?), longest breather, and dead stretches. Threat weights mirror `Enemy` CONFIGS via a
+transparent formula (tune the `W_*` constants). The reachability model is deliberately
+**conservative** (it under-counts multi-jump hang time, so it never claims reachable when the game
+can't). Not part of the game build; run it after editing stage geometry to check intent survived.
+The tool loads the TS source via a small extensionless-import resolver (`tools/ts-hooks.mjs`).
 
 Pre-commit hook runs `biome check --fix` and `tsc --noEmit` automatically on every commit.
 

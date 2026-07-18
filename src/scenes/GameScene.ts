@@ -34,6 +34,7 @@ import {
   NOBLE_GASES,
   PLAYER_BOUNCE_VELOCITY,
   PLAYER_MAX_HP,
+  RUN_LIVES,
   SECTORS,
   STAGE_COUNT,
   sectorOf,
@@ -358,9 +359,10 @@ export default class GameScene extends Phaser.Scene {
     this.player = new Player(this, 120, GROUND_TOP_Y - 40);
     this.player.invincibilityMs = DIFFICULTY_SCALE[this.difficulty].invincMs;
     this.player.elementSystem.setSlotCount(DIFFICULTY_SCALE[this.difficulty].weaponSlots);
-    // Super weapon: a complete noble-gas collection (permanent meta) arms the Prismatic Beam from the
-    // start of every run, auto-bound to a free slot.
-    if (!this.isTutorial && SaveSystem.getNoblesFound().length >= NOBLE_GAS_COUNT) {
+    // Super weapon: completing the noble-gas collection *this run* arms the Prismatic Beam, auto-bound
+    // to a free slot. The collection is run-scoped (reset when a new run starts), so re-arm on any
+    // mid-run stage restart where all six have already been gathered.
+    if (!this.isTutorial && this._runNobles().length >= NOBLE_GAS_COUNT) {
       this.player.elementSystem.setSuperUnlocked(true);
       this.player.elementSystem.seedSuperWeapon();
     }
@@ -2206,12 +2208,22 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Grab a noble gas: a big score bonus, a flashy burst, a permanent find, and a M.E.G. shout-out. */
+  /** The noble gases collected in the current run. Run-scoped (registry): reset when a new run starts. */
+  private _runNobles(): NobleGasId[] {
+    return (this.registry.get('runNobles') as NobleGasId[] | undefined) ?? [];
+  }
+
+  /** Grab a noble gas: a big score bonus, a flashy burst, a run-collection find, and a M.E.G. shout-out. */
   private _collectNoble(gas: NobleGasId, x: number, y: number): void {
     const def = NOBLE_GAS_BY_ID[gas];
     this.score += NOBLE_GAS_BONUS;
     this.events.emit('score-update', this.score);
-    const firstFind = SaveSystem.markNobleFound(gas);
+    const collected = this._runNobles();
+    const firstFind = !collected.includes(gas);
+    if (firstFind) {
+      collected.push(gas);
+      this.registry.set('runNobles', collected);
+    }
 
     // Celebratory FX in the gas's color.
     this.spawnHitFlash(x, y, def.color, 70);
@@ -2241,9 +2253,9 @@ export default class GameScene extends Phaser.Scene {
       onComplete: () => label.destroy(),
     });
 
-    const found = SaveSystem.getNoblesFound().length;
-    // Completing the collection arms the Prismatic Beam super weapon for the rest of this run (and,
-    // being a permanent unlock, every future run). Announce it instead of the usual pickup quip.
+    const found = collected.length;
+    // Completing the collection arms the Prismatic Beam super weapon for the rest of this run (the
+    // collection resets when the next run starts). Announce it instead of the usual pickup quip.
     const es = this.player.elementSystem;
     const justCompleted = found >= NOBLE_GAS_COUNT && !es.isSuperUnlocked();
     if (justCompleted) {
@@ -2333,8 +2345,90 @@ export default class GameScene extends Phaser.Scene {
     this._emitEnemyCount();
   }
 
+  /** Lives left in the current run, for the HUD. Returns -1 during the tutorial (no lives shown). */
+  livesRemaining(): number {
+    return this.isTutorial ? -1 : ((this.registry.get('lives') as number | undefined) ?? RUN_LIVES);
+  }
+
   onPlayerDeath(): void {
-    this._showDeathScreen();
+    // The tutorial has no run/lives — a death there just offers a straight retry.
+    if (this.isTutorial) {
+      this._showDeathScreen();
+      return;
+    }
+    const lives = Math.max(0, ((this.registry.get('lives') as number | undefined) ?? RUN_LIVES) - 1);
+    this.registry.set('lives', lives);
+    this.events.emit('lives-update', lives);
+    // A life remains: dust off and retry the stage with the run intact (score + noble collection kept).
+    // Out of lives: the run is over — the full death screen sends the player back to Stage Select.
+    if (lives > 0) this._showLifeLost(lives);
+    else this._showDeathScreen();
+  }
+
+  /** A lighter "life lost" overlay shown while lives remain: no run summary, just a prompt to continue
+   *  the run by restarting the current stage (score and noble-gas collection are preserved). */
+  private _showLifeLost(livesLeft: number): void {
+    this.isPaused = true;
+    this._applyZoom(BOSS_ZOOM, 250);
+    MusicSystem.stop();
+    (this.scene.get('HUDScene') as HUDScene | undefined)?.hideArsenal();
+    const w = GAME_WIDTH,
+      h = GAME_HEIGHT;
+
+    this.add
+      .rectangle(w / 2, h / 2, w, h, 0x000000, 0.72)
+      .setScrollFactor(0)
+      .setDepth(500);
+    const title = this.add
+      .text(w / 2, h / 2 - 60, 'LIFE LOST', {
+        fontSize: '56px',
+        color: '#ffcc44',
+        fontStyle: 'bold',
+        stroke: '#3a2400',
+        strokeThickness: 7,
+      })
+      .setScrollFactor(0)
+      .setOrigin(0.5)
+      .setDepth(501)
+      .setScale(2);
+    this.tweens.add({ targets: title, scale: 1, duration: 350, ease: 'Back.Out' });
+    const hearts = `${'♥'.repeat(livesLeft)}${'♡'.repeat(Math.max(0, RUN_LIVES - livesLeft))}`;
+    this.add
+      .text(w / 2, h / 2 + 4, `${hearts}\n${livesLeft} ${livesLeft === 1 ? 'life' : 'lives'} left`, {
+        fontSize: '26px',
+        color: '#ff6a7a',
+        align: 'center',
+        lineSpacing: 8,
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setOrigin(0.5)
+      .setDepth(501);
+
+    const touch = Settings.touchActive();
+    let chose = false;
+    const cont = () => {
+      if (chose) return;
+      chose = true;
+      this.scene.stop('HUDScene');
+      // Restart the current stage; the run carries on (runScore/runNobles/lives stay in the registry).
+      this.scene.start('GameScene', { stage: this.currentStage });
+    };
+    const prompt = this.add
+      .text(w / 2, h - 60, touch ? 'Tap here to continue' : 'Press Z to continue', {
+        fontSize: '24px',
+        color: '#ffeeaa',
+      })
+      .setScrollFactor(0)
+      .setOrigin(0.5)
+      .setDepth(501);
+    this.tweens.add({ targets: prompt, alpha: 0.3, duration: 600, ease: 'Sine.InOut', yoyo: true, repeat: -1 });
+    prompt.setInteractive({ useHandCursor: true });
+    prompt.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev?: Phaser.Types.Input.EventData) => {
+      ev?.stopPropagation();
+      cont();
+    });
+    this.input.keyboard?.once('keydown-Z', cont);
   }
 
   private _showDeathScreen(): void {
@@ -2371,10 +2465,22 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(501)
       .setScale(2.5);
     this.tweens.add({ targets: diedText, scale: 1, duration: 400, ease: 'Back.Out' });
+    if (!this.isTutorial) {
+      this.add
+        .text(textX, h / 2 - 60, 'GAME OVER — out of lives', { fontSize: '18px', color: '#ff8a8a', fontStyle: 'bold' })
+        .setScrollFactor(0)
+        .setOrigin(0.5)
+        .setDepth(501);
+    }
 
     // Record the run (skip the tutorial) and show a compact summary on the left column.
     const rank = this.isTutorial ? -1 : this._submitRun();
-    if (!this.isTutorial) this.registry.set('runScore', 0); // the run is over; retry starts fresh
+    // The run is over; clear the run-scoped registry state so a new run starts clean.
+    if (!this.isTutorial) {
+      this.registry.set('runScore', 0);
+      this.registry.set('runNobles', []);
+      this.registry.set('lives', RUN_LIVES);
+    }
 
     this.add
       .text(textX, h / 2 - 36, `Run score: ${this.score.toLocaleString()}`, {
@@ -2415,7 +2521,9 @@ export default class GameScene extends Phaser.Scene {
       if (chose) return;
       chose = true;
       this.scene.stop('HUDScene');
-      this.scene.start('GameScene', this.isTutorial ? { tutorial: true } : { stage: this.currentStage });
+      // Tutorial retries itself; a finished run goes back to Stage Select, where a new run begins.
+      if (this.isTutorial) this.scene.start('GameScene', { tutorial: true });
+      else this.scene.start('StageSelectScene');
     };
     const toTitle = () => {
       if (chose) return;
@@ -2431,8 +2539,15 @@ export default class GameScene extends Phaser.Scene {
       });
     };
 
+    const retryLabel = this.isTutorial
+      ? touch
+        ? 'Tap here to retry'
+        : 'Press Z to retry'
+      : touch
+        ? 'Tap here for Stage Select'
+        : 'Press Z for Stage Select';
     const retryText = this.add
-      .text(textX, h - 52, touch ? 'Tap here to retry' : 'Press Z to retry', {
+      .text(textX, h - 52, retryLabel, {
         fontSize: '24px',
         color: '#ffeeaa',
       })
@@ -2651,7 +2766,7 @@ export default class GameScene extends Phaser.Scene {
     const es = this.player.elementSystem;
     const c = es.getCounts();
     const attacks = es.getAvailableAttacks();
-    const found = SaveSystem.getNoblesFound();
+    const found = this._runNobles();
     return {
       atoms: `Atoms:  H${c.hydrogen}  O${c.oxygen}  C${c.carbon}  N${c.nitrogen}`,
       molecules: attacks.length

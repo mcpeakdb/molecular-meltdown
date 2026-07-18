@@ -158,7 +158,6 @@ export const PLAYER_SPEED = 220;
 export const PLAYER_MELEE_RANGE = 85;
 export const PLAYER_MELEE_DAMAGE = 12;
 export const PLAYER_ATTACK_COOLDOWN = 400; // ms
-export const PLAYER_SPECIAL_COOLDOWN = 1200; // ms
 export const PLAYER_INVINCIBILITY_MS = 800;
 
 // Jump — real arcade physics (body velocity + GRAVITY). Peak height ≈ v²/(2·GRAVITY).
@@ -173,6 +172,11 @@ export const HAZARD_DAMAGE = 10; // per invincibility-throttled tick while stand
 export const CRUMBLE_DELAY_MS = 620; // grace period after stepping on a crumbling tile before it drops
 
 export const MAX_ELEMENT_LEVEL = 3;
+
+// ── Run / lives ────────────────────────────────────────────────────────────────
+// A "run" begins when a stage is picked from Stage Select (score, noble-gas collection, and lives all
+// reset there). The player has this many lives; each death spends one, and running out ends the run.
+export const RUN_LIVES = 3;
 
 // ── Attack registry (Phase 6: molecular tree + numpad arsenal) ──────────────
 // The seven collectable base atoms.
