@@ -160,13 +160,15 @@ function pacing(s: StageDef): Pacing {
     if (len > longestRest.len) longestRest = { len, x: (xs[i] + xs[i - 1]) / 2 };
   }
 
-  // Dead stretch: longest run with no enemy, gap, hazard, pad, or atom (nothing happens).
+  // Dead stretch: longest run with nothing to do — no enemy, gap, hazard, pad, atom, or platform.
+  // (A ledge/tower counts as content: climbing it is the beat there, even with no foes.)
   const features: number[] = [
     ...foes.map((f) => f.x),
     ...s.gaps.flatMap(([a, b]) => [(a + b) / 2]),
     ...(s.hazards ?? []).map(([a, b]) => (a + b) / 2),
     ...(s.pads ?? []),
     ...s.atoms.map((a) => a.x),
+    ...(s.platforms ?? []).map(([px, , pw]) => px + pw / 2),
   ].sort((a, b) => a - b);
   let deadStretch: Pacing['deadStretch'] = null;
   const fs = [0, ...features, s.width];
@@ -328,25 +330,17 @@ function solve(s: StageDef, stageNo: number): Solved {
       warnings.push({ level: 'ERROR', msg: `${what} @[${Math.round(r.x)},${Math.round(r.y)}] is UNREACHABLE — no reachable ledge supports it (dead content)` });
     }
   }
-  // Gaps: crossable directly, only via a stepping stone, or (if the far side is unreachable) not at all.
+  // Gaps: flag one only when it's a genuine problem — the far side is unreachable (ERROR), or it is
+  // wider than a flat double-jump AND has no stepping stone inside it to bridge the leap (INFO). A wide
+  // gap that already carries a pillar is fine (reachability confirms it), so it isn't flagged.
   for (const [a, b] of s.gaps) {
     const w = b - a;
     const far = nodes.find((n) => n.kind === 'floor' && n.x1 >= b - 1);
+    const bridged = (s.platforms ?? []).some(([px, , pw]) => px < b && px + pw > a);
     if (far && !reachable.has(far.id)) {
       warnings.push({ level: 'ERROR', msg: `gap [${a},${b}] (w=${w}) — far side floor is unreachable` });
-    } else if (w > FLAT_DOUBLE_REACH + 0.5) {
-      warnings.push({ level: 'INFO', msg: `gap [${a},${b}] (w=${w}) exceeds a flat double-jump (${Math.round(FLAT_DOUBLE_REACH)}px) — needs a stepping stone` });
-    }
-  }
-  // Structural smell: a ledge whose span sits over a hazard/gap (footing hangs in a bad spot).
-  const bad: [number, number][] = [...s.gaps, ...(s.hazards ?? [])];
-  for (const [x, top, wid] of s.platforms ?? []) {
-    if (top >= GROUND_TOP_Y - 4) continue; // near-floor stepping stones are meant to sit there
-    for (const [ha, hb] of bad) {
-      if (x < hb && x + wid > ha) {
-        warnings.push({ level: 'INFO', msg: `ledge @[${x},${top}] overhangs a gap/hazard [${ha},${hb}]` });
-        break;
-      }
+    } else if (w > FLAT_DOUBLE_REACH + 0.5 && !bridged) {
+      warnings.push({ level: 'INFO', msg: `gap [${a},${b}] (w=${w}) exceeds a flat double-jump (${Math.round(FLAT_DOUBLE_REACH)}px) and has no stepping stone` });
     }
   }
   return { nodes, reachable, pred, rewards, warnings };

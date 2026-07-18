@@ -35,7 +35,8 @@ can actually reach using the game's real jump physics (single/double jump, bounc
 control). It writes an interactive SVG map of every stage to `docs/level-maps.html` (colour-coded
 reachable/unreachable ledges, jump arcs, rewards, hazards, enemies, with layer toggles) and prints a
 per-stage validation report: unreachable ledges, unreachable/mis-placed rewards (e.g. an atom floating
-inside a gap), and gaps that exceed a flat double-jump. It also does **pacing analysis** — a
+inside a gap), and wide gaps that exceed a flat double-jump with no stepping stone to bridge them (the
+checks are tuned to flag real defects only, not intentional footing). It also does **pacing analysis** — a
 threat-weighted density strip under each map (threat per 250px, normalized across all stages), plus
 metrics per stage: total threat, CV (uniformity — low = monotone), ramp (does pressure build toward
 the finale?), longest breather, and dead stretches. Threat weights mirror `Enemy` CONFIGS via a
