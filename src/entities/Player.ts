@@ -13,6 +13,7 @@ import {
   PLAYER_DOUBLE_JUMP_VELOCITY,
   PLAYER_INVINCIBILITY_MS,
   PLAYER_JUMP_VELOCITY,
+  PLAYER_MAX_ARMOR,
   PLAYER_MAX_HP,
   PLAYER_MAX_JUMPS,
   PLAYER_MELEE_DAMAGE,
@@ -39,6 +40,9 @@ const PLAYER_FEET_OFFSET = PLAYER_CONTENT_H / 2;
 export default class Player {
   scene: GameScene;
   hp: number = PLAYER_MAX_HP;
+  /** Iron-armor buffer: absorbs incoming damage before it reaches HP. Granted by Iron drops, capped
+   *  at PLAYER_MAX_ARMOR, and reset each stage (a fresh Player is built per stage). */
+  armor: number = 0;
   alive: boolean = true;
   /** Halted in place until the next stage loads (death / stage clear / boss defeat). */
   frozen: boolean = false;
@@ -1436,6 +1440,12 @@ export default class Player {
     this.comboCount = 0;
     this.comboMultiplier = 1;
     this.scene.events.emit('combo-update', 0, 1);
+    // Iron armor soaks damage first — only the overflow (if any) reaches HP.
+    if (this.armor > 0 && amount > 0) {
+      const absorbed = Math.min(this.armor, amount);
+      this.armor = Math.round(this.armor - absorbed);
+      amount -= absorbed;
+    }
     this.hp = Math.max(0, Math.round(this.hp - amount));
     this.invincibleTimer = this.invincibilityMs;
     this._hitFlash = true;
@@ -1443,6 +1453,28 @@ export default class Player {
       this._hitFlash = false;
     });
     if (this.hp === 0) this._die();
+  }
+
+  /**
+   * Restore HP from a healing drop (Ca/Zn), capped at PLAYER_MAX_HP. Returns the amount actually
+   * healed (0 if already full or dead) so the caller can tailor the pickup feedback.
+   */
+  heal(amount: number): number {
+    if (!this.alive) return 0;
+    const before = this.hp;
+    this.hp = Math.min(PLAYER_MAX_HP, Math.round(this.hp + amount));
+    return this.hp - before;
+  }
+
+  /**
+   * Add to the Iron-armor buffer from an armor drop (Fe), capped at PLAYER_MAX_ARMOR. Returns the
+   * amount actually added (0 if already full or dead) so the caller can tailor the pickup feedback.
+   */
+  addArmor(amount: number): number {
+    if (!this.alive) return 0;
+    const before = this.armor;
+    this.armor = Math.min(PLAYER_MAX_ARMOR, Math.round(this.armor + amount));
+    return this.armor - before;
   }
 
   /**

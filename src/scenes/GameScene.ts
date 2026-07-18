@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
-import type { AttackId, BaseAtom, Difficulty, NobleGasId, SectorId } from '../constants';
+import type { ArmorId, AttackId, BaseAtom, Difficulty, HealId, NobleGasId, SectorId } from '../constants';
 import {
+  ARMOR_DROPS,
+  ARMOR_IDS,
   ATTACK_ORDER,
   BASE_ATOMS,
   COIN_BONUS,
@@ -21,6 +23,8 @@ import {
   GRAVITY,
   GROUND_TOP_Y,
   HAZARD_DAMAGE,
+  HEAL_DROPS,
+  HEAL_IDS,
   isFinaleStage,
   MAX_ELEMENT_LEVEL,
   MEG_MAX_LEVEL_QUIPS,
@@ -756,6 +760,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this._spawnCoins();
+    this._spawnPickupDrops();
 
     if (def.boss) {
       // Sector finale — the boss closes out the level
@@ -843,6 +848,55 @@ export default class GameScene extends Phaser.Scene {
     this._coinsTotal = list.length;
     this._coinsCollected = 0;
     this._coinBonusAwarded = false;
+  }
+
+  /**
+   * Scatter the life/power-up drops along the stage: healing (Calcium/Zinc) and armor (Iron). Each
+   * seeds its `perStage` count, spread evenly across the walkable span and nudged onto solid footing
+   * (never a pit or acid pool), with a per-type jitter so different drops don't stack. The tutorial
+   * stays clean — no drops there.
+   */
+  private _spawnPickupDrops(): void {
+    if (this.isTutorial) return;
+    const def = this.stageDef;
+    const inHole = (x: number) => this._holes.some((g) => x > g.x1 - 30 && x < g.x2 + 30);
+    const onHazard = (x: number) => this._hazards.some((h) => x > h.x1 - 24 && x < h.x2 + 24);
+    // Nudge a target x off any pit/pool onto the nearest solid footing within a short scan.
+    const solidX = (x: number): number | null => {
+      for (let d = 0; d <= 260; d += 20) {
+        for (const cand of d === 0 ? [x] : [x - d, x + d]) {
+          if (cand > 200 && cand < def.width - 200 && !inHole(cand) && !onHazard(cand)) return cand;
+        }
+      }
+      return null;
+    };
+    // Place `n` drops evenly across the mid-span at horizontal offset `jitter`, building each via `make`.
+    const scatter = (n: number, jitter: number, make: (x: number) => Atom) => {
+      for (let i = 0; i < n; i++) {
+        const t = (i + 1) / (n + 1);
+        const target = 200 + Math.max(0.05, Math.min(0.95, t + jitter)) * (def.width - 400);
+        const x = solidX(Math.round(target));
+        if (x === null) continue;
+        this.atomGroup.add(make(x).sprite);
+      }
+    };
+
+    for (const id of HEAL_IDS) {
+      const jitter = id === 'zinc' ? 0.12 : -0.12;
+      scatter(
+        HEAL_DROPS[id].perStage,
+        jitter,
+        (x) => new Atom(this, x, GROUND_TOP_Y - 40, [], false, undefined, false, false, id),
+      );
+    }
+    for (const id of ARMOR_IDS) {
+      // Iron sits near mid-stage (jitter 0), spaced clear of the flanking heal drops.
+      scatter(
+        ARMOR_DROPS[id].perStage,
+        0,
+        (x) => new Atom(this, x, GROUND_TOP_Y - 40, [], false, undefined, false, false, undefined, id),
+      );
+    }
   }
 
   /** Push the current germ tally (killed / total) to the HUD. */
@@ -1545,7 +1599,11 @@ export default class GameScene extends Phaser.Scene {
     if (this.isTutorial) this._tutorialUpdate(_time);
     else if (this._exitPortal) this._updateExit();
 
-    this.events.emit('hud-update', { hp: this.player.hp, element: this.player.elementSystem });
+    this.events.emit('hud-update', {
+      hp: this.player.hp,
+      armor: this.player.armor,
+      element: this.player.elementSystem,
+    });
   }
 
   // ── Helpers called by entities ──────────────────────────────────────────────
@@ -1980,6 +2038,16 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (atom.heal) {
+      this._collectHeal(atom.heal, x, y);
+      return;
+    }
+
+    if (atom.armor) {
+      this._collectArmor(atom.armor, x, y);
+      return;
+    }
+
     if (atom.noble) {
       this._collectNoble(atom.noble, x, y);
       return;
@@ -2058,6 +2126,84 @@ export default class GameScene extends Phaser.Scene {
         `Every last silver coin — all ${this._coinsTotal} of them! +${COIN_BONUS.toLocaleString()} for a clean sweep!`,
       );
     }
+  }
+
+  /**
+   * Grab a healing drop (Ca/Zn): restore HP, capped at max. A green "+N HP" pops up; if the player is
+   * already full the drop still fizzes but reads as "FULL" so the pickup never feels wasted-silently.
+   */
+  private _collectHeal(id: HealId, x: number, y: number): void {
+    const def = HEAL_DROPS[id];
+    const healed = this.player.heal(def.heal);
+
+    this.spawnHitFlash(x, y, def.color, 26);
+    this.spawnBurst(x, y, def.color, { count: 12, speed: [80, 200], lifespan: 550, scale: 1 });
+    SoundSystem.play(this.audioCtx, 'element_upgrade');
+    if (healed > 0)
+      this.events.emit('hud-update', {
+        hp: this.player.hp,
+        armor: this.player.armor,
+        element: this.player.elementSystem,
+      });
+
+    const text = healed > 0 ? `+${healed} HP` : 'HP FULL';
+    const label = this.add
+      .text(x, y - 18, `${def.symbol}  ${text}`, {
+        fontSize: '18px',
+        color: healed > 0 ? '#7dffb0' : '#cfd8e0',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(120);
+    this.tweens.add({
+      targets: label,
+      y: y - 60,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Quad.Out',
+      onComplete: () => label.destroy(),
+    });
+  }
+
+  /**
+   * Grab an armor drop (Fe): add to the Iron-armor buffer, capped at max. A steel "+N ARMOR" pops up;
+   * at full armor it reads "ARMOR FULL" so the pickup never feels silently wasted.
+   */
+  private _collectArmor(id: ArmorId, x: number, y: number): void {
+    const def = ARMOR_DROPS[id];
+    const gained = this.player.addArmor(def.armor);
+
+    this.spawnHitFlash(x, y, def.color, 26);
+    this.spawnBurst(x, y, def.color, { count: 12, speed: [80, 200], lifespan: 550, scale: 1 });
+    SoundSystem.play(this.audioCtx, 'element_upgrade');
+    if (gained > 0)
+      this.events.emit('hud-update', {
+        hp: this.player.hp,
+        armor: this.player.armor,
+        element: this.player.elementSystem,
+      });
+
+    const text = gained > 0 ? `+${gained} ARMOR` : 'ARMOR FULL';
+    const label = this.add
+      .text(x, y - 18, `${def.symbol}  ${text}`, {
+        fontSize: '18px',
+        color: gained > 0 ? '#bcd4e8' : '#cfd8e0',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(120);
+    this.tweens.add({
+      targets: label,
+      y: y - 60,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Quad.Out',
+      onComplete: () => label.destroy(),
+    });
   }
 
   /** Grab a noble gas: a big score bonus, a flashy burst, a permanent find, and a M.E.G. shout-out. */

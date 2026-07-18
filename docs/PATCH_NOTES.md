@@ -1,5 +1,38 @@
 # Patch Notes
 
+## v0.38.0 - 2026-07-16
+
+### Iron armor drops
+
+- **A new Iron (Fe) drop grants armor — a buffer that soaks damage before HP.** Every non-tutorial
+  stage hides **one Iron drop** (a steel shield with a rivet cross and a cool halo). Grabbing it adds
+  `25` armor, capped at `PLAYER_MAX_ARMOR` (50). Incoming damage is absorbed by armor first, and only
+  the overflow reaches HP — so a fresh Iron pickup shrugs off the next hit or two. Armor lasts for the
+  current stage (it resets when the next stage's player spawns, same as HP).
+- **New HUD readout.** A slim steel "Fe N" chip appears to the right of the HP bar while any armor
+  remains, its fill tracking armor / max; it hides at zero. New `Player.addArmor(amount)` clamps to
+  the cap and returns the amount actually added; `takeDamage` now subtracts from armor before HP.
+- **On the Periodic Table.** Iron takes its true cell — group 8, period 4 — sitting between the
+  Calcium and Zinc healing drops, with an "ARMOR DROP" detail card. To make room for all three
+  period-4 drops, the selection/detail panel is now a short, wide legend seated above period 4 (which
+  also un-wraps the longer descriptions that the previous narrow panel had squeezed).
+
+## v0.37.0 - 2026-07-16
+
+### Healing drops — Calcium & Zinc
+
+- **Two new "elements of life" pickups restore HP.** Every non-tutorial stage now hides a handful of
+  healing drops: **Calcium (Ca)** heals `30` HP (1 per stage), **Zinc (Zn)** heals `15` HP (2 per
+  stage). They spread across the walkable span and always land on solid footing (never a pit or acid
+  pool). Each is a capsule bearing a medical cross with a soft pulsing halo in its element tint.
+- **Neither builds the molecular tree.** Unlike atom nodes, grabbing a drop opens no element choice —
+  it just tops the player up (capped at `PLAYER_MAX_HP`), pops a green `+N HP` label, and chimes. Grab
+  one at full health and it reads `HP FULL` so the pickup never feels silently wasted. New
+  `Player.heal(amount)` clamps to max and returns the amount actually restored.
+- **Both appear on the Periodic Table.** Calcium (group 2) and Zinc (group 12) take their true
+  period-4 cells, with atomic numbers/weights and a "HEALING DROP" detail card. The selection/detail
+  panel was inset to sit between them so neither cell overlaps it.
+
 ## v0.36.0 - 2026-07-04
 
 ### Ramps removed

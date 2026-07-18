@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import {
+  ARMOR_DROPS,
+  ARMOR_IDS,
+  type ArmorId,
   ATTACK_ORDER,
   ATTACKS,
   type AttackId,
@@ -14,6 +17,9 @@ import {
   ELEMENTS,
   GAME_HEIGHT,
   GAME_WIDTH,
+  HEAL_DROPS,
+  HEAL_IDS,
+  type HealId,
   NOBLE_GAS_COUNT,
   NOBLE_GASES,
 } from '../constants';
@@ -102,6 +108,23 @@ const NOBLE_DATA: Record<string, { number: number; mass: number }> = {
   xenon: { number: 54, mass: 131.29 },
   radon: { number: 86, mass: 222 },
 };
+// Healing drops (Ca / Zn) — the "elements of life". Real (group, period) cells in period 4: Calcium in
+// group 2, Zinc in group 12, both otherwise-empty slots on our sparse table.
+const HEAL_POS: Record<HealId, GP> = {
+  calcium: { g: 2, p: 4 },
+  zinc: { g: 12, p: 4 },
+};
+const HEAL_DATA: Record<HealId, { number: number; mass: number }> = {
+  calcium: { number: 20, mass: 40.078 },
+  zinc: { number: 30, mass: 65.38 },
+};
+// Armor drops (Fe) — Iron in its true cell: group 8, period 4 (between Calcium and Zinc).
+const ARMOR_POS: Record<ArmorId, GP> = {
+  iron: { g: 8, p: 4 },
+};
+const ARMOR_DATA: Record<ArmorId, { number: number; mass: number }> = {
+  iron: { number: 26, mass: 55.845 },
+};
 const GOLD_POS: GP = { g: 11, p: 6 }; // Au — transition-metal block, period 6
 const GOLD_NUMBER = 79;
 const GOLD_MASS = 196.97;
@@ -144,16 +167,18 @@ const CGAP = 8;
 const CROW_GAP = 8; // vertical gap between the two compound rows
 const COMP_Y = 440; // centre-y of the first compound row (a 2nd row sits CTH+CROW_GAP below when needed)
 
-// The detail panel lives in the classic empty upper-middle void (the transition-metal gap of periods
-// 1–4), exactly where a printed table prints its key/legend. Its foot stops above the group-11
-// precious-metals column (Silver in period 5, Gold in period 6), which sits just below it.
+// The detail panel lives in the classic empty upper-middle void, exactly where a printed table prints
+// its key/legend. It spans the empty middle of periods 1–3 (wide, so long descriptions never wrap)
+// and its foot stops just above period 4 — which is where the life/power-up drops sit: Calcium
+// (group 2), Iron (group 8), and Zinc (group 12). Keeping the panel above period 4 leaves all three of
+// those cells (and the group-11 precious metals below them) clear.
 const DET_X = 84;
 const DET_Y = 58;
 const DET_W = 592;
-const DET_H = 200;
+const DET_H = 154;
 const DET_CX = DET_X + DET_W / 2;
 
-type CellKind = 'atom' | 'compound' | 'gold' | 'silver' | 'platinum' | 'noble' | 'super';
+type CellKind = 'atom' | 'compound' | 'gold' | 'silver' | 'platinum' | 'noble' | 'super' | 'heal' | 'armor';
 
 interface Cell {
   kind: CellKind;
@@ -171,15 +196,21 @@ interface Cell {
   mass?: number;
   /** Present for atom & compound tiles — drives the recipe + attack-tier detail. */
   id?: AttackId;
+  /** Present for healing-drop tiles (Ca/Zn) — drives the HP-restore detail. */
+  healId?: HealId;
+  /** Present for armor-drop tiles (Fe) — drives the armor-buffer detail. */
+  armorId?: ArmorId;
 }
 
 /**
  * A static reference screen laid out like the real periodic table: the seven collectable base atoms
  * sit in their true (group, period) cells, the six noble gases stack down group 18 on the far right,
  * and the group-11 precious metals — Silver (coins) above Gold (×2 wildcard), with Platinum (×3
- * wildcard) beside Gold — sit in the transition-metal block. The Prismatic super weapon caps the
- * noble-gas column (it is what collecting them all unlocks). The assembled compounds form a detached
- * strip along the very bottom. Selecting any tile (arrows / tap) reveals its detail in the legend.
+ * wildcard) beside Gold — sit in the transition-metal block. The life/power-up drops take their true
+ * period-4 cells: the healing drops Calcium (group 2) and Zinc (group 12) flank the armor drop Iron
+ * (group 8). The Prismatic super weapon caps the noble-gas column (it is what collecting them all
+ * unlocks). The assembled compounds form a detached strip along the very bottom. Selecting any tile
+ * (arrows / tap) reveals its detail in the legend.
  */
 export default class MoleculeTreeScene extends Phaser.Scene {
   private from = 'TitleScene';
@@ -305,6 +336,46 @@ export default class MoleculeTreeScene extends Phaser.Scene {
         name: n.name,
         color: n.color,
         mass: d.mass,
+      });
+    });
+
+    // Healing drops (Ca / Zn) — the "elements of life", in their true period-4 cells.
+    HEAL_IDS.forEach((h) => {
+      const pos = HEAL_POS[h];
+      const d = HEAL_DATA[h];
+      const def = HEAL_DROPS[h];
+      this._addCell({
+        kind: 'heal',
+        x: groupX(pos.g),
+        y: periodY(pos.p),
+        w: MTW,
+        h: MTH,
+        num: d.number,
+        symbol: def.symbol,
+        name: def.name,
+        color: def.color,
+        mass: d.mass,
+        healId: h,
+      });
+    });
+
+    // Armor drops (Fe) — Iron in its true period-4 cell, between Calcium and Zinc.
+    ARMOR_IDS.forEach((a) => {
+      const pos = ARMOR_POS[a];
+      const d = ARMOR_DATA[a];
+      const def = ARMOR_DROPS[a];
+      this._addCell({
+        kind: 'armor',
+        x: groupX(pos.g),
+        y: periodY(pos.p),
+        w: MTW,
+        h: MTH,
+        num: d.number,
+        symbol: def.symbol,
+        name: def.name,
+        color: def.color,
+        mass: d.mass,
+        armorId: a,
       });
     });
 
@@ -485,26 +556,28 @@ export default class MoleculeTreeScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(2);
 
+    // Rows are pulled up compactly so all content clears the panel's short foot (it sits above the
+    // period-4 drop cells); the panel is wide, so descriptions render one line per sentence.
     this.detailSymbol = this.add
-      .text(DET_CX, DET_Y + 40, '', { fontSize: '24px', color: '#ffffff', fontFamily: MONO, fontStyle: 'bold' })
+      .text(DET_CX, DET_Y + 32, '', { fontSize: '22px', color: '#ffffff', fontFamily: MONO, fontStyle: 'bold' })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailRecipe = this.add
-      .text(DET_CX, DET_Y + 76, '', { fontSize: '13px', color: '#aebcc6', fontFamily: MONO })
+      .text(DET_CX, DET_Y + 58, '', { fontSize: '12px', color: '#aebcc6', fontFamily: MONO })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailLabel = this.add
-      .text(DET_CX, DET_Y + 108, '', { fontSize: '11px', color: '#5f7f8a', fontFamily: MONO })
+      .text(DET_CX, DET_Y + 80, '', { fontSize: '11px', color: '#5f7f8a', fontFamily: MONO })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailBody = this.add
-      .text(DET_CX, DET_Y + 130, '', {
-        fontSize: '13px',
+      .text(DET_CX, DET_Y + 96, '', {
+        fontSize: '12px',
         color: '#c4d2da',
         fontFamily: MONO,
         align: 'center',
-        lineSpacing: 4,
-        wordWrap: { width: DET_W - 44 },
+        lineSpacing: 2,
+        wordWrap: { width: DET_W - 40 },
       })
       .setOrigin(0.5, 0)
       .setDepth(2);
@@ -563,6 +636,26 @@ export default class MoleculeTreeScene extends Phaser.Scene {
           `${COINS_PER_STAGE} coins line every level — each worth ${COIN_SCORE} pts.\nSweep them all in a stage for a +${COIN_BONUS.toLocaleString()} bonus.`,
         );
         break;
+      case 'heal': {
+        // biome-ignore lint/style/noNonNullAssertion: heal cells always carry a healId
+        const def = HEAL_DROPS[cell.healId!];
+        this.detailRecipe.setText(`Atomic no. ${cell.num}  ·  standard atomic weight ${cell.mass?.toFixed(3)}`);
+        this.detailLabel.setText('HEALING DROP');
+        this.detailBody.setText(
+          `An element of life — restores ${def.heal} HP when grabbed.\n${def.perStage} ${def.perStage === 1 ? 'drop' : 'drops'} tucked into every level.`,
+        );
+        break;
+      }
+      case 'armor': {
+        // biome-ignore lint/style/noNonNullAssertion: armor cells always carry an armorId
+        const def = ARMOR_DROPS[cell.armorId!];
+        this.detailRecipe.setText(`Atomic no. ${cell.num}  ·  standard atomic weight ${cell.mass?.toFixed(3)}`);
+        this.detailLabel.setText('ARMOR DROP');
+        this.detailBody.setText(
+          `Grants ${def.armor} armor — a buffer that soaks damage before HP.\n${def.perStage} ${def.perStage === 1 ? 'drop' : 'drops'} tucked into every level.`,
+        );
+        break;
+      }
       case 'noble':
         this.detailRecipe.setText(`Atomic no. ${cell.num}  ·  standard atomic weight ${cell.mass?.toFixed(3)}`);
         this.detailLabel.setText('NOBLE GAS');

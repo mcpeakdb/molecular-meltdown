@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ARMOR_DROPS, HEAL_DROPS } from '../constants';
 import type { PlayerFrameBox } from '../types';
 
 // === Hand-drawn art manifest ===
@@ -79,6 +80,8 @@ export default class BootScene extends Phaser.Scene {
     this._makeVignette();
     this._makeCoinTexture();
     this._makePlatinumTexture();
+    this._makeHealTextures();
+    this._makeArmorTexture();
     this.scene.start('TitleScene');
   }
 
@@ -99,6 +102,71 @@ export default class BootScene extends Phaser.Scene {
     g.fillStyle(0xffffff, 0.6);
     g.fillCircle(40, 40, 3);
     g._done('atom_platinum', 64, 64);
+  }
+
+  // Healing drops (Calcium / Zinc) — a rounded pill capsule bearing a medical cross, so it reads as a
+  // restorative pickup rather than an atom node. Each is tinted by its element's healing color.
+  private _makeHealTextures(): void {
+    const draw = (key: string, tint: number, cross: number) => {
+      const g = this._g();
+      g.fillStyle(tint, 0.35); // soft outer glow ring
+      g.fillCircle(32, 32, 30);
+      g.fillStyle(0x2a3a34, 0.9); // dark rim for contrast
+      g.fillRoundedRect(9, 15, 46, 34, 16);
+      g.fillStyle(tint); // capsule body
+      g.fillRoundedRect(12, 18, 40, 28, 13);
+      g.fillStyle(0xffffff, 0.35); // top highlight sheen
+      g.fillRoundedRect(16, 21, 32, 8, 5);
+      // Medical cross in the middle.
+      g.fillStyle(cross, 0.95);
+      g.fillRect(28, 24, 8, 16);
+      g.fillRect(24, 28, 16, 8);
+      g._done(key, 64, 64);
+    };
+    draw('atom_calcium', HEAL_DROPS.calcium.color, 0xe0483a); // bone-cream capsule, red cross
+    draw('atom_zinc', HEAL_DROPS.zinc.color, 0x1f8f5f); // mint capsule, green cross
+  }
+
+  // Armor drop (Iron) — a steel shield plate with a rivet cross, so it reads as protection rather than
+  // a healing capsule or an atom node. Tinted by Iron's cool-steel color.
+  private _makeArmorTexture(): void {
+    const g = this._g();
+    const tint = ARMOR_DROPS.iron.color;
+    // Draw a closed polygon via path commands (fillPoints wants typed Vector2[]; paths avoid that).
+    const shield = (pts: [number, number][]) => {
+      g.beginPath();
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+      g.closePath();
+      g.fillPath();
+    };
+    g.fillStyle(tint, 0.3); // soft steel halo
+    g.fillCircle(32, 32, 30);
+    // Shield silhouette (heater shield): flat top, tapering to a point.
+    g.fillStyle(0x262c34, 0.95); // dark rim
+    shield([
+      [32, 8],
+      [54, 17],
+      [54, 33],
+      [32, 56],
+      [10, 33],
+      [10, 17],
+    ]);
+    g.fillStyle(tint); // steel face
+    shield([
+      [32, 13],
+      [50, 20],
+      [50, 32],
+      [32, 51],
+      [14, 32],
+      [14, 20],
+    ]);
+    g.fillStyle(0xffffff, 0.22); // top-left sheen
+    g.fillCircle(24, 23, 6);
+    g.fillStyle(0x475260, 0.9); // rivet cross
+    g.fillRect(30, 21, 4, 18);
+    g.fillRect(23, 28, 18, 4);
+    g._done('atom_iron', 64, 64);
   }
 
   // Silver coin pickup — a small procedural disc (rim, face, inner ring, highlight). It spins via a

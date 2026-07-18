@@ -72,6 +72,14 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   WHERE a `guard` is set, a guard enemy shall spawn at the gem.
 - **REQ-SPAWN-004** — The stage's germ total (boss counted as one) shall be snapshotted at spawn for
   the HUD counter.
+- **REQ-SPAWN-005** — Every non-tutorial stage shall scatter life/power-up drops, spread across the
+  walkable span and nudged onto solid footing (never a pit or acid pool); each opens no element choice
+  and does not build the molecular tree:
+  - Healing drops per `HEAL_DROPS` — Calcium (`Ca`, heals 30, 1 per stage) and Zinc (`Zn`, heals 15,
+    2 per stage). WHEN collected the game shall call `Player.heal` (REQ-PLAYER-056) and pop a `+N HP`
+    (or `HP FULL`) label with a chime.
+  - Armor drops per `ARMOR_DROPS` — Iron (`Fe`, +25 armor, 1 per stage). WHEN collected the game shall
+    call `Player.addArmor` (REQ-PLAYER-057) and pop a `+N ARMOR` (or `ARMOR FULL`) label with a chime.
 
 ## Pits / gaps
 

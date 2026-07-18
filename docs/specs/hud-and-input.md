@@ -24,6 +24,9 @@ The in-game HUD and the input model (keyboard + on-screen touch controls). Sourc
 - **REQ-HUD-001** — `HUDScene` shall display: an HP bar (colour shifts green→amber→red as HP drops)
   with numeric HP, the owned base-atom badges (H/O/C/N/S/Cl/P counts), a centred weapon-chip bar, a germ
   counter, the run score, and the combo readout.
+- **REQ-HUD-001a** — WHEN `hud-update` carries `armor > 0`, the HUD shall show a steel "Fe N" armor
+  chip beside the HP bar with a fill tracking `armor / PLAYER_MAX_ARMOR`; WHEN armor is 0 the chip
+  shall be hidden.
 - **REQ-HUD-002** — WHEN `arsenal-update` fires, the HUD shall render one chip per weapon slot: a
   bound slot shows its compound symbol/name/level-pips/cooldown; an empty slot 1 falls back to a
   Punch chip; any other empty slot shows a dim placeholder. The chip bar shall centre on the slot

@@ -129,14 +129,18 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
   7-period lattice: the seven base atoms in their true (group, period) cells (H alone; C/N/O in
   period 2; P/S/Cl below them in period 3); the six noble gases down group 18 (far right) under a
   highlight; the group-11 precious metals — Silver (period 5) above Gold (period 6) — with Platinum
-  beside Gold; and the Prismatic super weapon capping the foot of the noble-gas column. The assembled
-  compounds shall form a detached, labelled strip along the very bottom. Real elements show their true
-  atomic number and standard atomic weight; the super weapon shows neither.
+  beside Gold; the life/power-up drops in their true period-4 cells — the healing drops Calcium (group
+  2) and Zinc (group 12) flanking the armor drop Iron (group 8), all seated below the detail panel;
+  and the Prismatic super weapon capping the foot of the noble-gas column. The assembled compounds
+  shall form a detached, labelled strip along the very bottom. Real elements show their true atomic
+  number and standard atomic weight; the super weapon shows neither.
 - **REQ-TREE-002** — WHILE a tile is selected, the central legend/detail panel shall show content per
   tile kind: a base atom's atomic number + tier attack names; a compound's recipe + tier attack
   names; Gold's wildcard note (grants +2 of one atom); Platinum's wildcard note (grants +3, ~0.1%);
-  Silver's note (silver coins — 50 per stage, each scores, full sweep bonus); a noble gas's inert note
-  (collect all six to arm the Prismatic Beam); and the super weapon's requirement + effect.
+  Silver's note (silver coins — 50 per stage, each scores, full sweep bonus); a healing drop's note
+  (Ca/Zn restore HP — the amount and per-stage count); an armor drop's note (Fe grants armor that
+  soaks damage before HP — the amount and per-stage count); a noble gas's inert note (collect all six
+  to arm the Prismatic Beam); and the super weapon's requirement + effect.
 - **REQ-TREE-003** — ←/→/↑/↓ shall move the cursor to the nearest tile in the pressed direction
   (reaching the noble-gas column, the precious metals, the super weapon, and the detached compounds);
   ESC/Z/Enter or tapping the backdrop shall return to the `from` scene.

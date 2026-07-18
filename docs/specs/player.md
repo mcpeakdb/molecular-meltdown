@@ -69,8 +69,9 @@ Source: [`src/entities/Player.ts`](../../src/entities/Player.ts). Attack effects
 ## Damage, invincibility & death
 
 - **REQ-PLAYER-050** — WHEN `takeDamage` is called and the player is alive and not invincible, the
-  player shall subtract the amount from HP (floored at 0), reset the combo, start the post-hit
-  invincibility timer, and flash red briefly.
+  player shall reset the combo, start the post-hit invincibility timer, and flash red briefly. The
+  Iron-armor buffer (`armor`) shall absorb the damage first — armor is reduced by the absorbed amount
+  and only the overflow is subtracted from HP (floored at 0).
 - **REQ-PLAYER-051** — WHILE the post-hit invincibility timer is active, further damage shall be
   ignored and the sprite shall flicker.
 - **REQ-PLAYER-052** — WHILE the Nitric-Oxide radical buff is active, the player shall be invincible
@@ -83,6 +84,14 @@ Source: [`src/entities/Player.ts`](../../src/entities/Player.ts). Attack effects
 - **REQ-PLAYER-055** — Landing a high drop onto solid ground shall cause no damage — there is no
   hard-landing fall damage. (Only falling into a pit/chasm hurts; see `GAP_FALL_DAMAGE` in
   stages-and-platforming.md.)
+- **REQ-PLAYER-056** — WHEN `heal(amount)` is called on a living player, HP shall increase by the
+  amount, clamped to `PLAYER_MAX_HP`, and the method shall return the HP actually restored (0 if
+  already full or dead). Collecting a healing drop (Ca/Zn) is the only caller; see
+  stages-and-platforming.md for placement.
+- **REQ-PLAYER-057** — The player shall start each stage with `armor = 0`. WHEN `addArmor(amount)` is
+  called on a living player, `armor` shall increase by the amount, clamped to `PLAYER_MAX_ARMOR` (50),
+  and the method shall return the armor actually added (0 if already full or dead). Collecting an armor
+  drop (Fe) is the only caller. Armor is not persisted across stages (a fresh Player spawns per stage).
 
 ## Freeze
 

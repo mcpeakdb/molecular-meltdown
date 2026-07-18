@@ -212,6 +212,35 @@ export const COIN_SCORE = 25; // points per coin
 export const COIN_BONUS = 3000; // bonus for collecting every coin in a stage
 export const COIN_COLOR = 0xd8e2ec; // silver
 
+// ── Healing drops (Ca / Zn) ──────────────────────────────────────────────────
+// Non-attack pickups that restore player HP. These are the "elements of life": Calcium (bone/repair)
+// heals more but is rarer per stage; Zinc (wound healing / immunity) heals less. Neither opens an
+// element choice or builds the molecular tree — collecting one just tops the player up.
+export type HealId = 'calcium' | 'zinc';
+export const HEAL_DROPS: Record<
+  HealId,
+  { name: string; symbol: string; color: number; heal: number; texture: string; perStage: number }
+> = {
+  calcium: { name: 'Calcium', symbol: 'Ca', color: 0xfff2d6, heal: 30, texture: 'atom_calcium', perStage: 1 },
+  zinc: { name: 'Zinc', symbol: 'Zn', color: 0xbfeed8, heal: 15, texture: 'atom_zinc', perStage: 2 },
+};
+export const HEAL_IDS = Object.keys(HEAL_DROPS) as HealId[];
+
+// ── Armor drops (Fe) ─────────────────────────────────────────────────────────
+// Non-attack pickups that grant armor — a damage-absorbing buffer that soaks incoming hits before
+// they reach HP. Iron (Fe, hemoglobin / the body's iron) is the sole armor drop. Like the healing
+// drops it opens no element choice; the armor it grants lasts for the current stage.
+export type ArmorId = 'iron';
+export const ARMOR_DROPS: Record<
+  ArmorId,
+  { name: string; symbol: string; color: number; armor: number; texture: string; perStage: number }
+> = {
+  iron: { name: 'Iron', symbol: 'Fe', color: 0x9aa7b5, armor: 25, texture: 'atom_iron', perStage: 1 },
+};
+export const ARMOR_IDS = Object.keys(ARMOR_DROPS) as ArmorId[];
+/** Cap on the player's armor buffer (absorbs damage before HP). */
+export const PLAYER_MAX_ARMOR = 50;
+
 // Every attack maps 1:1 to an element/compound. NONE has no attack; GOLD and PLATINUM are wildcard
 // pickups (they grant atoms rather than firing), so they are excluded too.
 export type AttackId = Exclude<ElementType, typeof ELEMENTS.NONE | typeof ELEMENTS.GOLD | typeof ELEMENTS.PLATINUM>;

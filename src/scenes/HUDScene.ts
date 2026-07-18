@@ -7,6 +7,7 @@ import {
   ELEMENT_COLORS,
   GAME_WIDTH,
   MAX_ELEMENT_LEVEL,
+  PLAYER_MAX_ARMOR,
   PLAYER_MAX_HP,
   SLOT_KEY_LABELS,
 } from '../constants';
@@ -70,6 +71,10 @@ const CHIP_COUNT = 10;
 export default class HUDScene extends Phaser.Scene {
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private hpText!: Phaser.GameObjects.Text;
+  /** Iron-armor readout: a slim steel sub-bar under the HP bar, hidden while armor is 0. */
+  private armorBarTrack!: Phaser.GameObjects.Rectangle;
+  private armorBarFill!: Phaser.GameObjects.Rectangle;
+  private armorText!: Phaser.GameObjects.Text;
   private atomBadges!: { circle: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text }[];
   private chips!: Chip[];
   private scoreText!: Phaser.GameObjects.Text;
@@ -111,6 +116,28 @@ export default class HUDScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(204)
       .setOrigin(0, 0.5);
+
+    // ── ARMOR (Iron buffer) — steel chip to the right of the HP bar, hidden while armor is 0 ──────
+    const armX = PAD + 214;
+    this.armorBarTrack = this.add
+      .rectangle(armX, PAD + 4, 92, 16, 0x0a1420)
+      .setScrollFactor(0)
+      .setDepth(200)
+      .setOrigin(0, 0)
+      .setStrokeStyle(1, 0x3a4a5a, 0.9)
+      .setVisible(false);
+    this.armorBarFill = this.add
+      .rectangle(armX + 1, PAD + 5, 90, 14, 0x8fa4b8)
+      .setScrollFactor(0)
+      .setDepth(201)
+      .setOrigin(0, 0)
+      .setVisible(false);
+    this.armorText = this.add
+      .text(armX + 5, PAD + 12, '', { fontSize: '12px', color: '#eaf2f8', fontFamily: MONO, fontStyle: 'bold' })
+      .setScrollFactor(0)
+      .setDepth(202)
+      .setOrigin(0, 0.5)
+      .setVisible(false);
 
     // ── MOLECULAR TREE — owned atom badges ────────────────────────────────────
     this.add
@@ -351,11 +378,21 @@ export default class HUDScene extends Phaser.Scene {
     this.enemiesText.setColor(left === 0 ? '#88ff88' : '#aaccaa');
   }
 
-  private _onUpdate({ hp }: { hp: number }): void {
+  private _onUpdate({ hp, armor = 0 }: { hp: number; armor?: number }): void {
     const pct = hp / PLAYER_MAX_HP;
     this.hpBarFill.width = Math.max(0, 204 * pct);
     this.hpBarFill.fillColor = pct > 0.5 ? 0x44cc66 : pct > 0.25 ? 0xaacc22 : 0xcc4422;
     this.hpText.setText(`HP  ${hp}`);
+
+    // Iron-armor chip: shown only while a buffer remains; the fill tracks armor / max.
+    const hasArmor = armor > 0;
+    this.armorBarTrack.setVisible(hasArmor);
+    this.armorBarFill.setVisible(hasArmor);
+    this.armorText.setVisible(hasArmor);
+    if (hasArmor) {
+      this.armorBarFill.width = Math.max(0, 90 * Math.min(1, armor / PLAYER_MAX_ARMOR));
+      this.armorText.setText(`Fe ${armor}`);
+    }
   }
 
   private _onArsenal({ slots, counts }: ArsenalUpdate): void {
