@@ -2,16 +2,16 @@ import type Phaser from 'phaser';
 import { fitHeightScale } from '../spriteFit';
 import SoundSystem from './SoundSystem';
 
-/** On-screen height (px) of the tiny player-avatar menu cursor, independent of source resolution. */
+/** On-screen height (px) of the tiny Meg-avatar menu cursor, independent of source resolution. */
 const CURSOR_HEIGHT = 26;
 
 /**
- * The selected-menu-item marker: a tiny version of the player sprite (replaces the old "›" carat).
+ * The selected-menu-item marker: a tiny version of the Meg sprite (replaces the old "›" carat).
  * Faces right, so placed just left of a menu item it "points" at the current selection. The caller
  * positions it (and may set scrollFactor/depth); move it with `.setY(...)` as the cursor changes.
  */
 export function makeCursorIcon(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Image {
-  const icon = scene.add.image(x, y, 'player_0').setOrigin(0.5, 0.5);
+  const icon = scene.add.image(x, y, 'meg').setOrigin(0.5, 0.5);
   return icon.setScale(fitHeightScale(icon.height, CURSOR_HEIGHT));
 }
 

@@ -708,19 +708,19 @@ export default class MoleculeTreeScene extends Phaser.Scene {
     // Rows are pulled up compactly so all content clears the panel's short foot (it sits above the
     // period-4 drop cells); the panel is wide, so descriptions render one line per sentence.
     this.detailSymbol = this.add
-      .text(DET_CX, DET_Y + 32, '', { fontSize: '22px', color: '#ffffff', fontFamily: MONO, fontStyle: 'bold' })
+      .text(DET_CX, DET_Y + 30, '', { fontSize: '22px', color: '#ffffff', fontFamily: MONO, fontStyle: 'bold' })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailRecipe = this.add
-      .text(DET_CX, DET_Y + 58, '', { fontSize: '12px', color: '#aebcc6', fontFamily: MONO })
+      .text(DET_CX, DET_Y + 54, '', { fontSize: '12px', color: '#aebcc6', fontFamily: MONO })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailLabel = this.add
-      .text(DET_CX, DET_Y + 80, '', { fontSize: '11px', color: '#5f7f8a', fontFamily: MONO })
+      .text(DET_CX, DET_Y + 74, '', { fontSize: '11px', color: '#5f7f8a', fontFamily: MONO })
       .setOrigin(0.5)
       .setDepth(2);
     this.detailBody = this.add
-      .text(DET_CX, DET_Y + 96, '', {
+      .text(DET_CX, DET_Y + 90, '', {
         fontSize: '12px',
         color: '#c4d2da',
         fontFamily: MONO,

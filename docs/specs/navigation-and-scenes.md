@@ -59,7 +59,7 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 - **REQ-MENU-003** — WHEN a selection is confirmed, the avatar cursor icon shall play a punch
   flourish (lunge + scale pop + punch SFX) and then perform the action; re-entry shall be guarded so
   a double-press cannot fire the action twice during the flourish (`punchCursorIcon`).
-- **REQ-MENU-004** — The selected-item marker shall be a small player-avatar image
+- **REQ-MENU-004** — The selected-item marker shall be a small Meg-avatar image
   (`makeCursorIcon`) positioned just left of the active item.
 
 ## TitleScene

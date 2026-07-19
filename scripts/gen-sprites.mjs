@@ -1,8 +1,9 @@
 // Procedural sprite generator → static PNG assets.
 //
-// The lab-floor creatures (ant, fly, bee) and bosses (Roach King, Dung Beetle, Hornet Queen) plus the
-// noble-gas gem were originally drawn at runtime with Phaser Graphics. This script rasterizes the
-// SAME shapes to PNG files under public/assets/sprites/ so they live as real assets alongside the
+// The lab-floor creatures (ant, fly, bee) and bosses (Roach King, Dung Beetle, Hornet Queen), the
+// noble-gas gem, and the pickup drops (Platinum wildcard, Calcium/Zinc heal capsules, Iron shield,
+// silver coin) were originally drawn at runtime with Phaser Graphics. This script rasterizes the SAME
+// shapes to PNG files under public/assets/sprites/ so they live as real assets alongside the
 // hand-drawn art (loaded by key via BootScene's ASSET_SPECS). Re-run with `npm run gen:sprites`.
 //
 // Zero dependencies: a tiny supersampled rasterizer (for anti-aliasing) + a minimal PNG encoder
@@ -65,6 +66,28 @@ const fillEllipse = (cv, cx, cy, w, h) => {
 
 const fillRect = (cv, x, y, w, h) =>
   paint(cv, x, y, x + w, y + h, (sx, sy) => sx >= x && sx < x + w && sy >= y && sy < y + h, cv.fill);
+
+// Rounded rectangle via a rounded-rect SDF (dx/dy = distance past the straight edges of the core).
+const fillRoundedRect = (cv, x, y, w, h, r) => {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const hw = w / 2;
+  const hh = h / 2;
+  const inside = (sx, sy) => {
+    const dx = Math.max(Math.abs(sx - cx) - (hw - r), 0);
+    const dy = Math.max(Math.abs(sy - cy) - (hh - r), 0);
+    return dx * dx + dy * dy <= r * r;
+  };
+  paint(cv, x, y, x + w, y + h, inside, cv.fill);
+};
+
+// Circle outline of the current lineStyle width, centred on the radius.
+const strokeCircle = (cv, cx, cy, rad) => {
+  const [r, g, b, a, width] = cv.line;
+  const hw = width / 2;
+  const inside = (sx, sy) => Math.abs(Math.hypot(sx - cx, sy - cy) - rad) <= hw;
+  paint(cv, cx - rad - hw, cy - rad - hw, cx + rad + hw, cy + rad + hw, inside, [r, g, b, a]);
+};
 
 function fillTriangle(cv, x1, y1, x2, y2, x3, y3) {
   const sign = (ax, ay, bx, by, cx, cy) => (ax - cx) * (by - cy) - (bx - cx) * (ay - cy);
@@ -192,6 +215,21 @@ function writePNG(file, w, h, rgba) {
   writeFileSync(file, png);
   console.log(`  ${file.replace(`${ROOT}/`, '')}  (${w}×${h})`);
 }
+
+// Heal capsule (Calcium / Zinc) — a rounded pill bearing a medical cross, tinted by its heal colour.
+const healCapsule = (tint, cross) => (g) => {
+  fillStyle(g, tint, 0.35); // soft outer glow ring
+  fillCircle(g, 32, 32, 22);
+  fillStyle(g, 0x2a3a34, 0.9); // dark rim for contrast
+  fillRoundedRect(g, 16, 19, 32, 26, 13);
+  fillStyle(g, tint, 1); // capsule body
+  fillRoundedRect(g, 19, 22, 26, 20, 10);
+  fillStyle(g, 0xffffff, 0.35); // top highlight sheen
+  fillRoundedRect(g, 22, 24, 20, 6, 3);
+  fillStyle(g, cross, 0.95); // medical cross
+  fillRect(g, 30, 26, 4, 12);
+  fillRect(g, 26, 30, 12, 4);
+};
 
 // ── The sprites (ports of BootScene's procedural _make* drawings, facing right) ──
 const SPRITES = {
@@ -332,6 +370,85 @@ const SPRITES = {
     fillPoly(g, [[24, 8], [13, 13], [13, 25]]);
     fillStyle(g, 0xffffff, 0.95);
     fillCircle(g, 9, 6, 1.6);
+  }],
+  // Platinum wildcard — the Gold atom's twin (star-halo-over-orb), recoloured cool + dusted sparkles.
+  'atoms/atom_platinum': [64, 64, (g) => {
+    const star = (rad, i, color, alpha) => {
+      fillStyle(g, color, alpha);
+      fillPoly(g, [
+        [32, 32 - rad],
+        [32 + i, 32 - i],
+        [32 + rad, 32],
+        [32 + i, 32 + i],
+        [32, 32 + rad],
+        [32 - i, 32 + i],
+        [32 - rad, 32],
+        [32 - i, 32 - i],
+      ]);
+    };
+    star(30, 9, 0xcfe0f2, 0.55); // outer glow
+    star(26, 8, 0xe6f0fb, 0.75); // inner glow
+    fillStyle(g, 0x8fa4bc, 1); // rim
+    fillCircle(g, 32, 32, 17);
+    fillStyle(g, 0xc4d6ea, 1); // body
+    fillCircle(g, 32, 32, 14);
+    fillStyle(g, 0xeef5fd, 1); // bright face
+    fillCircle(g, 32, 32, 10);
+    fillStyle(g, 0xffffff, 0.95); // top-left highlight
+    fillCircle(g, 27, 27, 4);
+    const sparkle = (cx, cy, s, alpha) => {
+      fillStyle(g, 0xffffff, alpha);
+      fillTriangle(g, cx, cy - s, cx + s * 0.4, cy, cx - s * 0.4, cy);
+      fillTriangle(g, cx, cy + s, cx + s * 0.4, cy, cx - s * 0.4, cy);
+      fillTriangle(g, cx - s, cy, cx, cy + s * 0.4, cx, cy - s * 0.4);
+      fillTriangle(g, cx + s, cy, cx, cy + s * 0.4, cx, cy - s * 0.4);
+    };
+    sparkle(40, 24, 4, 0.95);
+    sparkle(24, 40, 3, 0.8);
+    sparkle(44, 42, 2.5, 0.7);
+  }],
+  // Heal capsules — tint + cross colour mirror HEAL_DROPS in src/constants.ts.
+  'atoms/atom_calcium': [64, 64, healCapsule(0xfff2d6, 0xe0483a)], // bone-cream capsule, red cross
+  'atoms/atom_zinc': [64, 64, healCapsule(0xbfeed8, 0x1f8f5f)], // mint capsule, green cross
+  // Iron armour drop — a steel heater shield with a rivet cross. Tint mirrors ARMOR_DROPS.iron.color.
+  'atoms/atom_iron': [64, 64, (g) => {
+    const tint = 0x9aa7b5;
+    fillStyle(g, tint, 0.3); // soft steel halo
+    fillCircle(g, 32, 32, 22);
+    fillStyle(g, 0x262c34, 0.95); // dark rim
+    fillPoly(g, [
+      [32, 14],
+      [48, 20],
+      [48, 33],
+      [32, 50],
+      [16, 33],
+      [16, 20],
+    ]);
+    fillStyle(g, tint, 1); // steel face
+    fillPoly(g, [
+      [32, 18],
+      [44, 23],
+      [44, 32],
+      [32, 46],
+      [20, 32],
+      [20, 23],
+    ]);
+    fillStyle(g, 0xffffff, 0.22); // top-left sheen
+    fillCircle(g, 26, 25, 5);
+    fillStyle(g, 0x475260, 0.9); // rivet cross
+    fillRect(g, 30, 23, 4, 14);
+    fillRect(g, 25, 28, 14, 4);
+  }],
+  // Silver coin score pickup — a small disc (rim, face, engraved ring, highlight); spins at runtime.
+  'atoms/coin_silver': [32, 32, (g) => {
+    fillStyle(g, 0x8892a0, 1); // dark outer rim
+    fillCircle(g, 16, 16, 14);
+    fillStyle(g, 0xd7dee6, 1); // bright face
+    fillCircle(g, 16, 16, 12);
+    lineStyle(g, 1.5, 0x8892a0, 0.9); // inner engraved ring
+    strokeCircle(g, 16, 16, 8);
+    fillStyle(g, 0xf4f8fc, 0.9); // top-left highlight
+    fillCircle(g, 12, 12, 3);
   }],
 };
 
