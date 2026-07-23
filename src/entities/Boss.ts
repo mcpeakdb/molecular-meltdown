@@ -42,7 +42,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   bacterium: {
     texture: 'boss_bacterium',
     name: 'SUPER BACTERIUM',
-    hp: 500,
+    hp: 250,
     speed: 140,
     damage: 22,
     scale: 1.5,
@@ -58,7 +58,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   amoeba: {
     texture: 'boss_amoeba',
     name: 'AMOEBA TITAN',
-    hp: 850,
+    hp: 425,
     speed: 120,
     damage: 26,
     scale: 1.7,
@@ -74,7 +74,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   phage: {
     texture: 'boss_phage',
     name: 'PHAGE LORD',
-    hp: 1300,
+    hp: 650,
     speed: 175,
     damage: 32,
     scale: 1.6,
@@ -90,7 +90,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   roach: {
     texture: 'boss_roach',
     name: 'ROACH KING',
-    hp: 1600,
+    hp: 800,
     speed: 185,
     damage: 34,
     scale: 1.5,
@@ -106,7 +106,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   beetle: {
     texture: 'boss_beetle',
     name: 'DUNG BEETLE',
-    hp: 2000,
+    hp: 1000,
     speed: 110,
     damage: 38,
     scale: 1.7,
@@ -122,7 +122,7 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
   hornet: {
     texture: 'boss_hornet',
     name: 'HORNET QUEEN',
-    hp: 2200,
+    hp: 1100,
     speed: 200,
     damage: 36,
     scale: 1.55,

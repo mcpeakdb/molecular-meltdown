@@ -1,5 +1,14 @@
 # Patch Notes
 
+## v0.38.1 - 2026-07-23
+
+### Boss balance
+
+- **Every boss now has half the HP.** All six finale bosses had their `hp` cut in half to shorten
+  fights: SUPER BACTERIUM 500→250, AMOEBA TITAN 850→425, PHAGE LORD 1300→650, ROACH KING 1600→800,
+  DUNG BEETLE 2000→1000, HORNET QUEEN 2200→1100. All other boss stats (speed, damage, volleys,
+  phase ramp) are unchanged.
+
 ## v0.38.0 - 2026-07-16
 
 ### Iron armor drops
