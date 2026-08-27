@@ -34,7 +34,7 @@ Boot → Title ─┬─ START ─────► (tutorial not done) GameScene{
               └─ SETTINGS ─────► SettingsScene ─────ESC─► caller
 
 DifficultyScene ─confirm─► StageSelectScene ─confirm─► GameScene{stage,difficulty}
-GameScene (+HUDScene in parallel) ─clear─► next GameScene | StageSelectScene (after stage 9)
+GameScene (+HUDScene in parallel) ─clear─► next GameScene | StageSelectScene (after stage 18)
 GameScene ─death─► retry GameScene | TitleScene
 GameScene ─pause─► PauseScene (overlay)
 GameScene ─atom─► ElementChoiceScene (overlay)

@@ -148,7 +148,8 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   freeze the player, finalize the stage score (see [scoring-and-persistence.md](scoring-and-persistence.md)),
   flash the camera in the sector colour, and after a short delay show the clear banner.
 - **REQ-CLEAR-002** — The clear banner shall read STAGE CLEAR, SECTOR CLEAR (finale, not final), or
-  EXPERIMENT COMPLETE (stage 9), show the score breakdown, and prompt to continue (tap or Z).
+  EXPERIMENT COMPLETE (the final stage, `STAGE_COUNT`), show the score breakdown, and prompt to
+  continue (tap or Z).
 - **REQ-CLEAR-003** — WHEN continuing from a non-final clear, the game shall carry the cumulative run
   score into the next stage and start it; WHEN continuing from the final clear, it shall reset the run
   score and return to `StageSelectScene`.

@@ -26,9 +26,9 @@ export const GAME_HEIGHT = 540;
 export const WORLD_WIDTH = 5500; // default / widest stage span; individual stages may be shorter
 
 // ── Sectors & stages ─────────────────────────────────────────────────────────
-// The game is 9 stages grouped into 3 sectors of 3 stages each. A "sector" is the
+// The game is 18 stages grouped into 6 sectors of 3 stages each. A "sector" is the
 // biome/theme (art, music-color, boss); a "stage" is one playable level within it.
-// stage 1-9 → sector = ceil(stage/3); the 3rd stage of each sector is the boss finale.
+// stage 1-18 → sector = ceil(stage/3); the 3rd stage of each sector is the boss finale.
 export const STAGE_COUNT = 18;
 export type SectorId = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -178,7 +178,7 @@ export const MAX_ELEMENT_LEVEL = 3;
 // reset there). The player has this many lives; each death spends one, and running out ends the run.
 export const RUN_LIVES = 3;
 
-// ── Attack registry (Phase 6: molecular tree + numpad arsenal) ──────────────
+// ── Attack registry (molecular tree + weapon-slot arsenal) ──────────────────
 // The seven collectable base atoms.
 export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen' | 'sulfur' | 'chlorine' | 'phosphorus';
 export const BASE_ATOMS: BaseAtom[] = ['hydrogen', 'oxygen', 'carbon', 'nitrogen', 'sulfur', 'chlorine', 'phosphorus'];
@@ -253,7 +253,7 @@ export interface AttackDef {
   id: AttackId;
   /** Stoichiometric recipe — exact atom counts needed to assemble one copy of the molecule. */
   recipe: Partial<Record<BaseAtom, number>>;
-  /** Fixed priority used to order the numpad slots (lower = earlier key). */
+  /** Fixed priority used to order the weapon slots (lower = earlier key). */
   slot: number;
   /** Effect/HUD color — tuned to match the atom or compound. */
   color: number;

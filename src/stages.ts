@@ -3,9 +3,9 @@ import type { BossVariant } from './entities/Boss';
 import type { EnemyType } from './entities/Enemy';
 
 // ── Stage configuration ───────────────────────────────────────────────────────
-// The game is 9 stages (3 sectors × 3 stages). Each stage is fully described here;
+// The game is 18 stages (6 sectors × 3 stages). Each stage is fully described here;
 // GameScene reads STAGES[stage - 1] and builds the level from it. The 3rd stage of
-// every sector is a boss finale (`boss`); the other six clear by reaching `exitX`.
+// every sector is a boss finale (`boss`); the other twelve clear by reaching `exitX`.
 //
 // Theme/art is keyed by sector (see constants `SECTORS` / GameScene `SECTOR_THEMES`),
 // not by individual stage, so all three stages of a sector share a biome.

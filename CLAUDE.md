@@ -2,7 +2,14 @@
 
 ## Project Overview
 
-A molecular-scale beat 'em up browser game built with **Phaser 4.1.0** and **TypeScript**. The player is a mad scientist fighting through microscopic environments. All graphics and audio are procedural — no external asset files.
+A molecular-scale beat 'em up browser game built with **Phaser 4.1.0** and **TypeScript**. The player
+is a mad scientist fighting through microscopic environments across **18 stages (6 sectors × 3)**.
+
+**Art**: sprites are PNG assets under [public/assets/sprites/](public/assets/sprites/) (see the
+[README](public/assets/sprites/README.md) there). Most are hand-drawn; the lab-floor creatures/bosses
+and the pickup drops are rasterized by `scripts/gen-sprites.mjs`. Stage tiles, the vignette, and all
+in-game FX are still drawn procedurally. **Audio is 100% procedural** (Web Audio) — no audio files;
+that remains a hard constraint.
 
 ## Tech Stack
 
@@ -13,19 +20,23 @@ A molecular-scale beat 'em up browser game built with **Phaser 4.1.0** and **Typ
 | Vite 8 | Dev server & bundler (rolldown-powered) |
 | Biome | Linting + formatting |
 | Husky | Pre-commit hooks |
+| GitHub Actions | Builds + deploys `dist/` to GitHub Pages on push to `main` (`.github/workflows/deploy.yml`) |
 
 ## Dev Commands
 
 ```bash
-npm run dev        # start Vite dev server (localhost:5173)
-npm run build      # production build → dist/
-npm run preview    # preview the dist build
-npm run lint       # biome check (read-only)
-npm run lint:fix   # biome check --write (auto-fix)
-npm run typecheck  # tsc --noEmit
-npm run levels     # level-design tool: solve reachability for all stages →
-                   # docs/level-maps.html (open in a browser) + a warning report to stdout
+npm run dev          # start Vite dev server (localhost:5173)
+npm run build        # production build → dist/
+npm run preview      # preview the dist build
+npm run lint         # biome check src/ (read-only)
+npm run lint:fix     # biome check --write src/
+npm run typecheck    # tsc --noEmit
+npm run gen:sprites  # regenerate the script-drawn PNGs → public/assets/sprites/
+npm run levels       # level-design tool: solve reachability for all stages →
+                     # docs/level-maps.html (open in a browser) + a warning report to stdout
 ```
+
+Pre-commit hook runs `biome check --fix` and `tsc --noEmit` automatically on every commit.
 
 ## Level-design tooling
 
@@ -45,39 +56,48 @@ transparent formula (tune the `W_*` constants). The reachability model is delibe
 can't). Not part of the game build; run it after editing stage geometry to check intent survived.
 The tool loads the TS source via a small extensionless-import resolver (`tools/ts-hooks.mjs`).
 
-Pre-commit hook runs `biome check --fix` and `tsc --noEmit` automatically on every commit.
-
 ## Source Layout
 
 ```
 src/
-  main.ts                  # Phaser game config + scene list
-  constants.ts             # ELEMENTS, colors, names, damage values, game constants
-  types.ts                 # Shared TypeScript types
-  stages.ts                # STAGES[9] — data-driven config for all 9 stages (3 sectors × 3)
+  main.ts                  # Phaser game config + scene list (+ touch fullscreen-on-first-tap)
+  constants.ts             # ELEMENTS, ATTACKS registry, sectors, drops/coins/nobles, damage & tuning
+  types.ts                 # Shared TypeScript types (input, arsenal, sprite refs)
+  stages.ts                # STAGES[18] — data-driven config for all 18 stages (6 sectors × 3)
+  spriteFit.ts             # fitHeightScale() — render art at a target on-screen height, any source res
   entities/
-    Player.ts              # Player movement, attack, specials, combo, death
-    Enemy.ts               # Enemy AI, takeDamage, bleed DOT, death (7 types incl. amoeba/spore/mite)
-    Boss.ts                # Boss variants (bacterium/amoeba/phage), phases, projectiles, activation
-    Atom.ts                # Collectible atom sprite
+    Player.ts              # Movement, attack, 21 specials, combo, armor/heal, death
+    Enemy.ts               # Enemy AI, takeDamage, bleed DOT, death (10 types), art variants
+    Boss.ts                # Boss variants (6), phases, projectiles, activation
+    Atom.ts                # Collectible atom / noble gem / gold + platinum wildcard sprite
   scenes/
-    BootScene.ts           # Procedural texture generation for all sprites → TitleScene
-    TitleScene.ts          # Main menu (Start / Stage Select / Leaderboard / Controls / Settings)
-    GameScene.ts           # Main game loop, spawning, physics, overlaps, scoring
-    HUDScene.ts            # Score, HP, element, combo UI (runs in parallel)
-    ElementChoiceScene.ts  # Level-up choice overlay
-    DifficultyScene.ts     # Easy/Normal/Hard select → StageSelectScene
-    StageSelectScene.ts    # Stage picker (9 stages by sector, per-stage unlocks, best scores)
+    BootScene.ts           # ASSET_SPECS PNG manifest + preload; procedural stage tiles & vignette
+    TitleScene.ts          # Main menu (Start / Periodic Table / Leaderboard / Controls / Settings)
+    GameScene.ts           # Main game loop, spawning, physics, overlaps, scoring, M.E.G. tutorial
+    HUDScene.ts            # Score, HP/armor, lives, atom counts, weapon slots, combo (parallel scene)
+    ElementChoiceScene.ts  # Level-up choice overlay (atom node → pick a branch)
+    DifficultyScene.ts     # Normal/Hard/Extreme select (flask + burner art) → StageSelectScene
+    StageSelectScene.ts    # Coverflow test-tube rack; per-stage unlocks, best scores, passcode entry
     LeaderboardScene.ts    # Top-5 runs per difficulty
-    SettingsScene.ts       # Volume / mute / SFX / screen-shake options
-    HelpScene.ts           # Controls reference
+    SettingsScene.ts       # Volume / mute / SFX / music / screen-shake / touch / fullscreen
+    HelpScene.ts           # Controls reference (touch- or keyboard-specific)
+    MoleculeTreeScene.ts   # Periodic-table reference screen (atoms, nobles, drops, compounds)
     PauseScene.ts          # In-game pause menu + Compound Selection loadout sub-menu
   systems/
-    ElementSystem.ts       # Atom counts → available attacks, level tracking, weapon-slot bindings
-    SoundSystem.ts         # Procedural Web Audio SFX (routed through a settings-aware master gain)
-    MusicSystem.ts         # Procedural Web Audio music — look-ahead step sequencer, 5 data-driven tracks
-    SaveSystem.ts          # localStorage meta: unlocks, best scores, leaderboard (per difficulty)
-    Settings.ts            # localStorage global prefs: volume, mute, sfx, music, screenShake, tutorialDone
+    ElementSystem.ts       # Atom counts → available attacks, levels, weapon-slot bindings, super
+    SoundSystem.ts         # Procedural Web Audio SFX (settings-aware master gain)
+    MusicSystem.ts         # Procedural Web Audio music — look-ahead sequencer, 8 tracks (title/6 sectors/boss)
+    SaveSystem.ts          # localStorage meta: unlocks, best scores, leaderboard (per difficulty, v2 + v1 migration)
+    Settings.ts            # localStorage prefs: volume, mute, sfx, music, screenShake, touch, fullscreen, tutorial flags
+    Passcode.ts            # Derived 6-digit per-difficulty stage unlock codes (FNV-1a hash, no table)
+    TouchControls.ts       # Floating thumbstick + jump/attack/pause buttons for touch devices
+    touchMenu.ts           # Shared menu helpers: Meg-avatar cursor, punch-confirm, attachTap
+scripts/
+  gen-sprites.mjs          # Zero-dep rasterizer: Phaser-style draw calls → PNG assets (npm run gen:sprites)
+public/assets/sprites/     # All sprite PNGs, by folder (player/npc/enemies/bosses/atoms/fx) + README
+tools/
+  level-map.ts             # Reachability + pacing validator (npm run levels)
+  ts-hooks.mjs             # Node loader hooks so the tool can import the TS source directly
 docs/
   specs/                   # EARS behavioural specs (what the game does), per subsystem — the living
                            # reference; read these first to understand a system, keep in sync on change
@@ -87,6 +107,7 @@ docs/
     stages-and-platforming.md, elements-and-progression.md, scoring-and-persistence.md,
     hud-and-input.md, audio-and-settings.md, tutorial.md
   PATCH_NOTES.md           # Version history (must stay current)
+  level-maps.html          # Generated by npm run levels (not hand-edited)
 ```
 
 ## After Making Changes
@@ -100,56 +121,91 @@ After completing any meaningful change or feature:
 
 Version lives in `package.json` → `"version"`. Use semantic versioning:
 
-- **patch** (0.2.1 → 0.2.2) — bug fixes, minor tweaks
-- **minor** (0.2.x → 0.3.0) — new gameplay features, new elements, new stages
+- **patch** (0.38.1 → 0.38.2) — bug fixes, minor tweaks
+- **minor** (0.38.x → 0.39.0) — new gameplay features, new elements, new stages
 - **major** (0.x → 1.0.0) — content-complete, shippable milestone
 
 Whenever the version is bumped, add a new entry to [docs/PATCH_NOTES.md](docs/PATCH_NOTES.md) before committing.
 
 ## Architecture Reference
 
-### Adding a new element / molecule (Phase 6 molecular-tree model)
+### Sectors & stages
+
+- The game is **18 stages = 6 sectors × 3**. `currentStage` (1–`STAGE_COUNT`) is the unit of play;
+  the sector (biome/theme) is derived by `sectorOf` in [src/constants.ts](src/constants.ts), with
+  `substageOf` / `isFinaleStage` alongside it. The 3rd stage of each sector is a boss finale; the
+  other two clear by reaching `exitX`.
+- Sectors 1–3 are the dishes (PETRI DISH, BLOOD AGAR, MACCONKEY); sectors 4–6 are the lab floor
+  (LAB FLOOR, UNDER THE BENCH, THE WASTE BIN) and share a biome.
+- All stage content lives in [src/stages.ts](src/stages.ts) as `STAGES[18]` (`StageDef`): per-stage
+  `name`, `width`, optional `rise` (climbable sky), `atoms`, `enemies`, `gaps`, `platforms`,
+  `hazards`, `pads`, `crumble`, and either `boss` or `exitX`. Enrichment loops at the bottom of the
+  file place noble gems (`NOBLE_BY_STAGE`) and guarantee every summit carries a reward.
+- Theme/art is keyed by sector: `SECTOR_THEMES` in `GameScene` and `bg_tile_${sector}` /
+  `ground_tile_${sector}` procedural textures in `BootScene`.
+
+### Difficulty & weapon slots
+
+`DIFFICULTY_SCALE` in [src/constants.ts](src/constants.ts) defines **normal / hard / extreme**
+(enemy HP, speed, i-frames, and `weaponSlots`). Attacks are bound to slots keyed **Z / X / C**
+(numbered 1/2/3 on touch — see `slotKeyLabels`); Extreme grants only two slots. The player rebinds
+compounds via Pause → **Compound Selection**. Runs carry `RUN_LIVES` lives.
+
+### Adding a new element / molecule
 
 Attacks are data-driven by the `ATTACKS` registry. Each element/compound is one attack with a
-stoichiometric `recipe`; `ElementSystem` derives the level (= complete recipe copies, capped at 3)
-and the numpad slot ordering from it. There is no longer a `_resolve()` combo table or
-`CHOICE_DESCRIPTIONS`.
+stoichiometric `recipe`; `ElementSystem` derives the level (= complete recipe copies, capped at
+`MAX_ELEMENT_LEVEL`) and slot ordering from it.
 
 1. Add to `ELEMENTS` and `ELEMENT_COLORS` / `ELEMENT_NAMES` in [src/constants.ts](src/constants.ts)
 2. Add an `ATTACKS` entry in [src/constants.ts](src/constants.ts): `recipe` (atom→count), `slot`
    (priority/order), `color`, `tierNames` (Lv1–3), `cooldownMs`. `ATTACK_ORDER` derives automatically.
-   For a brand-new **base atom**, also extend `BaseAtom` / `BASE_ATOMS`.
+   For a brand-new **base atom**, also extend `BaseAtom` / `BASE_ATOMS`. Optionally add trivia to
+   `ELEMENT_FACTS`.
 3. Add a `_specialXxx()` method in [src/entities/Player.ts](src/entities/Player.ts) and a branch in
    `_dispatchAttack()`
 4. Add the symbol to `ATTACK_SYMBOL` (and `ATOM_SYMBOL` for a new base atom) in
-   [src/scenes/HUDScene.ts](src/scenes/HUDScene.ts) and `ELEMENT_SYMBOLS` in
-   [src/scenes/ElementChoiceScene.ts](src/scenes/ElementChoiceScene.ts)
-5. For a new base atom: add its texture in [src/scenes/BootScene.ts](src/scenes/BootScene.ts) and
-   include it in `GameScene._spawnStage()` `atomDefs` choices
+   [src/scenes/HUDScene.ts](src/scenes/HUDScene.ts), `ELEMENT_SYMBOLS` in
+   [src/scenes/ElementChoiceScene.ts](src/scenes/ElementChoiceScene.ts), and
+   `COMPOUND_SYMBOL` in [src/scenes/MoleculeTreeScene.ts](src/scenes/MoleculeTreeScene.ts)
+5. For a new base atom: also give it `ATOM_SYMBOL` / `ATOMIC_NUMBER` / `ATOMIC_MASS` / `ATOM_POS`
+   (+ `GAME_ELEMENTS`) entries in `MoleculeTreeScene`, a PNG (`atoms/atom_xxx.png`) registered in
+   `ASSET_SPECS` in [src/scenes/BootScene.ts](src/scenes/BootScene.ts), and include it in the stage
+   `choices` / `CLUSTER_ATOMS` tables in [src/stages.ts](src/stages.ts)
 
 ### Adding a new enemy
 
 1. Add the type to `EnemyType` and a config entry to `CONFIGS` in
-   [src/entities/Enemy.ts](src/entities/Enemy.ts) (wire any hover/hop/idle flair there too)
-2. Add a procedural texture method in [src/scenes/BootScene.ts](src/scenes/BootScene.ts) and call it in
-   `create()`
-3. Reference the type from any stage's `enemies` list in [src/stages.ts](src/stages.ts); optionally add a
-   score in `GameScene.onEnemyDeath()`
+   [src/entities/Enemy.ts](src/entities/Enemy.ts) (hover/hop/idle flair and any `ranged` profile go
+   there too); add interchangeable art keys to `TEXTURE_VARIANTS` if it ships more than one look
+2. Add the PNG(s) under `public/assets/sprites/enemies/` and register each key in `ASSET_SPECS` in
+   [src/scenes/BootScene.ts](src/scenes/BootScene.ts). If the art is script-drawn, add it to
+   `scripts/gen-sprites.mjs` and re-run `npm run gen:sprites`
+3. Reference the type from any stage's `enemies` list in [src/stages.ts](src/stages.ts); optionally
+   add a score in `GameScene.onEnemyDeath()`
 
 ### Adding a new boss
 
 1. Add the variant to `BossVariant` + `VARIANTS` in [src/entities/Boss.ts](src/entities/Boss.ts)
    (texture, name, stats, scale/body, projectile volley, tints)
-2. Add its procedural texture in [src/scenes/BootScene.ts](src/scenes/BootScene.ts)
+2. Add its PNG under `public/assets/sprites/bosses/` and register the key in `ASSET_SPECS` in
+   [src/scenes/BootScene.ts](src/scenes/BootScene.ts)
 3. Set it as a stage finale via `boss: { variant, x }` in [src/stages.ts](src/stages.ts)
 
-### Sectors & stages
+### Progression & pickups beyond atoms
 
-- The game is **9 stages = 3 sectors × 3 stages**. `currentStage` (1–9) is the unit of play; the
-  sector (biome/theme) is derived as `ceil(stage/3)` (`sectorOf` in
-  [src/constants.ts](src/constants.ts)). The 3rd stage of each sector is a boss finale.
-- All stage content lives in [src/stages.ts](src/stages.ts) as `STAGES[9]` (`StageDef`): per-stage
-  `name`, `width`, `atoms`, `enemies`, `gaps`, and either `boss` (finale) or `exitX` (reach-the-exit
-  clear). `GameScene` reads `STAGES[currentStage - 1]` — to add/retune a stage, edit that array.
-- Theme/art is keyed by sector: `SECTOR_THEMES` in `GameScene` and `bg_tile_${sector}` /
-  `ground_tile_${sector}` textures in `BootScene`.
+- **Coins** (`COINS_PER_STAGE`) — score per pickup plus a full-collection bonus.
+- **Heal drops** — Calcium / Zinc (`HEAL_DROPS`); **armor drop** — Iron (`ARMOR_DROPS`, capped at
+  `PLAYER_MAX_ARMOR`). Neither opens an element choice.
+- **Wildcards** — Gold (+1 to any atom) and the much rarer Platinum (+3).
+- **Noble gases** — one hidden gem in the 2nd stage of each sector (`NOBLE_BY_STAGE`); collecting all six
+  permanently arms the **Prismatic** super weapon (`SUPER_ATTACK_ID`). Noble progress is run-scoped.
+- **Passcodes** — `Passcode.ts` derives a 6-digit code per (stage, difficulty); entering one in
+  StageSelect unlocks every stage up to it. Bump `PASSCODE_SALT` to invalidate all shared codes.
+
+### Input
+
+`InputKeys` (in [src/types.ts](src/types.ts)) merges keyboard (cursors + WASD + slot keys) with an
+optional per-frame `TouchInputState` from `TouchControls`, so gameplay code stays input-source
+agnostic. `Settings.touchActive()` decides whether on-screen controls are shown; `HelpScene` and the
+HUD/slot badges relabel themselves accordingly.
