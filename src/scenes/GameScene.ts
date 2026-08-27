@@ -1616,9 +1616,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnHitFlash(x: number, y: number, color = 0xffffff, size = 32): void {
-    const g = this.add.graphics();
+    // The circle is drawn at the object's own origin and the object is placed at (x, y): the scale
+    // tween then expands it about its centre. (Drawing at world coords instead would make scaling
+    // multiply the offset from the world origin, hurling the flash toward the bottom-right.)
+    const g = this.add.graphics({ x, y });
     g.fillStyle(color, 0.85);
-    g.fillCircle(x, y, size * 0.6);
+    g.fillCircle(0, 0, size * 0.6);
     g.setDepth(100);
     this.tweens.add({
       targets: g,
