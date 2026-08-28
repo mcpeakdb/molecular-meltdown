@@ -44,6 +44,14 @@ export interface StageDef {
   boss?: { variant: BossVariant; x: number };
   /** Non-boss stages clear by reaching this x — an exit portal sits here. */
   exitX?: number;
+  /** Surface top the exit portal stands on, for stages that finish *above* the floor. Omitted =
+   *  GROUND_TOP_Y (the classic ground-level exit). WHERE this is set, reaching `exitX` only clears the
+   *  stage if the player is at least as high as the portal's footing, so walking past underneath at
+   *  ground level does not count — the climb is the finale. */
+  exitY?: number;
+  /** Where the player starts. `y` is the surface top they stand on; omitted = the floor at x=120.
+   *  A raised spawn must sit on a ledge listed in `platforms` (validated by `npm run levels`). */
+  spawn?: { x: number; y: number };
 }
 
 /** A hand-placed squad: enemies clustered tightly around `x` as one encounter — the opposite of an
@@ -55,12 +63,44 @@ function pack(x: number, ...types: EnemyType[]): StageEnemy[] {
   return types.map((type, i) => ({ x: Math.round(x + (i - mid) * step), type }));
 }
 
+/** Standard ledge width. Climb steps are sized against it: a zig-zag with an `offset` of 180 leaves a
+ *  50px edge gap, and a single jump clears 130px even while rising 105px, so every step is one hop. */
+const LEDGE_W = 130;
+
+/** A zig-zag climb: `steps` ledges alternating between the columns at `x` and `x + offset`, each one
+ *  `up` px above the last. The workhorse of vertical sections — a tower, a chimney, a spire. */
+function spire(
+  x: number,
+  baseTop: number,
+  steps: number,
+  up = 105,
+  offset = 180,
+  w = LEDGE_W,
+): [number, number, number][] {
+  return Array.from(
+    { length: steps },
+    (_, i) => [x + (i % 2) * offset, baseTop - i * up, w] as [number, number, number],
+  );
+}
+
+/** Terraces stepping down *and forward* from a high perch. Falling is free, so these run wider and
+ *  faster than a climb — a descent is momentum, not effort. Used to open a stage up in the air. */
+function descent(x: number, top: number, steps: number, drop = 130, offset = 250, w = 150): [number, number, number][] {
+  return Array.from({ length: steps }, (_, i) => [x + i * offset, top + i * drop, w] as [number, number, number]);
+}
+
+/** A level run of ledges at one height: verticality you travel *along* rather than up. Spans a chasm
+ *  or a stretch of floor high above it, so the danger is the drop rather than the climb. */
+function skybridge(x: number, top: number, count: number, gap = 145, w = 120): [number, number, number][] {
+  return Array.from({ length: count }, (_, i) => [x + i * (w + gap), top, w] as [number, number, number]);
+}
+
 export const STAGES: StageDef[] = [
   // ── Sector 1 — PETRI DISH ────────────────────────────────────────────────
   // 1-1 — gentle introduction: sparse foes, simple H/O atoms, a single gap.
   {
     name: 'INOCULATION ZONE',
-    width: 3600,
+    width: 4700,
     // First vertical stage: the camera now follows the player up a climbable tower (see `rise`).
     rise: 480,
     atoms: [
@@ -68,6 +108,8 @@ export const STAGES: StageDef[] = [
       { x: 1500, choices: ['hydrogen', 'oxygen'] },
       // Reward for the climb — a third atom perched at the top of the tower.
       { x: 2610, y: -300, choices: ['hydrogen', 'carbon'] },
+      { x: 3750, y: 266, choices: ['hydrogen', 'oxygen'] }, // on the bridging ledge
+      { x: 4400, y: 246, choices: ['oxygen', 'carbon'] },
     ],
     // Pacing: a gentle teaching ramp — one germ to learn on, a pair holding the gap, ranged harassers,
     // then a clear breather over the pad + tower climb before the stage's only real crowd guards the exit.
@@ -78,8 +120,13 @@ export const STAGES: StageDef[] = [
       // breather 2050–2900: the bounce pad and sky-tower climb are the beat here — no ground foes
       ...pack(3060, 'bacterium', 'dustbunny', 'bacterium'), // the spike: the first real crowd
       { x: 3270, type: 'virus' }, // exit sentry
+      ...pack(3550, 'bacterium', 'virus'), // holds the run-up to the new chasm
+      ...pack(4180, 'dustbunny', 'bacterium', 'pollen'), // the exit push along the rim
     ],
-    gaps: [[1500, 1620]],
+    gaps: [
+      [1500, 1620],
+      [3700, 3830],
+    ],
     platforms: [
       // Gentle introduction to jumping onto ledges — a low row.
       [700, 410, 120],
@@ -96,21 +143,27 @@ export const STAGES: StageDef[] = [
       [2540, -260, 150],
       // Back down to the ground run-up to the exit.
       [3050, 360, 140],
+      // The rim run: a low ledge chain past a fresh chasm — first-stage verticality stays gentle.
+      [3450, 370, 150],
+      [3680, 310, 150], // bridges the chasm below it
+      [4060, 350, 150],
+      [4330, 290, 140],
     ],
     // First taste of platforming: a single springy spore to bop on, just past the gap.
     pads: [2050],
-    exitX: 3380,
+    exitX: 4500,
   },
   // 1-2 — busier petri dish: a couple of gaps, the first real crowd.
   {
     name: 'THE AGAR FLATS',
-    width: 4200,
-    rise: 460,
+    width: 5400,
+    rise: 500,
     atoms: [
       { x: 500, choices: ['hydrogen', 'oxygen'] },
       { x: 1400, choices: ['oxygen', 'carbon'] },
       { x: 2300, choices: ['hydrogen', 'oxygen'] },
       { x: 3300, choices: ['hydrogen', 'carbon'] },
+      { x: 4370, y: 126, choices: ['oxygen', 'carbon'] }, // perched mid-climb, so the ascent pays as you go
     ],
     // Pacing: intro pair → a rising fight → breather across the tower + Helium gem climb (and gap 2) →
     // the spike after the gap → a final push past the crumbling agar to the exit.
@@ -121,10 +174,13 @@ export const STAGES: StageDef[] = [
       // breather 2100–3070: sky tower to the Helium gem, then gap 2 — the platforming beat, no ground foes
       ...pack(3250, 'virus', 'bacterium', 'pollen', 'virus'), // the spike, past gap 2
       ...pack(3760, 'dustbunny', 'bacterium'), // exit push, just past the crumbling tiles
+      ...pack(3900, 'bacterium', 'dustbunny'), // last of the ground fight
+      ...pack(4420, 'virus', 'pollen'), // flyers harassing the climb
     ],
     gaps: [
       [1450, 1570],
       [2950, 3070],
+      [4100, 4240],
     ],
     platforms: [
       [600, 400, 120],
@@ -140,17 +196,21 @@ export const STAGES: StageDef[] = [
       [2480, -170, 150],
       [2900, 360, 150],
       [3250, 320, 130],
+      // The rim climb: a four-step spire onto a shelf the exit sits on — the stage ends in the air.
+      ...spire(4300, 380, 4),
+      [4650, 65, 220], // exit shelf
     ],
     // Helium — up a gentle single-jump staircase mid-stage (unguarded, the easiest find).
     pads: [800],
     // First crumbling tile — stand too long and the agar gives way into a chasm.
     crumble: [[3550, 3690]],
-    exitX: 3980,
+    exitX: 4760,
+    exitY: 65, // the stage finishes up on the ledge, not down on the floor
   },
   // 1-3 — Colony Core: the Super Bacterium finale.
   {
     name: 'COLONY CORE',
-    width: 5000,
+    width: 5900,
     rise: 480,
     atoms: [
       { x: 500, choices: ['hydrogen', 'oxygen'] },
@@ -158,6 +218,7 @@ export const STAGES: StageDef[] = [
       { x: 2100, choices: ['hydrogen', 'oxygen'] },
       { x: 2900, choices: ['hydrogen', 'carbon'] },
       { x: 3700, choices: ['oxygen', 'hydrogen'] },
+      { x: 4430, y: 106, choices: ['hydrogen', 'oxygen'] }, // summit of the approach spire
     ],
     // Pacing (boss stage): a deliberate escalation toward the arena. The front is a light screen of
     // lone foes; each encounter is bigger than the last; the heaviest crowd forms a wall right in
@@ -170,6 +231,8 @@ export const STAGES: StageDef[] = [
       // ramp into the boss (past gap 2 and the pad) — pressure climbs to a wall:
       ...pack(3550, 'virus', 'bacterium', 'pollen'), // the pressure mounts
       ...pack(4200, 'dustbunny', 'bacterium', 'bacterium', 'virus'), // the wall right before the arena
+      ...pack(4800, 'bacterium', 'virus'), // first rank of the wall before the arena
+      ...pack(5050, 'dustbunny', 'bacterium', 'pollen'), // and the second
     ],
     gaps: [
       [1450, 1570],
@@ -189,25 +252,29 @@ export const STAGES: StageDef[] = [
       [2750, 360, 150],
       [3300, 330, 160],
       [3900, 380, 140],
+      // A compact spire on the approach — climb it for the reward, then drop into the arena.
+      ...spire(4370, 360, 3, 105, 150, 120),
     ],
     // Neon — high up, with an amoeba standing guard at the base of the climb.
     // First hazard pool appears before the boss run-up; bop the pad to skip it cleanly.
     hazards: [[2300, 2440]],
     pads: [3650],
-    boss: { variant: 'bacterium', x: 4500 },
+    boss: { variant: 'bacterium', x: 5400 },
   },
 
   // ── Sector 2 — BLOOD AGAR ────────────────────────────────────────────────
   // 2-1 — newcomers arrive: amoeba (tank) + spore (fast). Heavier pacing.
   {
     name: 'HEMOLYTIC FIELDS',
-    width: 4200,
-    rise: 420,
+    width: 5200,
+    rise: 480,
+    spawn: { x: 220, y: 170 }, // dropped in on a shelf above the field
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1300, choices: ['hydrogen', 'nitrogen'] },
       { x: 2675, y: -150, choices: ['oxygen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3200, choices: ['hydrogen', 'oxygen'] },
+      { x: 4505, y: 286, choices: ['oxygen', 'carbon', 'sodium'] }, // mid-bridge, over the chasm
     ],
     // Pacing: intro skirmish → rising fight → breather over the tower + gap 2 → spike → exit push.
     enemies: [
@@ -217,10 +284,13 @@ export const STAGES: StageDef[] = [
       // breather 2300–3080: tower climb + gap 2
       ...pack(3350, 'spore', 'bacterium', 'virus'), // the spike, past gap 2
       ...pack(3720, 'spore', 'amoeba'), // exit push, past the crumbling tiles
+      ...pack(3900, 'amoeba', 'spore'), // guards the lip of the chasm
+      ...pack(4800, 'bacterium', 'virus', 'amoeba'), // the far side, between bridge and exit
     ],
     gaps: [
       [1450, 1580],
       [2950, 3080],
+      [4200, 4520], // too wide to leap — cross it on the skybridge above
     ],
     platforms: [
       [650, 400, 120],
@@ -235,23 +305,27 @@ export const STAGES: StageDef[] = [
       [2600, -110, 150],
       [3150, 360, 140],
       [3650, 320, 150],
+      // Opens in the air: terraces down into the field. Ends on a skybridge over a wide chasm.
+      ...descent(150, 170, 3), // the opening drop-in
+      ...skybridge(4180, 330, 3), // over the chasm below
     ],
     hazards: [[2050, 2200]],
     pads: [800],
     crumble: [[3550, 3700]],
-    exitX: 3980,
+    exitX: 4980,
   },
   // 2-2 — plasma currents: dense spore swarms threading amoeba tanks.
   {
     name: 'PLASMA CURRENTS',
-    width: 4600,
-    rise: 480,
+    width: 5700,
+    rise: 540,
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1200, choices: ['hydrogen', 'nitrogen'] },
       { x: 2000, choices: ['carbon', 'nitrogen'] },
       { x: 2900, choices: ['hydrogen', 'oxygen'] },
       { x: 3800, choices: ['oxygen', 'carbon', 'nitrogen'] },
+      { x: 4715, y: 126, choices: ['oxygen', 'carbon', 'sodium'] }, // halfway up the wall
     ],
     // Pacing: intro → rising fight → breather over the tower + Argon gem + gap 2 → spike → exit push.
     enemies: [
@@ -262,10 +336,13 @@ export const STAGES: StageDef[] = [
       ...pack(3450, 'spore', 'virus', 'amoeba'), // the spike, past gap 2
       ...pack(3800, 'spore', 'spore', 'amoeba'), // pressure holds
       ...pack(4300, 'spore', 'spore', 'virus'), // exit push, past the crumbling tiles
+      ...pack(4200, 'amoeba', 'spore'), // the last ground fight
+      ...pack(4700, 'virus', 'spore'), // flyers contesting the wall
     ],
     gaps: [
       [1500, 1640],
       [3150, 3290],
+      [4450, 4590],
     ],
     platforms: [
       [700, 390, 130],
@@ -281,6 +358,9 @@ export const STAGES: StageDef[] = [
       [2850, -180, 150],
       [3500, 330, 150],
       [3950, 360, 140],
+      // The vessel wall: a five-step spire climbing past the old exit to a shelf high above it.
+      ...spire(4650, 380, 5),
+      [4900, -40, 260], // exit shelf
     ],
     // Argon — up high over the plasma; a hovering spore makes the climb dangerous.
     hazards: [
@@ -289,19 +369,22 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[4050, 4200]],
-    exitX: 4380,
+    exitX: 5030,
+    exitY: -40, // the stage finishes up on the ledge, not down on the floor
   },
   // 2-3 — The Beating Heart: the Amoeba Titan finale.
   {
     name: 'THE BEATING HEART',
-    width: 5200,
-    rise: 500,
+    width: 6100,
+    rise: 560,
+    spawn: { x: 240, y: 65 }, // the stage opens high in the chamber
     atoms: [
       { x: 500, choices: ['oxygen', 'carbon'] },
       { x: 1300, choices: ['hydrogen', 'nitrogen'] },
       { x: 2100, choices: ['carbon', 'nitrogen'] },
       { x: 2900, choices: ['hydrogen', 'oxygen'] },
       { x: 3700, choices: ['oxygen', 'carbon', 'nitrogen'] },
+      { x: 4620, y: 1, choices: ['oxygen', 'carbon', 'sodium'] }, // summit of the approach spire
     ],
     // Pacing (boss stage): light front → escalate → a wall of amoeba tanks right before the Amoeba Titan.
     enemies: [
@@ -312,6 +395,8 @@ export const STAGES: StageDef[] = [
       ...pack(3450, 'amoeba', 'spore', 'virus'), // the pressure mounts, past gap 2
       ...pack(3950, 'spore', 'amoeba'), // build
       ...pack(4400, 'amoeba', 'amoeba', 'spore', 'virus'), // the wall right before the arena
+      ...pack(4950, 'amoeba', 'spore', 'virus'), // the wall before the arena
+      ...pack(5250, 'amoeba', 'virus'),
     ],
     gaps: [
       [1500, 1640],
@@ -331,26 +416,31 @@ export const STAGES: StageDef[] = [
       [2650, -190, 150],
       [3500, 330, 150],
       [3950, 360, 150],
+      // Opens on a descent into the chamber; a spire on the approach before the arena floor.
+      ...descent(170, 65, 4, 100), // the opening drop-in
+      ...spire(4380, 360, 4, 105, 175),
     ],
     // Krypton — a high perch between the chasms, with an amoeba guarding the approach.
     hazards: [[2400, 2560]],
     pads: [1000, 4100],
     crumble: [[3650, 3800]],
-    boss: { variant: 'amoeba', x: 4700 },
+    boss: { variant: 'amoeba', x: 5600 },
   },
 
   // ── Sector 3 — MACCONKEY ─────────────────────────────────────────────────
   // 3-1 — mites crawl in: the toughest mixed roster begins.
   {
     name: 'LACTOSE MARSHES',
-    width: 4400,
-    rise: 540,
+    width: 5600,
+    rise: 600,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1200, choices: ['hydrogen', 'oxygen'] },
       { x: 2000, choices: ['oxygen', 'nitrogen'] },
       { x: 2900, choices: ['hydrogen', 'carbon'] },
       { x: 3700, choices: ['carbon', 'oxygen'] },
+      { x: 4765, y: 136, choices: ['nitrogen', 'carbon', 'sodium'] },
+      { x: 4935, y: 36, choices: ['nitrogen', 'carbon', 'sodium'] }, // higher up the ascent
     ],
     // Pacing: intro → early tower breather → mid fights around the pad → spike between the wide gaps →
     // exit push past the widest chasm.
@@ -362,11 +452,15 @@ export const STAGES: StageDef[] = [
       ...pack(2550, 'mite', 'spore'), // by the pad, before gap 2
       ...pack(3050, 'mite', 'amoeba', 'mite'), // the spike, between the chasms
       ...pack(3800, 'mite', 'spore', 'amoeba'), // exit push, past the wide gap
+      ...pack(4100, 'mite', 'amoeba'), // before the chasm
+      ...pack(4700, 'spore', 'virus'), // over the bile, contesting the climb
+      ...pack(5000, 'mite', 'spore'),
     ],
     gaps: [
       [1450, 1590],
       [2700, 2840],
       [3450, 3680], // wide — clear it via the mid-gap stepping stone or a double-jump
+      [4250, 4390],
     ],
     platforms: [
       [650, 390, 120],
@@ -383,20 +477,26 @@ export const STAGES: StageDef[] = [
       [3000, 320, 140],
       [3520, 410, 90], // stepping stone in the wide gap
       [3850, 330, 150],
+      // The crystal ascent: a six-step spire out of the marsh, its base guarded by a bile pool.
+      ...spire(4700, 380, 6, 100, 170),
+      [5040, -120, 240], // exit shelf
     ],
     // Xenon — tucked high above the marshes, guarded by a mite.
     hazards: [
       [1000, 1160],
       [2150, 2310],
+      [4450, 4620], // pooled bile at the foot of the ascent
     ],
     pads: [2600],
-    exitX: 4180,
+    exitX: 5160,
+    exitY: -120, // the stage finishes up on the ledge, not down on the floor
   },
   // 3-2 — bile salt barrens: three gaps, relentless mite + amoeba pressure.
   {
     name: 'BILE SALT BARRENS',
-    width: 4800,
-    rise: 420,
+    width: 6000,
+    rise: 620,
+    spawn: { x: 250, y: -40 }, // the barrens stage never touches the floor at its ends
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -404,6 +504,8 @@ export const STAGES: StageDef[] = [
       { x: 2700, choices: ['hydrogen', 'carbon'] },
       { x: 3350, choices: ['carbon', 'oxygen'] }, // on solid ground just before the [3450,3590] gap (grab, then leap)
       { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5115, y: 116, choices: ['nitrogen', 'carbon', 'sodium'] },
+      { x: 5290, y: 11, choices: ['nitrogen', 'carbon', 'sodium'] }, // higher still
     ],
     // Pacing: intro → rising fight → breather over the tower + crumble + gap 2 → two spikes → exit push.
     enemies: [
@@ -414,12 +516,15 @@ export const STAGES: StageDef[] = [
       ...pack(3000, 'mite', 'amoeba', 'spore'), // spike, before the hazard + gap 3
       ...pack(3650, 'mite', 'spore', 'amoeba'), // second spike, past gap 3
       ...pack(4400, 'mite', 'mite', 'spore', 'amoeba'), // exit push, past the widest chasm
+      ...pack(4400, 'mite', 'amoeba', 'spore'), // before the chasm
+      ...pack(5000, 'mite', 'spore'), // at the foot of the ascent
     ],
     gaps: [
       [1450, 1590],
       [2400, 2540],
       [3450, 3590],
       [4000, 4220], // wide — clear it via the mid-gap stepping stone or a double-jump
+      [4700, 4980], // wide — take the stepping stone
     ],
     platforms: [
       [700, 390, 130],
@@ -435,6 +540,11 @@ export const STAGES: StageDef[] = [
       [3150, 270, 120],
       [3600, 330, 150],
       [4060, 410, 100], // stepping stone in the wide gap
+      // Airborne at both ends: a long descent in, a six-step ascent out, floor only in between.
+      ...descent(180, -40, 5, 105, 245), // the opening drop-in
+      [4800, 410, 120], // stepping stone in the wide chasm
+      ...spire(5050, 370, 6, 105, 175),
+      [5400, -155, 240], // exit shelf
     ],
     hazards: [
       [900, 1080],
@@ -442,13 +552,14 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900, 3800],
     crumble: [[2650, 2790]],
-    exitX: 4580,
+    exitX: 5520,
+    exitY: -155, // the stage finishes up on the ledge, not down on the floor
   },
   // 3-3 — Crystal Violet Throne: the Phage Lord, final boss of the experiment.
   {
     name: 'CRYSTAL VIOLET THRONE',
-    width: 5500,
-    rise: 600,
+    width: 6400,
+    rise: 640,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -456,6 +567,7 @@ export const STAGES: StageDef[] = [
       { x: 2650, choices: ['hydrogen', 'carbon'] },
       { x: 3400, choices: ['carbon', 'oxygen'] },
       { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 4685, y: -109, choices: ['nitrogen', 'carbon', 'sodium'] }, // summit of the approach spire
     ],
     // Pacing (boss stage): light front → escalate → a heavy wall right before the Phage Lord.
     enemies: [
@@ -466,6 +578,8 @@ export const STAGES: StageDef[] = [
       ...pack(2900, 'mite', 'amoeba'), // pressure resumes, before the hazard + gap 3
       ...pack(3700, 'spore', 'mite', 'amoeba'), // build, past gap 3
       ...pack(4600, 'amoeba', 'amoeba', 'spore', 'amoeba', 'mite', 'spore'), // a wall of three tanks before the arena
+      ...pack(5250, 'mite', 'amoeba', 'spore'), // the wall before the throne
+      ...pack(5550, 'amoeba', 'mite'),
     ],
     gaps: [
       [1450, 1590],
@@ -489,6 +603,8 @@ export const STAGES: StageDef[] = [
       [3600, 320, 150],
       [4170, 410, 110], // stepping stone in the wide gap
       [4650, 340, 150],
+      // A five-step ascent on the approach, then the drop into the throne room.
+      ...spire(4620, 355, 5, 105, 175),
     ],
     // Radon — the final, hardest find: highest perch in the game, guarded by an amoeba.
     hazards: [
@@ -497,7 +613,7 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900, 4500],
     crumble: [[2700, 2850]],
-    boss: { variant: 'phage', x: 5000 },
+    boss: { variant: 'phage', x: 5900 },
   },
 
   // ── Sector 4 — LAB FLOOR ──────────────────────────────────────────────────
@@ -506,14 +622,16 @@ export const STAGES: StageDef[] = [
   // 4-1 — emerging onto the bench: ants arrive alongside the familiar mites.
   {
     name: 'BENCHTOP SPILL',
-    width: 4600,
-    rise: 520,
+    width: 5600,
+    rise: 560,
+    spawn: { x: 230, y: 170 }, // starts up on the bench, not the floor
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
       { x: 1950, choices: ['oxygen', 'nitrogen'] },
       { x: 2675, y: -120, choices: ['hydrogen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3700, choices: ['carbon', 'oxygen'] },
+      { x: 5050, y: 76, choices: ['phosphorus', 'hydrogen'] }, // up on the shelf — only the pad reaches it
     ],
     // Pacing: intro → ant swarm builds → breather over the tower → spike → exit push.
     enemies: [
@@ -524,8 +642,13 @@ export const STAGES: StageDef[] = [
       ...pack(3300, 'ant', 'mite', 'ant'), // the spike
       ...pack(3700, 'ant', 'mite'), // hold
       ...pack(4250, 'ant', 'ant', 'mite'), // exit push, past the crumbling tiles
+      ...pack(4300, 'ant', 'mite'), // before the chasm
+      ...pack(5100, 'ant', 'mite', 'ant'), // the exit push
     ],
-    gaps: [[1450, 1590]],
+    gaps: [
+      [1450, 1590],
+      [4500, 4640],
+    ],
     platforms: [
       // Wide low lab-bench surfaces — broad footing, few gaps: the gentle bench biome.
       [560, 410, 180],
@@ -541,17 +664,21 @@ export const STAGES: StageDef[] = [
       [3250, 400, 240],
       [3750, 400, 240],
       [4150, 400, 220],
+      // Off the bench at the start; later a spore pad flings you up to an optional high shelf.
+      ...descent(160, 170, 3), // down off the benchtop
+      [4980, 120, 150],
+      [5230, 120, 150],
     ],
     hazards: [[2150, 2300]],
-    pads: [900],
+    pads: [900, 4750],
     crumble: [[4050, 4200]],
-    exitX: 4380,
+    exitX: 5380,
   },
   // 4-2 — crumb trails: four gaps, dense ant + mite pressure, two reagent spills.
   {
     name: 'CRUMB TRAILS',
-    width: 4900,
-    rise: 560,
+    width: 6000,
+    rise: 600,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -559,6 +686,7 @@ export const STAGES: StageDef[] = [
       { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward atop the sky tower
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4200, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5015, y: 121, choices: ['phosphorus', 'hydrogen'] }, // halfway up the leg
     ],
     // Pacing: intro → swarm builds → breather over the tower → two spikes → exit push.
     enemies: [
@@ -569,10 +697,13 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'ant', 'mite', 'ant'), // spike, before the hazard + gap 2
       ...pack(3700, 'ant', 'mite', 'ant'), // second spike, past gap 2
       ...pack(4300, 'ant', 'ant', 'mite', 'mite'), // exit push
+      ...pack(4450, 'ant', 'mite'),
+      ...pack(5000, 'mite', 'ant', 'mite'), // at the foot of the climb
     ],
     gaps: [
       [1450, 1590],
       [3500, 3640],
+      [4750, 4890],
     ],
     platforms: [
       // Wide low lab-bench surfaces — broad footing, few gaps.
@@ -590,6 +721,9 @@ export const STAGES: StageDef[] = [
       [3250, 400, 240],
       [3750, 400, 240],
       [4300, 400, 220],
+      // Up the bench leg: a six-step spire to a shelf the exit sits on.
+      ...spire(4950, 375, 6, 105, 175),
+      [5300, -150, 240], // exit shelf
     ],
     hazards: [
       [900, 1080],
@@ -597,13 +731,14 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[2250, 2390]],
-    exitX: 4680,
+    exitX: 5420,
+    exitY: -150, // the stage finishes up on the ledge, not down on the floor
   },
   // 4-3 — The Roach Nest: the Roach King, final boss of the game.
   {
     name: 'THE ROACH NEST',
-    width: 5600,
-    rise: 620,
+    width: 6500,
+    rise: 660,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -611,6 +746,7 @@ export const STAGES: StageDef[] = [
       { x: 2760, y: -360, choices: ['hydrogen', 'carbon'] }, // summit reward (the highest climb in the game)
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4150, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 4785, y: -109, choices: ['phosphorus', 'hydrogen'] }, // summit of the approach spire
     ],
     // Pacing (boss stage): light front → escalate → a swarming wall right before the Roach King.
     enemies: [
@@ -621,6 +757,8 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'ant', 'mite'), // pressure resumes, before the hazard + gap 2
       ...pack(3750, 'ant', 'ant', 'mite'), // build, past gap 2
       ...pack(4700, 'ant', 'mite', 'ant', 'ant', 'mite', 'ant'), // the swarming wall before the arena
+      ...pack(5350, 'ant', 'mite', 'ant'), // the wall before the nest
+      ...pack(5650, 'mite', 'ant'),
     ],
     gaps: [
       [1450, 1590],
@@ -643,6 +781,8 @@ export const STAGES: StageDef[] = [
       [3300, 400, 240],
       [3800, 400, 240],
       [4400, 400, 240],
+      // A five-step ascent on the approach before the nest floor opens out.
+      ...spire(4720, 355, 5, 105, 175),
     ],
     hazards: [
       [950, 1120],
@@ -650,7 +790,7 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[2250, 2390]],
-    boss: { variant: 'roach', x: 5100 },
+    boss: { variant: 'roach', x: 6000 },
   },
 
   // ── Sector 5 — UNDER THE BENCH ────────────────────────────────────────────
@@ -659,8 +799,9 @@ export const STAGES: StageDef[] = [
   // 5-1 — spill tray: first flyers harass the climbs.
   {
     name: 'SPILL TRAY',
-    width: 4800,
-    rise: 560,
+    width: 5900,
+    rise: 620,
+    spawn: { x: 240, y: 65 }, // starts on the lip of the tray
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -668,6 +809,8 @@ export const STAGES: StageDef[] = [
       { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5065, y: 116, choices: ['sulfur', 'oxygen'] },
+      { x: 5240, y: 11, choices: ['sulfur', 'oxygen'] }, // higher up the stack
     ],
     // Pacing: intro → flyers harass the pillars → breather over the tower → spike → exit push.
     enemies: [
@@ -678,11 +821,14 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'ant', 'mite', 'fly'), // spike, before the hazard + wide gap 3
       ...pack(3900, 'ant', 'ant', 'mite', 'fly'), // hold, past the wide gap
       ...pack(4350, 'ant', 'mite'), // exit push
+      ...pack(4400, 'ant', 'fly', 'mite'), // before the chasm
+      ...pack(5050, 'fly', 'mite'), // harassing the stack
     ],
     gaps: [
       [1350, 1650],
       [2400, 2540],
       [3450, 3750],
+      [4700, 4980], // wide — take the stepping stone
     ],
     platforms: [
       // Narrow footholds and stepping pillars — precision hops over the pits.
@@ -705,6 +851,11 @@ export const STAGES: StageDef[] = [
       [3950, 360, 90],
       [4200, 340, 100],
       [4400, 380, 100],
+      // Off the tray lip at the start, up the drip stack at the end — both ends are in the air.
+      ...descent(170, 65, 4, 100), // down off the tray lip
+      [4800, 410, 120], // stepping stone in the wide chasm
+      ...spire(5000, 370, 6, 105, 175),
+      [5350, -155, 240], // exit shelf
     ],
     hazards: [
       [900, 1080],
@@ -712,13 +863,14 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[2250, 2390]],
-    exitX: 4580,
+    exitX: 5470,
+    exitY: -155, // the stage finishes up on the ledge, not down on the floor
   },
   // 5-2 — sugar stain: bees arrive; four gaps including a wide one.
   {
     name: 'SUGAR STAIN',
-    width: 5000,
-    rise: 560,
+    width: 6100,
+    rise: 620,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -726,6 +878,7 @@ export const STAGES: StageDef[] = [
       { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5115, y: 121, choices: ['sulfur', 'oxygen'] }, // halfway up the stack
     ],
     // Pacing: intro → bees join → breather over the tower → spike → exit push past the wide pit.
     enemies: [
@@ -736,12 +889,15 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'ant', 'ant', 'mite'), // spike, before the hazard + gap 3
       ...pack(3850, 'ant', 'fly', 'mite'), // hold, between gaps 3 and 4
       ...pack(4500, 'bee', 'bee', 'fly'), // exit push, past the wide pit
+      ...pack(4550, 'bee', 'ant'),
+      ...pack(5100, 'fly', 'mite', 'bee'), // contesting the stack
     ],
     gaps: [
       [1350, 1650],
       [2400, 2540],
       [3450, 3750],
       [4200, 4400], // wide pit — cross via the pillar in the middle
+      [4850, 4990],
     ],
     platforms: [
       // Narrow footholds and stepping pillars — precision hops over the pits.
@@ -764,6 +920,9 @@ export const STAGES: StageDef[] = [
       [3950, 360, 90],
       [4270, 405, 90], // pillar in the wide pit
       [4550, 380, 100],
+      // The drip stack: a six-step spire out of the sugar to a shelf the exit sits on.
+      ...spire(5050, 375, 6, 105, 175),
+      [5400, -150, 240], // exit shelf
     ],
     hazards: [
       [900, 1080],
@@ -771,13 +930,15 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[2250, 2390]],
-    exitX: 4780,
+    exitX: 5520,
+    exitY: -150, // the stage finishes up on the ledge, not down on the floor
   },
   // 5-3 — The Dung Heap: the Dung Beetle, a slow armored bruiser.
   {
     name: 'THE DUNG HEAP',
-    width: 5600,
-    rise: 620,
+    width: 6500,
+    rise: 660,
+    spawn: { x: 250, y: -40 }, // dropped in from above the heap
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -785,6 +946,7 @@ export const STAGES: StageDef[] = [
       { x: 2760, y: -360, choices: ['hydrogen', 'carbon'] }, // summit reward (tall climb)
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4450, choices: ['hydrogen', 'oxygen', 'nitrogen'] }, // reward on the far side of the wide [4100,4330] pit
+      { x: 4785, y: -109, choices: ['sulfur', 'oxygen'] }, // summit of the approach spire
     ],
     // Pacing (boss stage): light front → escalate → a mixed wall right before the Dung Beetle.
     enemies: [
@@ -795,6 +957,8 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'bee', 'fly', 'ant'), // pressure resumes, before the hazard + gap 3
       ...pack(3800, 'bee', 'mite'), // build, past gap 3
       ...pack(4600, 'bee', 'ant', 'fly', 'bee', 'ant', 'mite'), // the wall right before the arena
+      ...pack(5350, 'bee', 'ant', 'mite'), // the wall before the arena
+      ...pack(5650, 'fly', 'bee'),
     ],
     gaps: [
       [1350, 1650],
@@ -824,6 +988,9 @@ export const STAGES: StageDef[] = [
       [3950, 360, 90],
       [4210, 405, 90], // pillar in the wide pit
       [4550, 380, 100],
+      // A long descent onto the heap, then a five-step ascent on the approach to the arena.
+      ...descent(180, -40, 5, 105, 245), // the opening drop-in
+      ...spire(4720, 355, 5, 105, 175),
     ],
     hazards: [
       [950, 1120],
@@ -831,7 +998,7 @@ export const STAGES: StageDef[] = [
     ],
     pads: [1900],
     crumble: [[2250, 2390]],
-    boss: { variant: 'beetle', x: 5100 },
+    boss: { variant: 'beetle', x: 6000 },
   },
 
   // ── Sector 6 — THE WASTE BIN ──────────────────────────────────────────────
@@ -840,8 +1007,8 @@ export const STAGES: StageDef[] = [
   // 6-1 — grease trap.
   {
     name: 'GREASE TRAP',
-    width: 5000,
-    rise: 580,
+    width: 6300,
+    rise: 700,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -849,6 +1016,8 @@ export const STAGES: StageDef[] = [
       { x: 2945, y: -230, choices: ['hydrogen', 'carbon'] }, // summit reward
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4300, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5115, y: 121, choices: ['chlorine', 'carbon', 'sodium'] }, // low on the climb
+      { x: 5115, y: -89, choices: ['chlorine', 'carbon', 'sodium'] }, // and high on it
     ],
     // Pacing: intro → bounce-shaft fights → breather over the tower → spike → exit push past the wide pit.
     enemies: [
@@ -859,12 +1028,15 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'bee', 'mite', 'fly'), // spike, before the hazard + gap 3
       ...pack(3750, 'ant', 'bee'), // by the back pad, past gap 3
       ...pack(4550, 'bee', 'ant', 'fly', 'mite'), // exit push, past the wide pit
+      ...pack(4550, 'bee', 'ant'),
+      ...pack(5100, 'fly', 'bee', 'mite'), // contesting the climb out
     ],
     gaps: [
       [1450, 1590],
       [2400, 2540],
       [3500, 3640],
       [4150, 4370],
+      [4850, 4990],
     ],
     platforms: [
       // Staggered footholds strung between the bounce shafts — climb by pad, not by walking.
@@ -883,6 +1055,9 @@ export const STAGES: StageDef[] = [
       [3550, 400, 120],
       [4270, 410, 110], // stepping stone in the wide gap
       [4600, 340, 130],
+      // The climb out of the bin: an eight-step spire, the tallest ascent in the game.
+      ...spire(5050, 375, 8, 105, 175),
+      [5400, -360, 240], // exit shelf, near the rim
     ],
     hazards: [
       [900, 1080],
@@ -890,13 +1065,15 @@ export const STAGES: StageDef[] = [
     ],
     pads: [700, 1900, 3800],
     crumble: [[2250, 2390]],
-    exitX: 4780,
+    exitX: 5520,
+    exitY: -360, // the stage finishes up on the ledge, not down on the floor
   },
   // 6-2 — rotting refuse: relentless flyer + crawler pressure.
   {
     name: 'ROTTING REFUSE',
-    width: 5200,
-    rise: 600,
+    width: 6400,
+    rise: 700,
+    spawn: { x: 250, y: -150 }, // starts near the rim, descending into the refuse
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -904,6 +1081,8 @@ export const STAGES: StageDef[] = [
       { x: 2945, y: -260, choices: ['hydrogen', 'carbon'] }, // summit reward
       { x: 3600, choices: ['carbon', 'oxygen'] },
       { x: 4350, choices: ['hydrogen', 'oxygen', 'nitrogen'] },
+      { x: 5215, y: 121, choices: ['chlorine', 'carbon', 'sodium'] }, // low on the climb
+      { x: 5215, y: -89, choices: ['chlorine', 'carbon', 'sodium'] }, // and high on it
     ],
     // Pacing: intro → swarm builds → breather over the tower → spike → exit push past the wide pit.
     enemies: [
@@ -914,12 +1093,15 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'bee', 'fly', 'ant'), // spike, before the hazard + gap 3
       ...pack(3850, 'bee', 'mite'), // by the back pad, past gap 3
       ...pack(4600, 'bee', 'bee', 'ant', 'fly'), // exit push, past the wide pit
+      ...pack(4600, 'bee', 'ant', 'fly'),
+      ...pack(5200, 'fly', 'bee'), // contesting the climb out
     ],
     gaps: [
       [1450, 1590],
       [2400, 2540],
       [3500, 3640],
       [4200, 4420],
+      [4950, 5090],
     ],
     platforms: [
       // Staggered footholds strung between the bounce shafts.
@@ -938,6 +1120,10 @@ export const STAGES: StageDef[] = [
       [3550, 400, 120],
       [4310, 410, 110], // stepping stone in the wide gap
       [4650, 340, 130],
+      // In from the rim, down through the refuse, then all the way back out — both ends near the top.
+      ...descent(180, -150, 6, 105, 245), // the long way down from the rim
+      ...spire(5150, 375, 8, 105, 175),
+      [5500, -360, 240], // exit shelf, near the rim
     ],
     hazards: [
       [900, 1080],
@@ -945,13 +1131,14 @@ export const STAGES: StageDef[] = [
     ],
     pads: [700, 1900, 3900],
     crumble: [[2250, 2390]],
-    exitX: 4980,
+    exitX: 5620,
+    exitY: -360, // the stage finishes up on the ledge, not down on the floor
   },
   // 6-3 — The Hornet Hive: the Hornet Queen, final boss of the game.
   {
     name: 'THE HORNET HIVE',
-    width: 5800,
-    rise: 640,
+    width: 6700,
+    rise: 700,
     atoms: [
       { x: 450, choices: ['nitrogen', 'carbon'] },
       { x: 1150, choices: ['hydrogen', 'oxygen'] },
@@ -959,6 +1146,7 @@ export const STAGES: StageDef[] = [
       { x: 2760, y: -380, choices: ['hydrogen', 'carbon'] }, // summit reward (highest climb in the game)
       { x: 3500, choices: ['carbon', 'oxygen'] },
       { x: 4450, choices: ['hydrogen', 'oxygen', 'nitrogen'] }, // reward on the far side of the wide [4100,4330] pit
+      { x: 5160, y: -214, choices: ['chlorine', 'carbon', 'sodium'] }, // summit of the approach spire
     ],
     // Pacing (final boss stage): light front → escalate → the game's heaviest wall right before the Hornet Queen.
     enemies: [
@@ -969,6 +1157,8 @@ export const STAGES: StageDef[] = [
       ...pack(3050, 'bee', 'ant'), // pressure resumes, before the hazard + gap 3
       ...pack(3750, 'bee', 'fly'), // build, past gap 3
       ...pack(4750, 'bee', 'ant', 'fly', 'bee', 'ant', 'bee'), // the final wall before the arena
+      ...pack(5550, 'bee', 'ant', 'mite'), // the wall before the hive
+      ...pack(5850, 'fly', 'bee', 'ant'),
     ],
     gaps: [
       [1450, 1590],
@@ -994,6 +1184,8 @@ export const STAGES: StageDef[] = [
       [3550, 400, 120],
       [4210, 410, 110], // stepping stone in the wide gap
       [4640, 340, 130],
+      // A six-step ascent on the approach — the hive is entered from height.
+      ...spire(4920, 355, 6, 105, 175),
     ],
     hazards: [
       [950, 1120],
@@ -1001,7 +1193,7 @@ export const STAGES: StageDef[] = [
     ],
     pads: [700, 1900, 4500],
     crumble: [[2250, 2390]],
-    boss: { variant: 'hornet', x: 5300 },
+    boss: { variant: 'hornet', x: 6200 },
   },
 ];
 
@@ -1023,15 +1215,21 @@ const CLUSTER_GUARD: Record<number, EnemyType[]> = {
 };
 
 /** Atom choices on the new ledges, matched to each sector's existing palette. The lab-floor sectors
- *  (4–6) each headline one of the new heavy atoms so its molecules become buildable where it fits the
- *  theme: phosphorus on the bench, sulfur beneath it, chlorine in the waste bin. */
+ *  (4–6) each headline one of the heavy atoms so its molecules become buildable where it fits the
+ *  theme: phosphorus on the bench, sulfur beneath it, chlorine in the waste bin.
+ *
+ *  Sodium is the exception — it is offered as a third pick across the culture-media sectors (2–3),
+ *  since every agar plate is salted, and again alongside chlorine in the waste bin (6) so NaCl can
+ *  finally be assembled late in a run. It is offered *in addition to* each sector's existing pair
+ *  rather than replacing a pick, so adding an eighth atom widens the menu instead of thinning the
+ *  odds of the seven that were already there. */
 const CLUSTER_ATOMS: Record<number, BaseAtom[]> = {
   1: ['hydrogen', 'oxygen'],
-  2: ['oxygen', 'carbon'],
-  3: ['nitrogen', 'carbon'],
+  2: ['oxygen', 'carbon', 'sodium'],
+  3: ['nitrogen', 'carbon', 'sodium'],
   4: ['phosphorus', 'hydrogen'],
   5: ['sulfur', 'oxygen'],
-  6: ['chlorine', 'carbon'],
+  6: ['chlorine', 'carbon', 'sodium'],
 };
 
 /** Append one guarded ledge cluster (floating ledge, perched atom, posted guard) at world-x `x`. */

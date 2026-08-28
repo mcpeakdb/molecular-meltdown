@@ -36,6 +36,7 @@ const ATOM_SYMBOL: Record<BaseAtom, string> = {
   sulfur: 'S',
   chlorine: 'Cl',
   phosphorus: 'P',
+  sodium: 'Na',
 };
 
 const COMPOUND_SYMBOL: Partial<Record<AttackId, string>> = {
@@ -52,6 +53,10 @@ const COMPOUND_SYMBOL: Partial<Record<AttackId, string>> = {
   phosphine: 'PH₃',
   phosphoric_acid: 'H₃PO₄',
   phosphorus_trichloride: 'PCl₃',
+  sodium_chloride: 'NaCl',
+  sodium_hydroxide: 'NaOH',
+  sodium_carbonate: 'Na₂CO₃',
+  sodium_nitrate: 'NaNO₃',
 };
 
 // Real periodic-table data for the collectable atoms (atomic number + standard atomic weight);
@@ -61,6 +66,7 @@ const ATOMIC_NUMBER: Record<BaseAtom, number> = {
   carbon: 6,
   nitrogen: 7,
   oxygen: 8,
+  sodium: 11,
   phosphorus: 15,
   sulfur: 16,
   chlorine: 17,
@@ -70,20 +76,22 @@ const ATOMIC_MASS: Record<BaseAtom, number> = {
   carbon: 12.011,
   nitrogen: 14.007,
   oxygen: 15.999,
+  sodium: 22.99,
   phosphorus: 30.974,
   sulfur: 32.06,
   chlorine: 35.45,
 };
 
 // True periodic (group, period) coordinates so the table reads like the genuine article: H alone
-// top-left, C/N/O on the right of period 2, P/S/Cl below them in period 3, and the noble gases
-// stacked down group 18 (far right).
+// top-left with Na beneath it in group 1, C/N/O on the right of period 2, P/S/Cl below them in
+// period 3, and the noble gases stacked down group 18 (far right).
 interface GP {
   g: number;
   p: number;
 }
 const ATOM_POS: Record<BaseAtom, GP> = {
   hydrogen: { g: 1, p: 1 },
+  sodium: { g: 1, p: 3 },
   carbon: { g: 14, p: 2 },
   nitrogen: { g: 15, p: 2 },
   oxygen: { g: 16, p: 2 },
@@ -241,7 +249,7 @@ const LANTHANIDES: { z: number; sym: string }[] = [
 ];
 /** Atomic numbers already drawn as bright, selectable game cells (base atoms, noble gases, Ca/Zn/Fe,
  *  Ag/Au/Pt) — skipped by the greyed filler so they are not drawn twice. */
-const GAME_ELEMENTS = new Set<number>([1, 2, 6, 7, 8, 10, 15, 16, 17, 18, 20, 26, 30, 36, 47, 54, 78, 79, 86]);
+const GAME_ELEMENTS = new Set<number>([1, 2, 6, 7, 8, 10, 11, 15, 16, 17, 18, 20, 26, 30, 36, 47, 54, 78, 79, 86]);
 
 const hex = (col: number): string => `#${col.toString(16).padStart(6, '0')}`;
 const isBaseAtom = (id: AttackId): id is BaseAtom => (BASE_ATOMS as string[]).includes(id);
@@ -268,7 +276,8 @@ const periodY = (p: number): number => P_TOP + (p - 1) * P_STEP;
 
 // Compounds sit in a detached row along the very bottom (like the lanthanide/actinide strip), with
 // their own wider cells so the formulas stay legible.
-const CTW = 108;
+const CTW_MAX = 108; // preferred compound tile width; narrowed to fit when a row gets crowded
+const CMARGIN = 24; // min breathing room at each screen edge for the compound strip
 const CTH = 42;
 const CGAP = 8;
 const CROW_GAP = 8; // vertical gap between the two compound rows
@@ -500,21 +509,23 @@ export default class MoleculeTreeScene extends Phaser.Scene {
     });
 
     // Compounds — detached strip along the very bottom, catalogued 1..n. Up to eight fit one row; with
-    // more (the sulfur/chlorine/phosphorus molecules push the count past that) they wrap into two rows
-    // so the wide, legible cells never run off the screen edges.
+    // more (the sulfur/chlorine/phosphorus and sodium molecules push the count well past that) they
+    // wrap into two rows, and the tiles narrow from their preferred width as needed so even a crowded
+    // row never runs off the screen edges. Over-long names shrink to fit inside the tile (see _drawCell).
     const compounds = ATTACK_ORDER.filter((id) => !isBaseAtom(id));
     const perRow = compounds.length > 8 ? Math.ceil(compounds.length / 2) : compounds.length;
+    const ctw = Math.min(CTW_MAX, Math.floor((GAME_WIDTH - CMARGIN * 2 - CGAP * (perRow - 1)) / perRow));
     compounds.forEach((id, i) => {
       const row = Math.floor(i / perRow);
       const col = i - row * perRow;
       const rowCount = row === 0 ? perRow : compounds.length - perRow;
-      const rowW = rowCount * CTW + (rowCount - 1) * CGAP;
+      const rowW = rowCount * ctw + (rowCount - 1) * CGAP;
       const cLeft = (GAME_WIDTH - rowW) / 2;
       this._addCell({
         kind: 'compound',
-        x: cLeft + col * (CTW + CGAP) + CTW / 2,
+        x: cLeft + col * (ctw + CGAP) + ctw / 2,
         y: COMP_Y + row * (CTH + CROW_GAP),
-        w: CTW,
+        w: ctw,
         h: CTH,
         num: i + 1,
         symbol: symbolOf(id),

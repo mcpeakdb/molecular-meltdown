@@ -79,6 +79,22 @@ States: PATROL, CHASE, ATTACK, HURT, DEAD.
 - **REQ-ENEMY-032** — WHERE an attack applies bleed (`applyBleed(dmg, duration)`), the enemy shall
   take `dmg` every 400 ms for the duration (taking the longer of any overlapping bleeds), flashing red
   per tick.
+- **REQ-ENEMY-035** — Every enemy type shall declare an `Affinity` (`AFFINITY` in `Enemy.ts`) and
+  every boss variant its own (`BOSS_AFFINITY` in `Boss.ts`): per-damage-type multipliers where absent
+  = 1.0, >1 is a weakness and <1 a resistance. `takeDamage(amount, type, ...)` shall scale the hit
+  through `applyAffinity` and fire the WEAK!/RESIST cue (REQ-ATK-019).
+- **REQ-ENEMY-036** — No multiplier shall fall below 0.5 or exceed 1.9, so a resisted attack still
+  works — it is merely the wrong tool — and no matchup one-shots. Boss multipliers shall be gentler
+  than trash-mob ones (1.5 weak / 0.6–0.8 resist) so a finale rewards the right loadout without
+  collapsing. Every boss shall have at least one weakness and at least one resistance; none shall be
+  immune to any type.
+- **REQ-ENEMY-037** — Affinities shall be legible from what the creature *is*, so they can be guessed
+  and then confirmed by the cue: lint burns, spores shrug off chemicals but not heat, viruses do not
+  respire so gas does little, arthropods are vulnerable to fumigation, blobs cannot be usefully
+  punctured.
+- **REQ-ENEMY-032a** — Enemies and bosses shall both expose `isBleeding`: true WHILE a bleed DOT is
+  ticking, and always false on a boss (which is bleed-immune). Saltpeter (REQ-ATK-295) reads this to
+  decide what it can set off.
 - **REQ-ENEMY-033** — WHEN an enemy's HP reaches 0 (from a hit or a bleed tick), it shall die: enter
   DEAD, notify `GameScene.onEnemyDeath`, and fade/rise out before destroying its sprite.
 - **REQ-ENEMY-034** — IF a ground enemy sinks below the floor surface WHILE over a real hole (an

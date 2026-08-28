@@ -27,6 +27,7 @@ const ATOM_SYMBOL: Record<BaseAtom, string> = {
   sulfur: 'S',
   chlorine: 'Cl',
   phosphorus: 'P',
+  sodium: 'Na',
 };
 
 const ATTACK_SYMBOL: Record<AttackId, string> = {
@@ -50,6 +51,11 @@ const ATTACK_SYMBOL: Record<AttackId, string> = {
   phosphine: 'PH₃',
   phosphoric_acid: 'H₃PO₄',
   phosphorus_trichloride: 'PCl₃',
+  sodium: 'Na',
+  sodium_chloride: 'NaCl',
+  sodium_hydroxide: 'NaOH',
+  sodium_carbonate: 'Na₂CO₃',
+  sodium_nitrate: 'NaNO₃',
   prismatic: '✦',
 };
 
@@ -410,8 +416,9 @@ export default class HUDScene extends Phaser.Scene {
       this.enemiesText.setVisible(false);
       return;
     }
+    // A running tally, not an objective — the stage clears at the exit whether or not it reads 0 left.
     const left = total - killed;
-    this.enemiesText.setVisible(true).setText(`GERMS  ${killed}/${total} KILLED  ·  ${left} LEFT`);
+    this.enemiesText.setVisible(true).setText(`GERMS  ${killed}/${total} KILLED`);
     this.enemiesText.setColor(left === 0 ? '#88ff88' : '#aaccaa');
   }
 

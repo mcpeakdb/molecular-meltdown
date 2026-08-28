@@ -12,7 +12,20 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 - **REQ-STAGE-002** — A `StageDef` shall carry: `name`, `width`, `atoms` (choice nodes, optionally
   perched at `y`), `enemies` (optionally perched at `y`), `gaps`, and optionally `rise` (climbable sky
   height), `platforms`, `hazards`, `pads`, `crumble`, `noble`, and either `boss` (finale) or
-  `exitX` (reach-the-exit clear). `boss` and `exitX` are mutually exclusive.
+  `exitX` (reach-the-exit clear). `boss` and `exitX` are mutually exclusive. It may also carry
+  `spawn` (where the player is set down — `y` is the surface top they stand on) and `exitY` (the
+  surface the exit portal stands on); omitting either gives the classic ground-level start/finish.
+- **REQ-STAGE-002a** — Stages shall *sometimes* begin and/or end above the floor rather than always on
+  it, so a run is not a flat left-to-right corridor. A raised `spawn` must land on a ledge listed in
+  `platforms`, and a raised exit's footing must be reachable from the spawn — both are checked by
+  `npm run levels`, which errors rather than shipping a stage that starts in mid-air or ends somewhere
+  the player cannot climb to.
+- **REQ-STAGE-002b** — Vertical geometry shall be built from three named shapes in
+  [`src/stages.ts`](../../src/stages.ts) so climbs stay inside the jump budget by construction:
+  `spire(x, baseTop, steps, up, offset, w)` (a zig-zag climb — the default 180px offset against a
+  130px ledge leaves a 50px edge gap, well inside the 130px a single jump covers while rising 105px),
+  `descent(x, top, steps, drop, offset, w)` (forward-and-down terraces, wider because falling is free),
+  and `skybridge(x, top, count, gap, w)` (a level run at one height, travelled along rather than up).
 - **REQ-STAGE-005** — After the hand-authored `STAGES` literal, every stage shall be enriched with up
   to two guarded ledge clusters (`addLedgeCluster`): a floating ledge (within a single jump of the
   floor, ~90px up) that carries a bonus atom and a posted ground-type guard. The two clusters shall be
@@ -20,6 +33,12 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
   nearest origin to that target whose footprint is clear of every existing structure — gaps, hazards,
   ledges, the central sky-tower band, and any already-placed cluster (`occupiedSpans` /
   `findClusterSpot`). A cluster is skipped when no clear span exists.
+- **REQ-STAGE-005a** — A cluster's atom shall offer that sector's `CLUSTER_ATOMS` choices, matched to
+  its theme: the dish sectors carry the light atoms, and the lab-floor sectors each headline one heavy
+  atom so its molecules become buildable where it fits (phosphorus on the bench, sulfur beneath it,
+  chlorine in the waste bin). Sodium is offered as an *additional* third pick in the culture-media
+  sectors (2–3) and again beside chlorine in the waste bin (6) — widening the menu rather than
+  displacing an existing pick, so an eighth atom does not thin the odds of the other seven.
 - **REQ-STAGE-006** — After clusters and nobles are placed, every stage's tallest platform (its
   sky-tower summit) shall be guaranteed a reward: WHERE no atom is already perched near/above it and
   no noble gem sits there, a sector-appropriate choice atom shall be perched on it. On stages whose
@@ -89,11 +108,13 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 ## Pits / gaps
 
 - **REQ-PIT-001** — Gaps shall be drawn as dark chasms and registered as holes that must be jumped.
-- **REQ-PIT-002** — WHILE the player stands on solid ground away from any hole, the game shall record
-  that x as the last safe respawn point.
-- **REQ-PIT-003** — WHEN the player falls below the screen, the game shall respawn them at the last
-  safe x just above the floor, play an impact, shake, and apply `GAP_FALL_DAMAGE` (15) (respecting
-  i-frames; lethal only if HP runs out).
+- **REQ-PIT-002** — WHILE the player stands on solid footing, the game shall record that position —
+  both x and height — as the last safe respawn point. Footing well above the floor line (a ledge)
+  always counts, since a ledge is solid even where it bridges a pit; down on the floor itself, only
+  ground away from a hole counts.
+- **REQ-PIT-003** — WHEN the player falls below the screen, the game shall respawn them just above
+  that last safe footing — back on the ledge they fell from, not down on the floor — play an impact,
+  shake, and apply `GAP_FALL_DAMAGE` (15) (respecting i-frames; lethal only if HP runs out).
 
 ## Hazards (acid / spike strips)
 
@@ -128,11 +149,17 @@ Sources: [`src/stages.ts`](../../src/stages.ts), [`src/scenes/GameScene.ts`](../
 
 ## Exit clear (non-boss stages)
 
-- **REQ-EXIT-001** — A non-boss stage shall place an exit portal at `exitX`, sealed (red) with a hint.
-- **REQ-EXIT-002** — WHILE any enemy remains active, the exit shall stay sealed; WHEN the last enemy
-  dies, the exit shall open (green), play a fanfare and camera flash, and update the hint.
-- **REQ-EXIT-003** — WHEN the player reaches the open exit, the game shall complete the stage
-  (`_completeStage`).
+- **REQ-EXIT-001** — A non-boss stage shall place an exit portal at `exitX`, standing on `exitY`
+  (default: the floor), open (green) with an "EXIT →" hint above it, from the moment the stage loads.
+- **REQ-EXIT-002** — The exit shall never be gated on enemies: surviving enemies shall not hold it
+  shut, so the player may fight or bypass them freely.
+- **REQ-EXIT-003** — WHEN the player reaches the exit, the game shall complete the stage
+  (`_completeStage`). A floor-level exit sits at the end of the world, so crossing its x is the whole
+  test. WHERE the exit is raised (`exitY` set), the player shall additionally have to be at least as
+  high as its footing — walking the ground beneath it shall not clear the stage, since that would
+  throw away the climb the ending was built around. Being *above* the portal still counts.
+- **REQ-EXIT-004** — A finale stage has no exit portal and shall clear only by defeating its boss
+  (`onBossDefeated`).
 
 ## Boss arena (finale stages)
 

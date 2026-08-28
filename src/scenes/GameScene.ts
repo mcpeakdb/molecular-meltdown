@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ArmorId, AttackId, BaseAtom, Difficulty, HealId, NobleGasId, SectorId } from '../constants';
+import type { ArmorId, AttackId, BaseAtom, DamageType, Difficulty, HealId, NobleGasId, SectorId } from '../constants';
 import {
   ARMOR_DROPS,
   ARMOR_IDS,
@@ -34,6 +34,7 @@ import {
   NOBLE_GASES,
   PLAYER_BOUNCE_VELOCITY,
   PLAYER_MAX_HP,
+  PURGE_BONUS,
   RUN_LIVES,
   SECTORS,
   STAGE_COUNT,
@@ -58,6 +59,8 @@ type ProjectileSprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody & {
   damage: number;
   knockback: number;
   piercing: boolean;
+  /** The damage type of the attack that fired it, so matchups apply on impact. */
+  dmgType: DamageType;
 };
 
 /** Enemy types that fly (hover, no gravity) rather than walking the floor. */
@@ -178,6 +181,8 @@ export default class GameScene extends Phaser.Scene {
   private worldWidth = WORLD_WIDTH;
   /** Climbable sky above the standard screen (px) — drives vertical camera/world bounds. 0 = locked. */
   private _rise = 0;
+  /** Last time a WEAK!/RESIST cue fired at a given coarse position — throttles DOT/cloud spam. */
+  private _affinityCueAt = new Map<string, number>();
 
   // ── Enemy counter (germs cleared this stage; the boss counts as one germ) ──
   private _enemyTotal = 0;
@@ -188,6 +193,7 @@ export default class GameScene extends Phaser.Scene {
   private _stageBaseScore = 0; // run score at the moment this stage began
   private _lastTimeBonus = 0;
   private _lastNoHitBonus = 0;
+  private _lastPurgeBonus = 0;
   private _runSubmitted = false;
 
   // ── Silver coins (per-stage collectible; a full sweep awards COIN_BONUS) ──
@@ -205,11 +211,13 @@ export default class GameScene extends Phaser.Scene {
     return `sector${this.sector}` as TrackId;
   }
 
-  // ── Exit portal (non-boss stages clear by reaching it once enemies are down) ──
+  // ── Exit portal (non-boss stages clear by reaching it) ──────────────────────
   private _exitX = 0;
-  private _exitOpen = false;
+  /** Surface top the exit portal stands on. GROUND_TOP_Y for a floor-level exit. */
+  private _exitY = GROUND_TOP_Y;
+  /** True WHERE the stage finishes above the floor — the clear check then demands the height too. */
+  private _exitElevated = false;
   private _exitPortal?: Phaser.GameObjects.Container;
-  private _exitHint?: Phaser.GameObjects.Text;
 
   // ── Boss arena (camera locks to one screen once the boss activates) ──
   private _bossArena: { left: number; right: number } | null = null;
@@ -260,6 +268,9 @@ export default class GameScene extends Phaser.Scene {
   private _holes: { x1: number; x2: number }[] = [];
   /** Last x where the player stood on solid ground away from a hole — pit-fall respawn point. */
   private _lastSafeX = 120;
+  /** Sprite y while standing on that footing — a raised stage respawns you on the ledge you were on,
+   *  not down on the floor. Stored as the sprite's own y so no body/feet offset has to be guessed. */
+  private _lastSafeY = GROUND_TOP_Y - 40;
   // ── Platforming hazards (data-driven per stage in src/stages.ts) ──
   private _hazards: { x1: number; x2: number }[] = [];
   private _pads: { x: number; gfx: Phaser.GameObjects.Graphics }[] = [];
@@ -285,6 +296,7 @@ export default class GameScene extends Phaser.Scene {
     this._stageBaseScore = this.score;
     this._lastTimeBonus = 0;
     this._lastNoHitBonus = 0;
+    this._lastPurgeBonus = 0;
     this._runSubmitted = false;
     this.difficulty = this.isTutorial
       ? 'normal'
@@ -294,14 +306,16 @@ export default class GameScene extends Phaser.Scene {
     this.isPaused = false;
     this.stageCleared = false;
     this._holes = [];
-    this._lastSafeX = 120;
+    const sp = this.isTutorial ? undefined : this.stageDef.spawn;
+    this._lastSafeX = sp?.x ?? 120;
+    this._lastSafeY = (sp?.y ?? GROUND_TOP_Y) - 40;
+    this._exitY = GROUND_TOP_Y;
+    this._exitElevated = false;
     this._hazards = [];
     this._pads = [];
     this._crumbles = [];
     this._tutDone = false;
-    this._exitOpen = false;
     this._exitPortal = undefined;
-    this._exitHint = undefined;
     // Clear any boss-arena lock from a previous run, or restarting a boss stage would clamp the
     // player to the (now stale) arena near the level's end with no way to walk back. Also drop a
     // lingering activation listener (from a run where the player died before the boss woke up).
@@ -356,7 +370,8 @@ export default class GameScene extends Phaser.Scene {
     if (this.isTutorial) this._spawnTutorial();
     else this._spawnStage();
 
-    this.player = new Player(this, 120, GROUND_TOP_Y - 40);
+    // Stages may open on a ledge rather than the floor (`spawn`); the player is set down on it.
+    this.player = new Player(this, this._lastSafeX, this._lastSafeY);
     this.player.invincibilityMs = DIFFICULTY_SCALE[this.difficulty].invincMs;
     this.player.elementSystem.setSlotCount(DIFFICULTY_SCALE[this.difficulty].weaponSlots);
     // Super weapon: completing the noble-gas collection *this run* arms the Prismatic Beam, auto-bound
@@ -389,7 +404,7 @@ export default class GameScene extends Phaser.Scene {
       const s = enemy as EnemySprite;
       if (!p.active || !s.active || !s.enemyRef) return;
       const dir = (p.body?.velocity.x ?? 0) > 0 ? 1 : -1;
-      s.enemyRef.takeDamage(p.damage || 20, dir * (p.knockback || 2));
+      s.enemyRef.takeDamage(p.damage || 20, p.dmgType ?? 'pure', dir * (p.knockback || 2));
       if (!p.piercing) p.destroy();
     });
 
@@ -782,9 +797,11 @@ export default class GameScene extends Phaser.Scene {
       // Cut to the boss theme the moment the fight begins.
       this.events.once('boss-activated', () => MusicSystem.setTrack(this.audioCtx, 'boss'));
     } else if (def.exitX !== undefined) {
-      // Regular stage — clear it by reaching the exit once the area is cleared
+      // Regular stage — clear it by reaching the exit (enemies never gate it)
       this._exitX = def.exitX;
-      this._spawnExitPortal(def.exitX);
+      this._exitY = def.exitY ?? GROUND_TOP_Y;
+      this._exitElevated = def.exitY !== undefined;
+      this._spawnExitPortal(def.exitX, this._exitY);
     }
 
     // Snapshot how many germs this stage holds (boss included) for the HUD counter.
@@ -926,10 +943,10 @@ export default class GameScene extends Phaser.Scene {
 
   // ── Exit portal (non-boss stage clear) ───────────────────────────────────────
 
-  /** A membrane gateway at the stage end; it stays sealed until every germ is gone. */
-  private _spawnExitPortal(x: number): void {
-    const theme = SECTOR_THEMES[this.sector];
-    const cy = GROUND_TOP_Y - 56;
+  /** A membrane gateway at the stage end. It is open from the start — a non-boss stage clears by
+   *  reaching it, so enemies are obstacles to fight or outrun, never a checklist to empty. */
+  private _spawnExitPortal(x: number, surfaceTop: number): void {
+    const cy = surfaceTop - 56;
     const ring = this.add.graphics();
     const glow = this.add.graphics();
     const portal = this.add.container(x, cy, [glow, ring]).setDepth(DEPTH.ENEMY - 1);
@@ -937,10 +954,10 @@ export default class GameScene extends Phaser.Scene {
     portal.setData('glow', glow);
     this._exitPortal = portal;
 
-    this._exitHint = this.add
-      .text(x, GROUND_TOP_Y - 140, 'SEALED — clear the area', {
+    this.add
+      .text(x, surfaceTop - 140, 'EXIT  →', {
         fontSize: '13px',
-        color: theme.label,
+        color: '#bfffd0',
         fontStyle: 'italic',
         stroke: '#000000',
         strokeThickness: 3,
@@ -949,7 +966,7 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(DEPTH.PLAYER + 10)
       .setAlpha(0.85);
 
-    this._drawExitPortal(false);
+    this._drawExitPortal();
     // Gentle idle bob/pulse
     this.tweens.add({
       targets: portal,
@@ -962,17 +979,17 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Redraw the portal in either its sealed (red) or open (green, inviting) state. */
-  private _drawExitPortal(open: boolean): void {
+  /** Draw the portal in its open (green, inviting) state — the only state it has. */
+  private _drawExitPortal(): void {
     const portal = this._exitPortal;
     if (!portal) return;
     const ring = portal.getData('ring') as Phaser.GameObjects.Graphics;
     const glow = portal.getData('glow') as Phaser.GameObjects.Graphics;
-    const color = open ? 0x55ff99 : 0xff5544;
+    const color = 0x55ff99;
     ring.clear();
     glow.clear();
     // Outer aura
-    glow.fillStyle(color, open ? 0.22 : 0.12);
+    glow.fillStyle(color, 0.22);
     glow.fillEllipse(0, 0, 96, 150);
     // Membrane oval rings
     ring.lineStyle(4, color, 0.9);
@@ -980,7 +997,7 @@ export default class GameScene extends Phaser.Scene {
     ring.lineStyle(2, color, 0.5);
     ring.strokeEllipse(0, 0, 44, 110);
     // Swirling motes inside
-    ring.fillStyle(open ? 0xccffdd : 0xffcccc, 0.7);
+    ring.fillStyle(0xccffdd, 0.7);
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
       ring.fillCircle(Math.cos(a) * 14, Math.sin(a) * 40, 2.5);
@@ -1047,12 +1064,16 @@ export default class GameScene extends Phaser.Scene {
     if (!p.alive) return;
     const px = p.sprite.x;
     // Remember the last solid footing that isn't a hole, so respawns land somewhere stable.
-    if (p.sprite.body.onFloor() && !this.isOverHole(px)) {
+    // A ledge is solid even where it bridges a pit, so footing well above the floor line always
+    // counts; down on the floor itself, only ground that isn't a hole does.
+    const onLedge = p.sprite.y < GROUND_TOP_Y - 60;
+    if (p.sprite.body.onFloor() && (onLedge || !this.isOverHole(px))) {
       this._lastSafeX = px;
+      this._lastSafeY = p.sprite.y;
     }
     if (p.sprite.y > GAME_HEIGHT + 60) {
       p.sprite.body.setVelocity(0, 0);
-      p.sprite.setPosition(this._lastSafeX, GROUND_TOP_Y - 60);
+      p.sprite.setPosition(this._lastSafeX, this._lastSafeY - 20);
       SoundSystem.play(this.audioCtx, 'punch');
       this.shake(260, 0.012);
       p.takeDamage(GAP_FALL_DAMAGE); // respects i-frames; lethal only if HP runs out
@@ -1585,9 +1606,12 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
+    // Cull spent player shots. Fanned volleys (Crystal Shrapnel) leave vertically as well as
+    // horizontally, so the y-check spans the full climbable extent plus a margin before culling.
     this.projectileGroup.getChildren().forEach((go) => {
       const p = go as Phaser.Physics.Arcade.Sprite;
-      if (p.active && (p.x < 0 || p.x > this.worldWidth)) p.destroy();
+      if (!p.active) return;
+      if (p.x < 0 || p.x > this.worldWidth || p.y < -this._rise - 200 || p.y > GAME_HEIGHT + 200) p.destroy();
     });
     this.enemyProjectileGroup.getChildren().forEach((go) => {
       const p = go as Phaser.Physics.Arcade.Sprite;
@@ -1650,6 +1674,38 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ── Reusable juice helpers (color-parameterized; visual only) ────────────────
+
+  /**
+   * The elemental-matchup shout: a short "WEAK!" / "RESIST" label above whatever was just hit.
+   * Throttled per-target-position so a multi-tick cloud or a bleed DOT doesn't stack a wall of text.
+   */
+  spawnAffinityCue(x: number, y: number, weak: boolean): void {
+    const now = this.time.now;
+    const key = `${Math.round(x / 40)}:${Math.round(y / 40)}:${weak ? 'w' : 'r'}`;
+    if (now - (this._affinityCueAt.get(key) ?? -Infinity) < 700) return;
+    this._affinityCueAt.set(key, now);
+
+    const label = this.add
+      .text(x, y - 26, weak ? 'WEAK!' : 'RESIST', {
+        fontSize: weak ? '17px' : '13px',
+        color: weak ? '#ffe066' : '#8fa4b8',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(120)
+      .setAlpha(weak ? 1 : 0.75);
+    this.tweens.add({
+      targets: label,
+      y: y - (weak ? 64 : 50),
+      alpha: 0,
+      duration: weak ? 780 : 620,
+      ease: 'Quad.Out',
+      onComplete: () => label.destroy(),
+    });
+    if (weak) this.spawnHitFlash(x, y, 0xffe066, 30);
+  }
 
   /** Radial particle burst — sparks, droplets, ice shards, debris, etc. */
   spawnBurst(
@@ -1782,10 +1838,20 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  spawnProjectile(x: number, y: number, dir: number, color: number, damage: number, speed = 600, knockback = 2): void {
+  spawnProjectile(
+    x: number,
+    y: number,
+    dir: number,
+    color: number,
+    damage: number,
+    dmgType: DamageType,
+    speed = 600,
+    knockback = 2,
+  ): void {
     const p = this.projectileGroup.create(x, y, 'projectile') as ProjectileSprite;
     p.setTint(color).setDepth(80);
     p.damage = damage;
+    p.dmgType = dmgType;
     p.knockback = knockback;
     p.piercing = false;
     p.body.setAllowGravity(false);
@@ -1797,6 +1863,7 @@ export default class GameScene extends Phaser.Scene {
     const p = this.projectileGroup.create(x, y, 'projectile') as ProjectileSprite;
     p.setTint(0x4499ff).setDepth(80).setScale(1.8).setAlpha(0); // base sprite hidden; the plasma graphic is the visual
     p.damage = damage;
+    p.dmgType = 'energy';
     p.knockback = 5;
     p.piercing = false;
     p.body.setAllowGravity(false);
@@ -1835,7 +1902,7 @@ export default class GameScene extends Phaser.Scene {
             const s = go as EnemySprite;
             if (!s.active || !s.enemyRef) return;
             if (Phaser.Math.Distance.Between(last.x, last.y, s.x, s.y) < 70) {
-              s.enemyRef.takeDamage(Math.round(damage * 0.5), dir * 3);
+              s.enemyRef.takeDamage(Math.round(damage * 0.5), 'energy', dir * 3);
             }
           });
           gfx.destroy();
@@ -1888,20 +1955,33 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  spawnPiercingProjectile(x: number, y: number, dir: number, color: number, damage: number, speed = 650): void {
+  /** A shot that rips through everything in its lane. `vy` fans a volley out vertically (0 = flat). */
+  spawnPiercingProjectile(
+    x: number,
+    y: number,
+    dir: number,
+    color: number,
+    damage: number,
+    dmgType: DamageType,
+    speed = 650,
+    vy = 0,
+  ): void {
     const p = this.projectileGroup.create(x, y, 'projectile') as ProjectileSprite;
     p.setTint(color).setDepth(80).setScale(1.4);
     p.damage = damage;
+    p.dmgType = dmgType;
     p.knockback = 1;
     p.piercing = true;
     p.body.setAllowGravity(false);
-    p.body.setVelocity(dir * speed, 0);
+    p.body.setVelocity(dir * speed, vy);
+    if (vy !== 0) p.setRotation(Math.atan2(vy, dir * speed));
   }
 
   spawnEnemyProjectile(x: number, y: number, angle: number, damage: number, speed = 280): void {
     const p = this.enemyProjectileGroup.create(x, y, 'projectile') as ProjectileSprite;
     p.setTint(0xff6600).setDepth(80);
     p.damage = damage;
+    p.dmgType = 'pure'; // enemy shots hit the player, who has no affinities
     p.knockback = 0;
     p.body.setAllowGravity(false);
     p.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
@@ -2015,7 +2095,7 @@ export default class GameScene extends Phaser.Scene {
         this.enemyGroup.getChildren().forEach((go) => {
           const s = go as EnemySprite;
           if (s.active && s.enemyRef && Math.abs(s.x - waveX) < 95) {
-            s.enemyRef.takeDamage(6, d * 6);
+            s.enemyRef.takeDamage(6, 'impact', d * 6);
           }
         });
 
@@ -2637,22 +2717,19 @@ export default class GameScene extends Phaser.Scene {
 
   // ── Stage completion ─────────────────────────────────────────────────────────
 
-  /** Reached the exit on a non-boss stage, or no enemies remain — open / advance. */
+  /**
+   * Non-boss stages clear on reaching the exit; surviving enemies do not hold it shut.
+   *
+   * A floor-level exit sits at the end of the world, so crossing its x is the whole test. An exit
+   * placed up on a ledge additionally demands that the player actually be up there — at or above its
+   * footing — otherwise strolling along the ground beneath it would clear the stage and throw away
+   * the climb the ending was built around. Above the portal still counts, so a jump over it is fine.
+   */
   private _updateExit(): void {
     if (this.stageCleared || !this._exitPortal) return;
-    if (!this._exitOpen) {
-      if (this.enemyGroup.countActive(true) === 0) this._openExit();
-      return;
-    }
-    if (this.player.sprite.x >= this._exitX - 20) this._completeStage();
-  }
-
-  private _openExit(): void {
-    this._exitOpen = true;
-    this._drawExitPortal(true);
-    this._exitHint?.setText('EXIT OPEN  →').setColor('#bfffd0').setAlpha(1);
-    SoundSystem.play(this.audioCtx, 'element_upgrade');
-    this.cameras.main.flash(250, 80, 255, 150);
+    if (this.player.sprite.x < this._exitX - 20) return;
+    if (this._exitElevated && this.player.sprite.y > this._exitY + 40) return;
+    this._completeStage();
   }
 
   private _completeStage(): void {
@@ -2725,7 +2802,10 @@ export default class GameScene extends Phaser.Scene {
   onBossDefeated(): void {
     this.stageCleared = true;
     this.player.freeze(); // hold the player still through the victory banner until the next stage
-    this._enemyKilled = this._enemyTotal;
+    // The boss is one of `_enemyTotal` but never routes through `onEnemyDeath`, so credit it here.
+    // (Credit it as a single kill, not a clobber to the total — germs the player walked past must
+    // still read as alive, or a boss stage would always claim a full clear and its purge bonus.)
+    this._enemyKilled = Math.min(this._enemyKilled + 1, this._enemyTotal);
     this._emitEnemyCount();
     this._finalizeStageScore();
     const theme = SECTOR_THEMES[this.sector];
@@ -2740,7 +2820,10 @@ export default class GameScene extends Phaser.Scene {
     const par = this.worldWidth / 160 + 25;
     this._lastTimeBonus = Math.max(0, Math.round((par - elapsed) * 8));
     this._lastNoHitBonus = this.player.hp >= PLAYER_MAX_HP ? 750 : 0;
-    this.score += this._lastTimeBonus + this._lastNoHitBonus;
+    // Wiping out every germ is optional now that the exit never seals, so it pays a sweep bonus.
+    const purged = this._enemyTotal > 0 && this._enemyKilled >= this._enemyTotal;
+    this._lastPurgeBonus = purged ? PURGE_BONUS : 0;
+    this.score += this._lastTimeBonus + this._lastNoHitBonus + this._lastPurgeBonus;
     this.events.emit('score-update', this.score);
 
     const stageScore = this.score - this._stageBaseScore; // this stage's own contribution
@@ -2812,6 +2895,10 @@ export default class GameScene extends Phaser.Scene {
 
     // Score breakdown
     const breakdown: string[] = [];
+    if (this._enemyTotal > 0) {
+      const purgeTag = this._lastPurgeBonus > 0 ? `  ★ +${this._lastPurgeBonus.toLocaleString()}` : '';
+      breakdown.push(`Germs        ${this._enemyKilled}/${this._enemyTotal} KILLED${purgeTag}`);
+    }
     if (this._lastTimeBonus > 0) breakdown.push(`Time bonus   +${this._lastTimeBonus.toLocaleString()}`);
     if (this._lastNoHitBonus > 0) breakdown.push(`Flawless     +${this._lastNoHitBonus.toLocaleString()}`);
     if (this._coinsTotal > 0) {

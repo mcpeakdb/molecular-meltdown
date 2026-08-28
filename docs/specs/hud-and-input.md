@@ -38,8 +38,9 @@ The in-game HUD and the input model (keyboard + on-screen touch controls). Sourc
   player via the touch controls (same path as a key press) with a press animation.
 - **REQ-HUD-005** — WHEN `combo-update` fires with count ≥2, the HUD shall show "N HITS" + multiplier
   with a pop; with count <2 it shall fade the combo readout out.
-- **REQ-HUD-006** — WHEN `enemies-update` fires, the HUD shall show "GERMS killed/total · N LEFT",
-  highlighting when none remain; with total 0 it shall hide the counter.
+- **REQ-HUD-006** — WHEN `enemies-update` fires, the HUD shall show "GERMS killed/total KILLED" as a
+  running tally (not a clear objective), highlighting when none remain; with total 0 it shall hide
+  the counter.
 - **REQ-HUD-007** — WHEN `boss-activated` fires, the HUD shall flash a "! PATHOGEN DETECTED !" warning.
 - **REQ-HUD-008** — `hideArsenal` shall hide the chips, germ counter, and touch controls so a
   full-screen overlay (clear banner / death screen) reads cleanly; the HUD is relaunched fresh next

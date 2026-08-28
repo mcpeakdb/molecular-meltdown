@@ -1,5 +1,135 @@
 # Patch Notes
 
+## v0.41.0 - 2026-08-28
+
+### Longer stages, and a lot more of them is vertical
+
+- **Every stage is longer.** Widths went from 3600–5800px to 4700–6700px — about a 30% increase, and
+  ~107,000px of level in total. The new ground is not padding: each extension carries its own
+  encounters, atom nodes, and geometry.
+- **Stages sometimes start and/or finish off the floor.** 7 of the 18 now open on a ledge in mid-air
+  and 9 of the 12 non-boss stages end up on one. Two — BILE SALT BARRENS and ROTTING REFUSE — do both,
+  so they never touch the floor at either end. The rest still open and close on the ground, because
+  the variation is the point; a run that was a flat left-to-right corridor now changes shape.
+- **A raised exit has to actually be reached.** Walking the ground underneath a raised portal does not
+  clear the stage — you have to be up at its footing. Being above it still counts, so a jump over the
+  portal is fine. Floor-level exits behave exactly as before.
+- **Fall respawns now put you back on the ledge you fell from**, rather than dumping you on the floor
+  far below. A ledge counts as safe footing even where it bridges a pit.
+
+### Per-sector vertical set-pieces
+
+Each sector got its own shape rather than one climb copy-pasted eighteen times:
+
+- **Sector 1 · PETRI DISH — the dish rim.** A gentle ledge chain, then a four-step spire onto the
+  shelf the exit sits on. The teaching sector keeps its ground-level opening.
+- **Sector 2 · BLOOD AGAR — the vessel wall.** HEMOLYTIC FIELDS drops you in from a shelf and ends on
+  a skybridge over a chasm too wide to leap; PLASMA CURRENTS climbs a five-step wall past where the
+  old exit used to be.
+- **Sector 3 · MACCONKEY — the crystal ascent.** A six-step spire with a bile pool at its foot.
+  BILE SALT BARRENS is the first stage that is airborne at both ends.
+- **Sector 4 · LAB FLOOR — up the bench leg.** BENCHTOP SPILL starts on the bench and drops off it;
+  a spore pad later flings you to a high shelf that nothing else can reach.
+- **Sector 5 · UNDER THE BENCH — the drip stack.** Wide chasms with stepping stones, then a climb out.
+- **Sector 6 · THE WASTE BIN — the climb out.** The tallest ascent in the game: an eight-step spire
+  rising 840px to an exit shelf near the rim. ROTTING REFUSE starts up at that rim and makes you
+  descend all the way through the refuse before climbing back out.
+
+### Built to a jump budget, and checked
+
+- Vertical geometry is built from three named shapes — `spire` (zig-zag climb), `descent`
+  (forward-and-down terraces, wider because falling is free), and `skybridge` (a level high run) —
+  sized so every step lands inside the real jump budget by construction.
+- `npm run levels` now solves reachability **from each stage's actual spawn** instead of assuming the
+  floor at the far left, and errors on a spawn with no ledge under it or an exit nothing can climb to.
+  The generated map marks START and EXIT (hollow when raised). All 18 stages report **0 errors,
+  0 warnings**.
+
+## v0.40.0 - 2026-08-28
+
+### Elemental weaknesses & resistances
+
+- **Every attack now has a damage type, and every creature has opinions about it.** The 26 attacks
+  are tagged with one of nine types — `impact`, `piercing`, `fire`, `cryo`, `acid`, `caustic`, `gas`,
+  `explosive`, `energy` — and each of the 10 enemy types and 6 bosses declares which types it is weak
+  or resistant to. The arsenal is now a set of tools with matchups instead of a list of
+  interchangeable damage numbers, and the two or three weapons you carry into a stage actually matter.
+- **The matchups are guessable from what the thing is**, which is the whole point — you should be
+  able to reason your way to the answer before you confirm it. A dustbunny is a ball of lint, so fire
+  does ×1.9 and shards pass straight through it at ×0.5. A virus doesn't respire, so gas manages ×0.5
+  while cold and radiation denature it. Spores are famously chemical-proof (acid, caustic, gas all
+  resisted) but heat is what actually kills them. Fly spray is a gas for a reason. You smoke a hive.
+- **Nothing is useless and nothing is a one-shot.** Multipliers are clamped to the 0.5–1.9 band, so a
+  resisted attack still works — it's just the wrong tool. Bosses use a gentler spread (×1.5 weak,
+  ×0.6–0.8 resist) so a finale rewards the right loadout without collapsing into a two-hit kill; each
+  has an intended counter and something it shrugs off, and none is immune to anything.
+- **The Prismatic super answers to no matchup.** It deals `pure` damage, which bypasses affinity
+  entirely — the reward for completing the noble-gas collection stays unconditional.
+- **Bleed inherits its source's type.** A fire DOT on something flammable keeps burning hot for its
+  whole duration, rather than reverting to neutral after the initial hit.
+
+### Reading it in the fight
+
+- **A gold "WEAK!" or a dim "RESIST" pops above whatever you hit** when the multiplier is far enough
+  from neutral to be worth knowing (≥1.25 or ≤0.85), with a matching flash on a weakness. Cues are
+  throttled per position so a lingering cloud or a DOT can't stack a wall of text. There's no table to
+  look up anywhere — the matchups are learned by playing.
+
+### Under the hood
+
+- The damage type is resolved **once** per cast and passed down as a parameter, so delayed effects —
+  detonations, the NaOH pool, phosphoric rain, saltpeter's chain — are judged by the matchup they were
+  *fired* with, not by whatever you cast while they were in flight. Projectiles carry it on the sprite.
+- It is a **required** argument on `_damageArc` / `_damageRadius` / `_bleedInRadius` / `takeDamage` /
+  `applyBleed`, so the compiler guarantees no damage path can silently lose its matchup.
+
+## v0.39.0 - 2026-08-28
+
+### Sodium — the eighth base atom
+
+- **Sodium (Na) joins the collectable atoms**, the first new base atom since sulfur/chlorine/
+  phosphorus and the first *metal* in the arsenal. It brings five new attacks (21 → 26, plus the
+  Prismatic super), and every one of them is a shape the roster did not already have — the existing
+  specials are almost all gases, acids, and clouds.
+- **Where it drops.** Sodium is offered as an **additional third pick** on the guarded ledge clusters
+  of sectors 2–3 (every agar plate is salted) and again beside chlorine in sector 6, where NaCl can
+  finally be assembled. It widens those choice menus rather than replacing a pick, so an eighth atom
+  doesn't thin the odds of the seven already in the pool.
+
+### The five new attacks
+
+- **Sodium (Na)** — *Sodium Spark / Alkali Burst / Alkali Detonation*. A thrown alkali pellet that
+  detonates on contact with anything (or after 700 ms) — the classic sodium-in-water demo. Lv3 throws
+  a fanned handful of three, each going off on its own.
+- **Sodium Chloride (NaCl)** — *Salt Shot / Crystal Shrapnel / Halite Storm*. Salt-crystal shrapnel:
+  a volley of **piercing** shards fanned vertically that rip straight through everything in their
+  lane. The arsenal's first proper solid projectile.
+- **Sodium Hydroxide (NaOH)** — *Lye Splash / Caustic Pool / Saponify*. Lye: a **persistent pool**
+  placed on the ground ahead of you that ticks damage every 400 ms for up to 4.8 s as it boils away.
+  The only attack that leaves a lasting hazard zone instead of resolving the instant you cast it.
+- **Sodium Carbonate (Na₂CO₃)** — *Soda Foam / Foam Surge / Soda Ash Blast*. Washing-soda foam built
+  for **crowd control**: modest damage, enormous knockback. Lv3 blows every enemy in a 300px radius
+  clean away from you.
+- **Sodium Nitrate (NaNO₃)** — *Oxidizer Flare / Saltpeter Ignition / Chain Deflagration*. Saltpeter,
+  the oxidiser — a **combo** weapon. It sets everything in radius alight *and* detonates anything
+  already burning for a heavy burst, so it pays off hardest fired after a burn attack. At Lv3 the
+  detonations **chain**: each blast ignites its neighbours within 160px, racing outward through up to
+  three more rings. It also lands a small direct hit so it is never a dead button against a
+  bleed-immune boss.
+
+### Supporting changes
+
+- **Periodic Table.** Sodium takes its true cell — group 1, period 3, directly beneath hydrogen. The
+  compound strip at the foot of the table now holds 17 molecules; its tiles narrow from their
+  preferred width as a row fills up, so a crowded row can no longer overrun the screen edges.
+- **HUD** gains an eighth atom badge (`Na`), and the Gold/Platinum wildcard choice now offers all
+  eight atoms.
+- **`spawnPiercingProjectile` takes an optional `vy`** so a volley can be fanned vertically (it also
+  rotates the shard to match its heading).
+- **Projectile cleanup fix.** Player projectiles were only culled when they left the world
+  *horizontally*; a fanned volley could fly off the top or bottom of the stage and stay alive. They
+  are now also culled past the stage's climbable extent, plus a margin.
+
 ## v0.38.1 - 2026-07-23
 
 ### Boss balance

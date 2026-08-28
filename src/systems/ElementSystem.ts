@@ -31,6 +31,7 @@ export default class ElementSystem {
     sulfur: 0,
     chlorine: 0,
     phosphorus: 0,
+    sodium: 0,
   };
   /** Number of bindable weapon slots (keys 1..slotCount) — set from the difficulty. */
   private slotCount = 3;

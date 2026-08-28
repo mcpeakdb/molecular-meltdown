@@ -127,13 +127,15 @@ All menus support both keyboard and pointer/touch via `src/systems/touchMenu.ts`
 ## MoleculeTreeScene
 
 - **REQ-TREE-001** — `MoleculeTreeScene` shall present a real periodic-table layout on an 18-group ×
-  7-period lattice: the seven base atoms in their true (group, period) cells (H alone; C/N/O in
-  period 2; P/S/Cl below them in period 3); the six noble gases down group 18 (far right) under a
-  highlight; the group-11 precious metals — Silver (period 5) above Gold (period 6) — with Platinum
+  7-period lattice: the eight base atoms in their true (group, period) cells (H alone in group 1 with
+  Na beneath it in period 3; C/N/O in period 2; P/S/Cl below them in period 3); the six noble gases
+  down group 18 (far right) under a highlight; the group-11 precious metals — Silver (period 5) above Gold (period 6) — with Platinum
   beside Gold; the life/power-up drops in their true period-4 cells — the healing drops Calcium (group
   2) and Zinc (group 12) flanking the armor drop Iron (group 8), all seated below the detail panel;
   and the Prismatic super weapon capping the foot of the noble-gas column. The assembled compounds
-  shall form a detached, labelled strip along the very bottom. Real elements show their true atomic
+  shall form a detached, labelled strip along the very bottom — one row up to eight compounds, then
+  two rows (`ceil(n/2)` each), with the tile width narrowing from its preferred 108px as needed so a
+  crowded row never overruns the screen edges. Real elements show their true atomic
   number and standard atomic weight; the super weapon shows neither.
 - **REQ-TREE-001a** — The table shall be completed through Radon (Z = 86): every element that is not a
   game element shall be drawn as a greyed, **non-selectable** reference tile in its true (group,

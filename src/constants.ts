@@ -90,6 +90,12 @@ export const ELEMENTS = {
   PHOSPHINE: 'phosphine',
   PHOSPHORIC_ACID: 'phosphoric_acid',
   PHOSPHORUS_TRICHLORIDE: 'phosphorus_trichloride',
+  // Sodium — the reactive alkali metal, and the ionic salts it forms with the other atoms.
+  SODIUM: 'sodium',
+  SODIUM_CHLORIDE: 'sodium_chloride',
+  SODIUM_HYDROXIDE: 'sodium_hydroxide',
+  SODIUM_CARBONATE: 'sodium_carbonate',
+  SODIUM_NITRATE: 'sodium_nitrate',
   GOLD: 'gold',
   // Platinum — an even rarer Gold: pick any atom and gain +3 (three level-ups). ~0.1% of atom nodes.
   PLATINUM: 'platinum',
@@ -121,6 +127,11 @@ export const ELEMENT_COLORS: Record<ElementType, number> = {
   [ELEMENTS.PHOSPHINE]: 0xbfe87a,
   [ELEMENTS.PHOSPHORIC_ACID]: 0xdff0a0,
   [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: 0xbfe0a0,
+  [ELEMENTS.SODIUM]: 0xffb020,
+  [ELEMENTS.SODIUM_CHLORIDE]: 0xeef2ff,
+  [ELEMENTS.SODIUM_HYDROXIDE]: 0xd9c2ff,
+  [ELEMENTS.SODIUM_CARBONATE]: 0xbfe4f0,
+  [ELEMENTS.SODIUM_NITRATE]: 0xffd27a,
   [ELEMENTS.GOLD]: 0xffd700,
   [ELEMENTS.PLATINUM]: 0xb9d4e8,
   [ELEMENTS.PRISMATIC]: 0xff66ff,
@@ -148,6 +159,11 @@ export const ELEMENT_NAMES: Record<ElementType, string> = {
   [ELEMENTS.PHOSPHINE]: 'Phosphine (PH₃)',
   [ELEMENTS.PHOSPHORIC_ACID]: 'Phosphoric Acid (H₃PO₄)',
   [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: 'Phosphorus Trichloride (PCl₃)',
+  [ELEMENTS.SODIUM]: 'Sodium',
+  [ELEMENTS.SODIUM_CHLORIDE]: 'Sodium Chloride (NaCl)',
+  [ELEMENTS.SODIUM_HYDROXIDE]: 'Sodium Hydroxide (NaOH)',
+  [ELEMENTS.SODIUM_CARBONATE]: 'Sodium Carbonate (Na₂CO₃)',
+  [ELEMENTS.SODIUM_NITRATE]: 'Sodium Nitrate (NaNO₃)',
   [ELEMENTS.GOLD]: 'Gold (Au)',
   [ELEMENTS.PLATINUM]: 'Platinum (Pt)',
   [ELEMENTS.PRISMATIC]: 'Prismatic Beam',
@@ -179,9 +195,18 @@ export const MAX_ELEMENT_LEVEL = 3;
 export const RUN_LIVES = 3;
 
 // ── Attack registry (molecular tree + weapon-slot arsenal) ──────────────────
-// The seven collectable base atoms.
-export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen' | 'sulfur' | 'chlorine' | 'phosphorus';
-export const BASE_ATOMS: BaseAtom[] = ['hydrogen', 'oxygen', 'carbon', 'nitrogen', 'sulfur', 'chlorine', 'phosphorus'];
+// The eight collectable base atoms.
+export type BaseAtom = 'hydrogen' | 'oxygen' | 'carbon' | 'nitrogen' | 'sulfur' | 'chlorine' | 'phosphorus' | 'sodium';
+export const BASE_ATOMS: BaseAtom[] = [
+  'hydrogen',
+  'oxygen',
+  'carbon',
+  'nitrogen',
+  'sulfur',
+  'chlorine',
+  'phosphorus',
+  'sodium',
+];
 
 // ── Noble gases ─────────────────────────────────────────────────────────────
 // Inert collectibles — one of each exists, tucked away on hard-to-reach platforms or guarded by a
@@ -215,6 +240,10 @@ export const COINS_PER_STAGE = 50; // coins scattered along each stage
 export const COIN_SCORE = 25; // points per coin
 export const COIN_BONUS = 3000; // bonus for collecting every coin in a stage
 export const COIN_COLOR = 0xd8e2ec; // silver
+
+// Clearing every germ in a stage is optional (the exit is never sealed), so it pays a small
+// completion bonus on top of the kill scores — the same "clean sweep" shape as COIN_BONUS.
+export const PURGE_BONUS = 500;
 
 // ── Healing drops (Ca / Zn) ──────────────────────────────────────────────────
 // Non-attack pickups that restore player HP. These are the "elements of life": Calcium (bone/repair)
@@ -426,6 +455,47 @@ export const ATTACKS: Record<AttackId, AttackDef> = {
     tierNames: ['Fuming Splash', 'Smoking Corrosive', 'Trichloride Storm'],
     cooldownMs: 1700,
   },
+  // ── Sodium and the ionic salts it forms with the other atoms ────────────────
+  [ELEMENTS.SODIUM]: {
+    id: ELEMENTS.SODIUM,
+    recipe: { sodium: 1 },
+    slot: 21,
+    color: 0xffb020,
+    tierNames: ['Sodium Spark', 'Alkali Burst', 'Alkali Detonation'],
+    cooldownMs: 850,
+  },
+  [ELEMENTS.SODIUM_CHLORIDE]: {
+    id: ELEMENTS.SODIUM_CHLORIDE,
+    recipe: { sodium: 1, chlorine: 1 },
+    slot: 22,
+    color: 0xeef2ff,
+    tierNames: ['Salt Shot', 'Crystal Shrapnel', 'Halite Storm'],
+    cooldownMs: 1000,
+  },
+  [ELEMENTS.SODIUM_HYDROXIDE]: {
+    id: ELEMENTS.SODIUM_HYDROXIDE,
+    recipe: { sodium: 1, oxygen: 1, hydrogen: 1 },
+    slot: 23,
+    color: 0xd9c2ff,
+    tierNames: ['Lye Splash', 'Caustic Pool', 'Saponify'],
+    cooldownMs: 1500,
+  },
+  [ELEMENTS.SODIUM_CARBONATE]: {
+    id: ELEMENTS.SODIUM_CARBONATE,
+    recipe: { sodium: 2, carbon: 1, oxygen: 3 },
+    slot: 24,
+    color: 0xbfe4f0,
+    tierNames: ['Soda Foam', 'Foam Surge', 'Soda Ash Blast'],
+    cooldownMs: 1600,
+  },
+  [ELEMENTS.SODIUM_NITRATE]: {
+    id: ELEMENTS.SODIUM_NITRATE,
+    recipe: { sodium: 1, nitrogen: 1, oxygen: 3 },
+    slot: 25,
+    color: 0xffd27a,
+    tierNames: ['Oxidizer Flare', 'Saltpeter Ignition', 'Chain Deflagration'],
+    cooldownMs: 1800,
+  },
   // Super weapon — has no atom recipe; availability is driven by the noble-gas collection, not
   // `levelFor`. It is excluded from ATTACK_ORDER so the recipe machinery never touches it.
   [ELEMENTS.PRISMATIC]: {
@@ -437,6 +507,78 @@ export const ATTACKS: Record<AttackId, AttackDef> = {
     cooldownMs: 5000,
   },
 };
+
+// ── Damage types & elemental affinity ───────────────────────────────────────
+// Every attack deals exactly one *damage type*. Enemies and bosses declare which types they are
+// weak or resistant to (see `AFFINITY` in Enemy.ts / Boss.ts), so the arsenal is a set of tools
+// with matchups rather than a list of interchangeable damage numbers. Keeping the taxonomy small
+// is the point: a player can learn nine types, not twenty-six attacks.
+export type DamageType =
+  /** Blunt/kinetic force — punches, water jets, foam shoves. */
+  | 'impact'
+  /** Solids: shards, crystals, claws. */
+  | 'piercing'
+  /** Combustion and incendiaries. */
+  | 'fire'
+  /** Freezing and cryogenics. */
+  | 'cryo'
+  /** Corrosive acids. */
+  | 'acid'
+  /** Alkalis/bases — the other half of the pH scale. */
+  | 'caustic'
+  /** Toxic and suffocating gases. */
+  | 'gas'
+  /** Detonations and shockwaves. */
+  | 'explosive'
+  /** Plasma and radiant energy. */
+  | 'energy'
+  /** Unresistable — the noble-gas super weapon only. No affinity ever applies. */
+  | 'pure';
+
+/** The damage type of the player's basic melee punch (no atom required). */
+export const MELEE_DAMAGE_TYPE: DamageType = 'impact';
+
+export const ATTACK_TYPE: Record<AttackId, DamageType> = {
+  [ELEMENTS.HYDROGEN]: 'energy',
+  [ELEMENTS.OXYGEN]: 'fire',
+  [ELEMENTS.CARBON]: 'piercing',
+  [ELEMENTS.NITROGEN]: 'cryo',
+  [ELEMENTS.WATER]: 'impact',
+  [ELEMENTS.AMMONIA]: 'caustic',
+  [ELEMENTS.CARBON_DIOXIDE]: 'gas',
+  [ELEMENTS.METHANE]: 'fire',
+  [ELEMENTS.NITRIC_OXIDE]: 'impact', // Radical Rush damages by ramming
+  [ELEMENTS.CARBONIC_ACID]: 'acid',
+  [ELEMENTS.SULFUR]: 'fire',
+  [ELEMENTS.CHLORINE]: 'gas',
+  [ELEMENTS.PHOSPHORUS]: 'fire',
+  [ELEMENTS.HYDROGEN_SULFIDE]: 'gas',
+  [ELEMENTS.SULFUR_DIOXIDE]: 'gas',
+  [ELEMENTS.SULFURIC_ACID]: 'acid',
+  [ELEMENTS.HYDROCHLORIC_ACID]: 'acid',
+  [ELEMENTS.PHOSPHINE]: 'fire',
+  [ELEMENTS.PHOSPHORIC_ACID]: 'acid',
+  [ELEMENTS.PHOSPHORUS_TRICHLORIDE]: 'acid',
+  [ELEMENTS.SODIUM]: 'explosive',
+  [ELEMENTS.SODIUM_CHLORIDE]: 'piercing',
+  [ELEMENTS.SODIUM_HYDROXIDE]: 'caustic',
+  [ELEMENTS.SODIUM_CARBONATE]: 'impact',
+  [ELEMENTS.SODIUM_NITRATE]: 'explosive',
+  [ELEMENTS.PRISMATIC]: 'pure', // the super weapon answers to no matchup
+};
+
+/** A creature's damage-type multipliers. Absent = 1 (neutral). >1 weak, <1 resistant. */
+export type Affinity = Partial<Record<DamageType, number>>;
+
+/** Above/below these, a hit is loud enough to earn a WEAK!/RESIST cue. */
+export const WEAK_CUE_THRESHOLD = 1.25;
+export const RESIST_CUE_THRESHOLD = 0.85;
+
+/** Scale `dmg` by a target's affinity for `type`. `pure` ignores affinity entirely. */
+export function applyAffinity(dmg: number, type: DamageType, affinity: Affinity | undefined): number {
+  if (type === 'pure' || !affinity) return dmg;
+  return dmg * (affinity[type] ?? 1);
+}
 
 /** The noble-gas super weapon's attack id (gated by collection completeness, not atoms). */
 export const SUPER_ATTACK_ID: AttackId = ELEMENTS.PRISMATIC;
@@ -515,6 +657,11 @@ export const ELEMENT_FACTS: Partial<Record<ElementType, string[]>> = {
     'White phosphorus bursts into flame in open air.',
     'It glows faintly in the dark — the origin of the word “phosphorescence”.',
     'Vital to life: it forms the backbone of DNA and your bones.',
+  ],
+  [ELEMENTS.SODIUM]: [
+    'So reactive it bursts into flame the moment it touches water.',
+    'Stored under oil — bare sodium tarnishes in seconds in open air.',
+    'Its flame test burns the vivid yellow of every streetlamp ever made.',
   ],
   [ELEMENTS.GOLD]: [
     'So nonreactive it never tarnishes — gold stays shiny forever.',

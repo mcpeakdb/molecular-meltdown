@@ -1,5 +1,17 @@
 import Phaser from 'phaser';
-import { DEPTH, FLYER_MAX_Y, FLYER_MIN_Y, GAME_HEIGHT, GRAVITY, GROUND_TOP_Y } from '../constants';
+import {
+  type Affinity,
+  applyAffinity,
+  type DamageType,
+  DEPTH,
+  FLYER_MAX_Y,
+  FLYER_MIN_Y,
+  GAME_HEIGHT,
+  GRAVITY,
+  GROUND_TOP_Y,
+  RESIST_CUE_THRESHOLD,
+  WEAK_CUE_THRESHOLD,
+} from '../constants';
 import type GameScene from '../scenes/GameScene';
 import type { EnemySprite } from '../types';
 
@@ -100,6 +112,38 @@ const CONFIGS: Record<EnemyType, EnemyConfig> = {
   // Sectors 5–6 (LAB FLOOR) — fast fragile flyer, and a tougher aggressive flyer.
   fly: { hp: 16, speed: 205, damage: 8, attackRate: 850, texture: 'fly', scale: 0.85, fly: true },
   bee: { hp: 42, speed: 150, damage: 14, attackRate: 1100, texture: 'bee', scale: 1.0, fly: true },
+};
+
+/**
+ * Elemental matchups. Absent type = 1.0 (neutral); >1 is a weakness, <1 a resistance. Each creature
+ * gets one or two of each so the arsenal has real answers without any attack becoming useless — the
+ * floor is 0.5, so a resisted attack still works, it just isn't the right tool.
+ *
+ * The reasoning is meant to be guessable from what the thing *is*: lint burns, spores shrug off
+ * chemicals but not heat, viruses don't breathe so gas does little, arthropods hate fumigation.
+ */
+const AFFINITY: Record<EnemyType, Affinity> = {
+  // A germ: what kills it on a real benchtop is disinfectant, not blunt force.
+  bacterium: { caustic: 1.6, acid: 1.4, impact: 0.8 },
+  // A protein shell, barely alive — it doesn't respire, so gas has little to work on; heat and
+  // radiation denature it.
+  virus: { cryo: 1.6, energy: 1.5, gas: 0.5, caustic: 0.7 },
+  // A ball of lint. It is, functionally, tinder — and shards pass straight through fluff.
+  dustbunny: { fire: 1.9, piercing: 0.5, gas: 0.7 },
+  // A fragile airborne grain: swat it. It is *already* a suspended particle, so gas barely registers.
+  pollen: { impact: 1.6, cryo: 1.4, gas: 0.6 },
+  // A big water-filled blob. Lyse it osmotically or freeze it; there is nothing vital to puncture.
+  amoeba: { caustic: 1.5, cryo: 1.5, piercing: 0.5, impact: 0.7 },
+  // A hardened survival capsule — famously chemical-proof. Heat is what actually kills spores.
+  spore: { fire: 1.7, energy: 1.4, acid: 0.6, caustic: 0.6, gas: 0.5 },
+  // An arthropod with a thin cuticle: acid eats it, fumigation works.
+  mite: { acid: 1.5, gas: 1.4, cryo: 0.7 },
+  // Exoskeleton — hard to squash, easy to dissolve or blow apart.
+  ant: { acid: 1.5, explosive: 1.4, impact: 0.7, gas: 0.8 },
+  // Fly spray is a gas for a reason. Too small and quick for a shard to catch.
+  fly: { gas: 1.8, impact: 1.4, piercing: 0.6 },
+  // Smoke the hive. Tougher and better armoured than a fly.
+  bee: { gas: 1.5, fire: 1.3, cryo: 0.8, piercing: 0.7 },
 };
 
 const DETECT_RANGE = 320;
@@ -353,17 +397,33 @@ export default class Enemy {
     }
   }
 
-  applyBleed(damage: number, duration: number): void {
+  /** True while a bleed/burn DOT is ticking — what Saltpeter looks for to set something off. */
+  get isBleeding(): boolean {
+    return this.bleedTimer > 0;
+  }
+
+  applyBleed(damage: number, duration: number, type: DamageType): void {
     if (!this.hasEnteredView) return;
-    this.bleedDamage = damage;
+    // The DOT inherits its source's matchup, so a burn on lint keeps burning hot.
+    this.bleedDamage = applyAffinity(damage, type, AFFINITY[this.type]);
     this.bleedTimer = Math.max(this.bleedTimer, duration);
     this.bleedTickTimer = 0;
   }
 
-  takeDamage(amount: number, knockbackDir = 1, slow = false): void {
+  /** This creature's multiplier against `type` — 1 when neutral. */
+  affinityFor(type: DamageType): number {
+    return applyAffinity(1, type, AFFINITY[this.type]);
+  }
+
+  takeDamage(amount: number, type: DamageType, knockbackDir = 1, slow = false): void {
     // Offscreen enemies that haven't scrolled in yet are untouchable by any attack
     if (!this.hasEnteredView || this.state === STATES.DEAD) return;
-    this.hp = Math.round(this.hp - amount);
+
+    // Elemental matchup: scale the hit, and shout about it when the swing is big enough to notice.
+    const mult = this.affinityFor(type);
+    this.hp = Math.round(this.hp - applyAffinity(amount, type, AFFINITY[this.type]));
+    if (mult >= WEAK_CUE_THRESHOLD) this.scene.spawnAffinityCue(this.sprite.x, this.sprite.y, true);
+    else if (mult <= RESIST_CUE_THRESHOLD) this.scene.spawnAffinityCue(this.sprite.x, this.sprite.y, false);
 
     // Freeze, squish, then launch after a brief stagger window
     this.sprite.body.setVelocity(0, 0);

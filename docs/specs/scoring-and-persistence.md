@@ -21,6 +21,13 @@ passcodes. Sources: [`src/scenes/GameScene.ts`](../../src/scenes/GameScene.ts),
 - **REQ-SCORE-004** — WHEN a stage is finalized, the game shall award a time bonus
   `max(0, round((par - elapsed) * 8))` where `par = worldWidth/160 + 25`, plus a flawless bonus of 750
   IF the player finished at full HP, and fold both into the run score.
+- **REQ-SCORE-004a** — WHEN a stage is finalized, IF every germ the stage spawned was killed
+  (`_enemyKilled >= _enemyTotal`), THEN the game shall additionally award `PURGE_BONUS` (500).
+  Clearing the stage is optional (see REQ-EXIT-002), so this is a sweep reward, not a requirement.
+- **REQ-SCORE-004b** — The clear banner shall list the germ tally `killed/total KILLED`, starred with
+  the purge bonus on a full clear, above the time/flawless/coin lines.
+- **REQ-SCORE-004c** — A boss shall count as one kill toward its stage's germ tally when defeated
+  (it never routes through `onEnemyDeath`), so germs bypassed on a finale stage still read as alive.
 - **REQ-SCORE-005** — WHEN a stage is finalized, the game shall record the per-stage best score (this
   stage's own contribution = run score minus the score at stage start) and mark the stage cleared.
 - **REQ-SCORE-006** — The HUD shall reflect score, combo, HP, owned atoms, the germ counter, and the

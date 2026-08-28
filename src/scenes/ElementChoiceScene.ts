@@ -30,6 +30,7 @@ const ELEMENT_SYMBOLS: Partial<Record<ElementType, string>> = {
   sulfur: 'S',
   chlorine: 'Cl',
   phosphorus: 'P',
+  sodium: 'Na',
   hydrogen_sulfide: 'H₂S',
   sulfur_dioxide: 'SO₂',
   sulfuric_acid: 'H₂SO₄',
@@ -37,6 +38,10 @@ const ELEMENT_SYMBOLS: Partial<Record<ElementType, string>> = {
   phosphine: 'PH₃',
   phosphoric_acid: 'H₃PO₄',
   phosphorus_trichloride: 'PCl₃',
+  sodium_chloride: 'NaCl',
+  sodium_hydroxide: 'NaOH',
+  sodium_carbonate: 'Na₂CO₃',
+  sodium_nitrate: 'NaNO₃',
 };
 
 interface Card {
@@ -83,6 +88,7 @@ export default class ElementChoiceScene extends Phaser.Scene {
       sulfur: 0,
       chlorine: 0,
       phosphorus: 0,
+      sodium: 0,
     };
     this.grant = data.grant ?? 1;
     this.gold = data.gold ?? false;
@@ -163,7 +169,7 @@ export default class ElementChoiceScene extends Phaser.Scene {
     const hex = `#${col.toString(16).padStart(6, '0')}`;
 
     // Layout. Up to 4 cards sit in a single tall row (the classic 2-/3-/4-card look). With more than
-    // four choices (a Gold pick now offers all seven base atoms) the cards would get too skinny, so we
+    // four choices (a Gold pick now offers all eight base atoms) the cards would get too skinny, so we
     // wrap into two rows and switch each card to a shorter, compact content layout.
     const n = this.choices.length;
     const twoRows = n > 4;

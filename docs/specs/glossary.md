@@ -11,7 +11,11 @@ Shared vocabulary and the constants the rest of the specs lean on. Source of tru
 | **Sector** | A biome/theme grouping 3 stages. `sectorOf(stage) = min(6, floor((stage-1)/3)+1)`. Sectors: 1 = PETRI DISH, 2 = BLOOD AGAR, 3 = MACCONKEY, 4 = LAB FLOOR, 5 = UNDER THE BENCH, 6 = THE WASTE BIN (4–6 share the lab-floor biome/tiles). |
 | **Substage** | Position within a sector, 1–3. `substageOf(stage) = ((stage-1) % 3) + 1`. |
 | **Finale stage** | The 3rd stage of each sector (`substage === 3`, i.e. stages 3, 6, 9, 12, 15, 18) — a boss fight. `isFinaleStage`. |
-| **Base atom** | One of the seven collectables: hydrogen, oxygen, carbon, nitrogen, sulfur, chlorine, phosphorus (`BASE_ATOMS`). |
+| **Spire / descent / skybridge** | The three named vertical shapes stages are built from (`src/stages.ts`): a zig-zag climb, forward-and-down terraces, and a level high run. |
+| **Raised spawn / raised exit** | A stage that starts (`spawn`) and/or finishes (`exitY`) on a ledge instead of the floor. |
+| **Base atom** | One of the eight collectables: hydrogen, oxygen, carbon, nitrogen, sulfur, chlorine, phosphorus, sodium (`BASE_ATOMS`). |
+| **Damage type** | The single elemental category an attack deals (`DamageType`, `ATTACK_TYPE`): impact, piercing, fire, cryo, acid, caustic, gas, explosive, energy, or `pure`. |
+| **Affinity** | A creature's per-damage-type multiplier (`Affinity`). Absent = 1.0; >1 weak, <1 resistant. `pure` bypasses it entirely. |
 | **Compound** | An attack assembled from a stoichiometric recipe of base atoms (water, ammonia, etc.). |
 | **Attack / weapon** | Any element/compound the player can fire (`AttackId`); excludes `NONE` and `GOLD`. |
 | **Weapon slot** | A bindable attack key. 3 slots on Normal/Hard (Z/X/C), 2 on Extreme. |

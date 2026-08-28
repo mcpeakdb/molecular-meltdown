@@ -66,7 +66,7 @@ src/
   stages.ts                # STAGES[18] — data-driven config for all 18 stages (6 sectors × 3)
   spriteFit.ts             # fitHeightScale() — render art at a target on-screen height, any source res
   entities/
-    Player.ts              # Movement, attack, 21 specials, combo, armor/heal, death
+    Player.ts              # Movement, attack, 26 specials, combo, armor/heal, death
     Enemy.ts               # Enemy AI, takeDamage, bleed DOT, death (10 types), art variants
     Boss.ts                # Boss variants (6), phases, projectiles, activation
     Atom.ts                # Collectible atom / noble gem / gold + platinum wildcard sprite
@@ -139,7 +139,11 @@ Whenever the version is bumped, add a new entry to [docs/PATCH_NOTES.md](docs/PA
   (LAB FLOOR, UNDER THE BENCH, THE WASTE BIN) and share a biome.
 - All stage content lives in [src/stages.ts](src/stages.ts) as `STAGES[18]` (`StageDef`): per-stage
   `name`, `width`, optional `rise` (climbable sky), `atoms`, `enemies`, `gaps`, `platforms`,
-  `hazards`, `pads`, `crumble`, and either `boss` or `exitX`. Enrichment loops at the bottom of the
+  `hazards`, `pads`, `crumble`, and either `boss` or `exitX`. Stages may also start and/or finish off
+  the floor: `spawn: { x, y }` sets the player down on a ledge, and `exitY` stands the exit portal on
+  one (a raised exit is only cleared from at-or-above its footing, never from the ground below).
+  Vertical geometry is built from `spire()` / `descent()` / `skybridge()`, which keep every step
+  inside the real jump budget (single 144px rise, double 304px, bounce 734px). Enrichment loops at the bottom of the
   file place noble gems (`NOBLE_BY_STAGE`) and guarantee every summit carries a reward.
 - Theme/art is keyed by sector: `SECTOR_THEMES` in `GameScene` and `bg_tile_${sector}` /
   `ground_tile_${sector}` procedural textures in `BootScene`.
@@ -173,11 +177,28 @@ stoichiometric `recipe`; `ElementSystem` derives the level (= complete recipe co
    `ASSET_SPECS` in [src/scenes/BootScene.ts](src/scenes/BootScene.ts), and include it in the stage
    `choices` / `CLUSTER_ATOMS` tables in [src/stages.ts](src/stages.ts)
 
+### Damage types & elemental affinity
+
+Every attack deals exactly one `DamageType` (`ATTACK_TYPE` in [src/constants.ts](src/constants.ts)):
+`impact`, `piercing`, `fire`, `cryo`, `acid`, `caustic`, `gas`, `explosive`, `energy`, or `pure`
+(unresistable — the Prismatic super only). Each enemy type declares an `Affinity` in `AFFINITY`
+([src/entities/Enemy.ts](src/entities/Enemy.ts)) and each boss variant in `BOSS_AFFINITY`
+([src/entities/Boss.ts](src/entities/Boss.ts)): per-type multipliers, absent = 1.0, kept inside
+0.5–1.9 so nothing is useless and nothing one-shots. `takeDamage(amount, type, ...)` scales the hit
+and pops a floating **WEAK!** / **RESIST** cue (`GameScene.spawnAffinityCue`) — the only in-game
+readout, by design.
+
+The type is resolved once in `_dispatchAttack` and passed **as a parameter** into each `_specialXxx`,
+so delayed effects (detonations, pools, rains, chains) keep the matchup they were fired with. It is a
+required argument on `_damageArc` / `_damageRadius` / `_bleedInRadius` / `takeDamage` / `applyBleed`,
+so the compiler catches any damage path that loses it.
+
 ### Adding a new enemy
 
 1. Add the type to `EnemyType` and a config entry to `CONFIGS` in
    [src/entities/Enemy.ts](src/entities/Enemy.ts) (hover/hop/idle flair and any `ranged` profile go
-   there too); add interchangeable art keys to `TEXTURE_VARIANTS` if it ships more than one look
+   there too); add interchangeable art keys to `TEXTURE_VARIANTS` if it ships more than one look.
+   Also give it an `AFFINITY` entry — a weakness or two and a resistance, reasoned from what it is
 2. Add the PNG(s) under `public/assets/sprites/enemies/` and register each key in `ASSET_SPECS` in
    [src/scenes/BootScene.ts](src/scenes/BootScene.ts). If the art is script-drawn, add it to
    `scripts/gen-sprites.mjs` and re-run `npm run gen:sprites`
@@ -187,7 +208,8 @@ stoichiometric `recipe`; `ElementSystem` derives the level (= complete recipe co
 ### Adding a new boss
 
 1. Add the variant to `BossVariant` + `VARIANTS` in [src/entities/Boss.ts](src/entities/Boss.ts)
-   (texture, name, stats, scale/body, projectile volley, tints)
+   (texture, name, stats, scale/body, projectile volley, tints), plus a `BOSS_AFFINITY` entry giving
+   it an intended counter and something it shrugs off
 2. Add its PNG under `public/assets/sprites/bosses/` and register the key in `ASSET_SPECS` in
    [src/scenes/BootScene.ts](src/scenes/BootScene.ts)
 3. Set it as a stage finale via `boss: { variant, x }` in [src/stages.ts](src/stages.ts)

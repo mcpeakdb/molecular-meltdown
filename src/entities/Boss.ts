@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
-import { DEPTH, GROUND_TOP_Y } from '../constants';
+import {
+  type Affinity,
+  applyAffinity,
+  type DamageType,
+  DEPTH,
+  GROUND_TOP_Y,
+  RESIST_CUE_THRESHOLD,
+  WEAK_CUE_THRESHOLD,
+} from '../constants';
 import type GameScene from '../scenes/GameScene';
 import SoundSystem from '../systems/SoundSystem';
 import type { EnemySprite } from '../types';
@@ -134,6 +142,26 @@ const VARIANTS: Record<BossVariant, BossVariantCfg> = {
     activateTint: 0xe0a000,
     fireTint: 0xffd24a,
   },
+};
+
+/**
+ * Boss matchups. Deliberately gentler than the trash-mob table (1.5 weak / 0.6–0.8 resist): a finale
+ * should reward bringing the right tool, not collapse to a two-hit kill because the loadout guessed
+ * right. Every boss has an intended counter and something it shrugs off; none is immune to anything.
+ */
+const BOSS_AFFINITY: Record<BossVariant, Affinity> = {
+  // A colossal germ — still a germ. Disinfectant is the answer; punching it is not.
+  bacterium: { caustic: 1.5, acid: 1.3, impact: 0.8 },
+  // An enormous water-filled blob: freeze or lyse it. Puncturing does almost nothing.
+  amoeba: { cryo: 1.5, caustic: 1.3, piercing: 0.6 },
+  // A viral capsid, scaled up: radiation cooks it, gas has nothing to poison.
+  phage: { energy: 1.5, cryo: 1.3, gas: 0.6 },
+  // The cockroach cliché is true: radiation-proof and armoured. Dissolve the shell instead.
+  roach: { acid: 1.5, gas: 1.3, energy: 0.7, explosive: 0.8 },
+  // Heavily armoured — get inside the shell with a shockwave rather than chipping at it.
+  beetle: { explosive: 1.5, caustic: 1.3, piercing: 0.6, gas: 0.8 },
+  // You smoke a hive out, or you burn it.
+  hornet: { fire: 1.5, gas: 1.4, cryo: 0.8, piercing: 0.8 },
 };
 
 export default class Boss {
@@ -430,16 +458,30 @@ export default class Boss {
     this.hpLabel.setScrollFactor(0).setPosition(cx - 80, 32);
   }
 
-  applyBleed(_damage: number, _duration: number): void {
+  /** Always false — bosses are bleed-immune, so nothing can ever be set off on them. */
+  get isBleeding(): boolean {
+    return false;
+  }
+
+  applyBleed(_damage: number, _duration: number, _type: DamageType): void {
     /* boss is immune to bleed */
   }
 
-  takeDamage(amount: number, knockbackDir = 1): void {
+  /** This boss's multiplier against `type` — 1 when neutral. */
+  affinityFor(type: DamageType): number {
+    return applyAffinity(1, type, BOSS_AFFINITY[this.variant]);
+  }
+
+  takeDamage(amount: number, type: DamageType, knockbackDir = 1, _slow = false): void {
     // Not on screen yet — screen-wide specials must not reach the boss before it activates,
     // otherwise it can be killed offscreen and the stage gets stuck in a degenerate state.
     if (!this.activated) return;
     if (!this.alive || this.phase === PHASES.DEAD) return;
-    this.hp = Math.round(this.hp - amount);
+
+    const mult = this.affinityFor(type);
+    this.hp = Math.round(this.hp - applyAffinity(amount, type, BOSS_AFFINITY[this.variant]));
+    if (mult >= WEAK_CUE_THRESHOLD) this.scene.spawnAffinityCue(this.sprite.x, this.sprite.y, true);
+    else if (mult <= RESIST_CUE_THRESHOLD) this.scene.spawnAffinityCue(this.sprite.x, this.sprite.y, false);
 
     this.sprite.body.setVelocity(0, 0);
     this.scene.time.delayedCall(80, () => {

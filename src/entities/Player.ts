@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import {
+  ATTACK_TYPE,
   ATTACKS,
   type AttackId,
+  type DamageType,
   DEPTH,
   ELEMENT_COLORS,
   ELEMENTS,
@@ -9,6 +11,7 @@ import {
   GAME_WIDTH,
   GRAVITY,
   GROUND_TOP_Y,
+  MELEE_DAMAGE_TYPE,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_DOUBLE_JUMP_VELOCITY,
   PLAYER_INVINCIBILITY_MS,
@@ -281,27 +284,35 @@ export default class Player {
   }
 
   private _dispatchAttack(id: AttackId, level: number, dir: number): void {
-    if (id === ELEMENTS.HYDROGEN) this._specialHydrogen(level, dir);
-    else if (id === ELEMENTS.OXYGEN) this._specialOxygen(level, dir);
-    else if (id === ELEMENTS.WATER) this._specialWater(level, dir);
-    else if (id === ELEMENTS.CARBON) this._specialCarbon(level, dir);
-    else if (id === ELEMENTS.NITROGEN) this._specialNitrogen(level, dir);
-    else if (id === ELEMENTS.AMMONIA) this._specialAmmonia(level, dir);
-    else if (id === ELEMENTS.CARBON_DIOXIDE) this._specialCarbonDioxide(level, dir);
-    else if (id === ELEMENTS.METHANE) this._specialMethane(level, dir);
-    else if (id === ELEMENTS.NITRIC_OXIDE) this._specialNitricOxide(level, dir);
-    else if (id === ELEMENTS.CARBONIC_ACID) this._specialCarbonicAcid(level, dir);
-    else if (id === ELEMENTS.SULFUR) this._specialSulfur(level, dir);
-    else if (id === ELEMENTS.CHLORINE) this._specialChlorine(level, dir);
-    else if (id === ELEMENTS.PHOSPHORUS) this._specialPhosphorus(level, dir);
-    else if (id === ELEMENTS.HYDROGEN_SULFIDE) this._specialHydrogenSulfide(level, dir);
-    else if (id === ELEMENTS.SULFUR_DIOXIDE) this._specialSulfurDioxide(level, dir);
-    else if (id === ELEMENTS.SULFURIC_ACID) this._specialSulfuricAcid(level, dir);
-    else if (id === ELEMENTS.HYDROCHLORIC_ACID) this._specialHydrochloricAcid(level, dir);
-    else if (id === ELEMENTS.PHOSPHINE) this._specialPhosphine(level, dir);
-    else if (id === ELEMENTS.PHOSPHORIC_ACID) this._specialPhosphoricAcid(level, dir);
-    else if (id === ELEMENTS.PHOSPHORUS_TRICHLORIDE) this._specialPhosphorusTrichloride(level, dir);
-    else if (id === ELEMENTS.PRISMATIC) this._specialPrismatic(level, dir);
+    // One damage type per attack (`ATTACK_TYPE`), resolved here and passed down so every effect the
+    // cast spawns — including ones that land seconds later — is judged by the matchup it was fired with.
+    const dt = ATTACK_TYPE[id];
+    if (id === ELEMENTS.HYDROGEN) this._specialHydrogen(level, dir, dt);
+    else if (id === ELEMENTS.OXYGEN) this._specialOxygen(level, dir, dt);
+    else if (id === ELEMENTS.WATER) this._specialWater(level, dir, dt);
+    else if (id === ELEMENTS.CARBON) this._specialCarbon(level, dir, dt);
+    else if (id === ELEMENTS.NITROGEN) this._specialNitrogen(level, dir, dt);
+    else if (id === ELEMENTS.AMMONIA) this._specialAmmonia(level, dir, dt);
+    else if (id === ELEMENTS.CARBON_DIOXIDE) this._specialCarbonDioxide(level, dir, dt);
+    else if (id === ELEMENTS.METHANE) this._specialMethane(level, dir, dt);
+    else if (id === ELEMENTS.NITRIC_OXIDE) this._specialNitricOxide(level, dir, dt);
+    else if (id === ELEMENTS.CARBONIC_ACID) this._specialCarbonicAcid(level, dir, dt);
+    else if (id === ELEMENTS.SULFUR) this._specialSulfur(level, dir, dt);
+    else if (id === ELEMENTS.CHLORINE) this._specialChlorine(level, dir, dt);
+    else if (id === ELEMENTS.PHOSPHORUS) this._specialPhosphorus(level, dir, dt);
+    else if (id === ELEMENTS.HYDROGEN_SULFIDE) this._specialHydrogenSulfide(level, dir, dt);
+    else if (id === ELEMENTS.SULFUR_DIOXIDE) this._specialSulfurDioxide(level, dir, dt);
+    else if (id === ELEMENTS.SULFURIC_ACID) this._specialSulfuricAcid(level, dir, dt);
+    else if (id === ELEMENTS.HYDROCHLORIC_ACID) this._specialHydrochloricAcid(level, dir, dt);
+    else if (id === ELEMENTS.PHOSPHINE) this._specialPhosphine(level, dir, dt);
+    else if (id === ELEMENTS.PHOSPHORIC_ACID) this._specialPhosphoricAcid(level, dir, dt);
+    else if (id === ELEMENTS.PHOSPHORUS_TRICHLORIDE) this._specialPhosphorusTrichloride(level, dir, dt);
+    else if (id === ELEMENTS.SODIUM) this._specialSodium(level, dir, dt);
+    else if (id === ELEMENTS.SODIUM_CHLORIDE) this._specialSodiumChloride(level, dir, dt);
+    else if (id === ELEMENTS.SODIUM_HYDROXIDE) this._specialSodiumHydroxide(level, dir, dt);
+    else if (id === ELEMENTS.SODIUM_CARBONATE) this._specialSodiumCarbonate(level, dir, dt);
+    else if (id === ELEMENTS.SODIUM_NITRATE) this._specialSodiumNitrate(level, dir, dt);
+    else if (id === ELEMENTS.PRISMATIC) this._specialPrismatic(level, dir, dt);
   }
 
   private _doJump(): void {
@@ -456,7 +467,7 @@ export default class Player {
       const dx = s.x - cx,
         dy = s.y - cy;
       if (Math.abs(dx) < PLAYER_MELEE_RANGE && Math.abs(dy) < 80) {
-        s.enemyRef.takeDamage(Math.round(PLAYER_MELEE_DAMAGE * this.comboMultiplier), dir);
+        s.enemyRef.takeDamage(Math.round(PLAYER_MELEE_DAMAGE * this.comboMultiplier), MELEE_DAMAGE_TYPE, dir);
         hitSomething = true;
       }
     });
@@ -535,7 +546,7 @@ export default class Player {
     });
   }
 
-  private _specialHydrogen(level: number, dir: number): void {
+  private _specialHydrogen(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -544,7 +555,7 @@ export default class Player {
       this._spawnPunchArm(dir, { fistColor: 0x3366ee, glow: 0x88aaff, fistRadius: 13, sleeveLen: 50, sleeveH: 11 });
       this.scene.spawnHitFlash(x + dir * 62, y, 0x4499ff, 55);
       this.scene.shake(120, 0.006);
-      if (this._damageArc(x + dir * 50, y, 130, 70, PLAYER_MELEE_DAMAGE * 2, dir, false, 4)) this._registerHit();
+      if (this._damageArc(x + dir * 50, y, 130, 70, PLAYER_MELEE_DAMAGE * 2, dir, dt, false, 4)) this._registerHit();
     } else if (level === 2) {
       // Plasma Arc — crackling hydrogen-blue energy bolt
       SoundSystem.play(this.scene.audioCtx, 'punch');
@@ -559,11 +570,11 @@ export default class Player {
       this.scene.spawnNova(x, y, 0x66bbff, 200, { rings: 3, life: 30, lineWidth: 4, fill: true });
       this.scene.spawnBurst(x, y, 0x88bbff, { count: 26, speed: [120, 320], lifespan: 550, scale: 1.3 });
       this.scene.shake(280, 0.012);
-      if (this._damageRadius(x, y, 190, PLAYER_MELEE_DAMAGE * 4)) this._registerHit();
+      if (this._damageRadius(x, y, 190, PLAYER_MELEE_DAMAGE * 4, dt)) this._registerHit();
     }
   }
 
-  private _specialOxygen(level: number, dir: number): void {
+  private _specialOxygen(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -576,29 +587,29 @@ export default class Player {
         angle: dir > 0 ? [-45, 45] : [135, 225],
         lifespan: 380,
       });
-      if (this._damageArc(x + dir * 40, y, 110, 65, PLAYER_MELEE_DAMAGE * 1.5, dir, true)) this._registerHit();
+      if (this._damageArc(x + dir * 40, y, 110, 65, PLAYER_MELEE_DAMAGE * 1.5, dir, dt, true)) this._registerHit();
     } else if (level === 2) {
       // Reactive Cloud — lingering corrosive haze that slows
       this.scene.spawnCloud(x, y, 150, 0xff5533, 1300, { alpha: 0.16 });
       this.scene.spawnHitFlash(x, y, 0xff6644, 90);
       this.scene.spawnNova(x, y, 0xff7744, 150, { rings: 1, life: 22 });
-      if (this._damageRadius(x, y, 150, PLAYER_MELEE_DAMAGE * 2, true)) this._registerHit();
+      if (this._damageRadius(x, y, 150, PLAYER_MELEE_DAMAGE * 2, dt, true)) this._registerHit();
     } else {
       // Oxidation Nova — huge corrosive blast
       this.scene.spawnHitFlash(x, y, 0xff5533, 200);
       this.scene.spawnNova(x, y, 0xff7744, 280, { rings: 3, life: 32, lineWidth: 4, fill: true });
       this.scene.spawnBurst(x, y, 0xff8855, { count: 28, speed: [120, 340], lifespan: 600, scale: 1.3 });
       this.scene.shake(300, 0.012);
-      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.5, true)) this._registerHit();
+      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.5, dt, true)) this._registerHit();
     }
   }
 
-  private _specialWater(level: number, dir: number): void {
+  private _specialWater(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
       // Water Jet — pressurized bolt with a spray of droplets at the muzzle
-      this.scene.spawnProjectile(x, y, dir, 0x22ccff, PLAYER_MELEE_DAMAGE * 2, 700, 3);
+      this.scene.spawnProjectile(x, y, dir, 0x22ccff, PLAYER_MELEE_DAMAGE * 2, dt, 700, 3);
       this.scene.spawnHitFlash(x + dir * 30, y, 0x88eeff, 32);
       this.scene.spawnBurst(x + dir * 24, y, 0x66ddff, {
         count: 8,
@@ -618,14 +629,14 @@ export default class Player {
         scale: 1.1,
       });
       this.scene.shake(180, 0.007);
-      if (this._damageArc(x + dir * 80, y, 220, 120, PLAYER_MELEE_DAMAGE * 2.5, dir, false, 5)) this._registerHit();
+      if (this._damageArc(x + dir * 80, y, 220, 120, PLAYER_MELEE_DAMAGE * 2.5, dir, dt, false, 5)) this._registerHit();
     } else {
       this.scene.shake(500, 0.015);
       this.scene.spawnTidalWave(x, y, dir);
     }
   }
 
-  private _specialCarbon(level: number, dir: number): void {
+  private _specialCarbon(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -634,19 +645,19 @@ export default class Player {
       this.scene.spawnSlashArc(x, y - 14, dir, 0x999999, 100, 50);
       this.scene.spawnSlashArc(x, y + 14, dir, 0x999999, 100, 50);
       this.scene.spawnHitFlash(x + dir * 55, y, 0xaaaaaa, 40);
-      const hit = this._damageArc(x + dir * 40, y, 110, 60, PLAYER_MELEE_DAMAGE * 1.8, dir);
+      const hit = this._damageArc(x + dir * 40, y, 110, 60, PLAYER_MELEE_DAMAGE * 1.8, dir, dt);
       if (hit) {
         this._registerHit();
         this.scene.spawnBurst(x + dir * 50, y, 0xcc3322, { count: 8, speed: [60, 160], lifespan: 360 });
         this.scene.enemyGroup.getChildren().forEach((go) => {
           const s = go as EnemySprite;
           if (!s.active || !s.enemyRef) return;
-          if (Math.abs(s.x - (x + dir * 40)) < 110 && Math.abs(s.y - y) < 60) s.enemyRef.applyBleed(3, 2400);
+          if (Math.abs(s.x - (x + dir * 40)) < 110 && Math.abs(s.y - y) < 60) s.enemyRef.applyBleed(3, 2400, dt);
         });
       }
     } else if (level === 2) {
       // Diamond Shard — piercing crystalline bolt with a sparkle at launch
-      this.scene.spawnPiercingProjectile(x, y, dir, 0xaaddff, PLAYER_MELEE_DAMAGE * 3, 650);
+      this.scene.spawnPiercingProjectile(x, y, dir, 0xaaddff, PLAYER_MELEE_DAMAGE * 3, dt, 650);
       this.scene.spawnHitFlash(x + dir * 26, y, 0xddffff, 30);
       this.scene.spawnBurst(x + dir * 24, y, 0xcceeff, {
         count: 8,
@@ -677,7 +688,7 @@ export default class Player {
           crack.fillStyle(0x999999, 0.6 - t * 0.018);
           crack.fillRect(x - t * 12, y + 16, t * 24, 8);
           if (t === 15) {
-            if (this._damageRadius(x, y, t * 12, PLAYER_MELEE_DAMAGE * 5)) this._registerHit();
+            if (this._damageRadius(x, y, t * 12, PLAYER_MELEE_DAMAGE * 5, dt)) this._registerHit();
           }
           if (t >= 30) crack.destroy();
         },
@@ -685,7 +696,7 @@ export default class Player {
     }
   }
 
-  private _specialNitrogen(level: number, dir: number): void {
+  private _specialNitrogen(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -693,14 +704,14 @@ export default class Player {
       this.scene.spawnSlashArc(x, y, dir, 0x88eeff, 110, 64);
       this.scene.spawnHitFlash(x + dir * 55, y, 0xaaf4ff, 45);
       this.scene.spawnBurst(x + dir * 50, y, 0xbbf6ff, { count: 12, speed: [60, 180], lifespan: 460 });
-      if (this._damageArc(x + dir * 40, y, 110, 60, PLAYER_MELEE_DAMAGE * 1.5, dir, true)) this._registerHit();
+      if (this._damageArc(x + dir * 40, y, 110, 60, PLAYER_MELEE_DAMAGE * 1.5, dir, dt, true)) this._registerHit();
     } else if (level === 2) {
       // Cryo Burst — radial freeze that shatters outward
       this.scene.spawnHitFlash(x, y, 0x66ddff, 80);
       this.scene.spawnNova(x, y, 0x88eeff, 160, { rings: 2, life: 26, fill: true });
       this.scene.spawnBurst(x, y, 0xbbf6ff, { count: 22, speed: [120, 300], lifespan: 520, scale: 1.2 });
       this.scene.shake(150, 0.006);
-      if (this._damageRadius(x, y, 160, PLAYER_MELEE_DAMAGE * 2.5, true)) this._registerHit();
+      if (this._damageRadius(x, y, 160, PLAYER_MELEE_DAMAGE * 2.5, dt, true)) this._registerHit();
     } else {
       // Absolute Zero — the whole screen flash-freezes
       this.scene.shake(500, 0.015);
@@ -710,7 +721,7 @@ export default class Player {
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
         if (!s.active || !s.enemyRef) return;
-        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 5, 0, true);
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 5, dt, 0, true);
         this.scene.spawnBurst(s.x, s.y, 0xbbf6ff, { count: 10, speed: [60, 200], lifespan: 480 });
         hit = true;
       });
@@ -718,7 +729,7 @@ export default class Player {
     }
   }
 
-  private _specialAmmonia(level: number, _dir: number): void {
+  private _specialAmmonia(level: number, _dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const radii = [90, 150, 0];
@@ -726,13 +737,13 @@ export default class Player {
     this.scene.spawnHitFlash(x, y, 0xaadd44, level === 1 ? 50 : level === 2 ? 80 : 100);
     if (level < 3) {
       this.scene.spawnCloud(x, y, radii[level - 1], 0xaadd44, level === 1 ? 1100 : 1700, { alpha: 0.2 });
-      const hit = this._damageRadius(x, y, radii[level - 1], dmgs[level - 1], level === 2);
+      const hit = this._damageRadius(x, y, radii[level - 1], dmgs[level - 1], dt, level === 2);
       if (hit) {
         this._registerHit();
         this.scene.enemyGroup.getChildren().forEach((go) => {
           const s = go as EnemySprite;
           if (!s.active || !s.enemyRef) return;
-          if (Phaser.Math.Distance.Between(x, y, s.x, s.y) < radii[level - 1]) s.enemyRef.applyBleed(2, 3000);
+          if (Phaser.Math.Distance.Between(x, y, s.x, s.y) < radii[level - 1]) s.enemyRef.applyBleed(2, 3000, dt);
         });
       }
     } else {
@@ -753,8 +764,8 @@ export default class Player {
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
         if (!s.active || !s.enemyRef) return;
-        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 1.5, 0);
-        s.enemyRef.applyBleed(3, 4000);
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 1.5, dt, 0);
+        s.enemyRef.applyBleed(3, 4000, dt);
         this.scene.spawnCloud(s.x, s.y, 40, 0xaadd44, 1400, { blobs: 4, alpha: 0.2 });
         hit = true;
       });
@@ -762,7 +773,7 @@ export default class Player {
     }
   }
 
-  private _specialCarbonDioxide(level: number, _dir: number): void {
+  private _specialCarbonDioxide(level: number, _dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const radii = [100, 180, 0];
@@ -784,7 +795,7 @@ export default class Player {
     if (level < 3) {
       this.scene.spawnCloud(x, y, radii[level - 1], 0x99bbcc, level === 1 ? 1100 : 1700, { alpha: 0.22 });
       this.scene.spawnNova(x, y, 0xbbccdd, radii[level - 1], { rings: 1, life: 22 });
-      if (this._damageRadius(x, y, radii[level - 1], PLAYER_MELEE_DAMAGE * 2)) this._registerHit();
+      if (this._damageRadius(x, y, radii[level - 1], PLAYER_MELEE_DAMAGE * 2, dt)) this._registerHit();
     } else {
       // Blackout — choking smog across the whole screen
       this.scene.shake(400, 0.012);
@@ -792,7 +803,7 @@ export default class Player {
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
         if (!s.active || !s.enemyRef) return;
-        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 3, 0);
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 3, dt, 0);
         this.scene.spawnCloud(s.x, s.y, 50, 0x99bbcc, 1400, { blobs: 4, alpha: 0.25 });
         hit = true;
       });
@@ -800,7 +811,7 @@ export default class Player {
     }
   }
 
-  private _specialMethane(level: number, dir: number): void {
+  private _specialMethane(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const proj = this.scene.physics.add.sprite(x, y, 'projectile') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -836,7 +847,7 @@ export default class Player {
       this.scene.shake(200, 0.008);
       const dmg =
         level === 1 ? PLAYER_MELEE_DAMAGE * 3 : level === 2 ? PLAYER_MELEE_DAMAGE * 3.5 : PLAYER_MELEE_DAMAGE * 6;
-      if (this._damageRadius(ex, ey, r, dmg)) this._registerHit();
+      if (this._damageRadius(ex, ey, r, dmg, dt)) this._registerHit();
       if (level >= 2) {
         this.scene.enemyGroup.getChildren().forEach((go) => {
           const s = go as EnemySprite;
@@ -852,7 +863,7 @@ export default class Player {
     this.scene.physics.add.overlap(proj, this.scene.enemyGroup, () => detonate());
   }
 
-  private _specialNitricOxide(level: number, _dir: number): void {
+  private _specialNitricOxide(level: number, _dir: number, dt: DamageType): void {
     const boosts = [1.5, 1.8, 2.0];
     const durations = RADICAL_DURATIONS;
     this._speedBoost = boosts[level - 1];
@@ -887,12 +898,12 @@ export default class Player {
       repeat: Math.floor(durations[level - 1] / tick) - 1,
       callback: () => {
         if (!this.alive || !this.isRadicalActive) return;
-        this._damageRadius(this.sprite.x, this._feetY, auraR, PLAYER_MELEE_DAMAGE * 0.35);
+        this._damageRadius(this.sprite.x, this._feetY, auraR, PLAYER_MELEE_DAMAGE * 0.35, dt);
       },
     });
   }
 
-  private _specialCarbonicAcid(level: number, dir: number): void {
+  private _specialCarbonicAcid(level: number, dir: number, dt: DamageType): void {
     const count = level === 1 ? 5 : level === 2 ? 9 : 0;
     const spreadX = level === 1 ? 120 : 200;
     const groundY = this._feetY; // stable ground line for this cast (drops land here)
@@ -921,12 +932,12 @@ export default class Player {
                 lifespan: 320,
               });
               this.scene.spawnCloud(tx, groundY, 26, 0x33aadd, 700, { blobs: 3, alpha: 0.22 });
-              this._damageRadius(tx, groundY, 35, PLAYER_MELEE_DAMAGE * 1.2);
+              this._damageRadius(tx, groundY, 35, PLAYER_MELEE_DAMAGE * 1.2, dt);
               if (level === 2) {
                 this.scene.enemyGroup.getChildren().forEach((go) => {
                   const s = go as EnemySprite;
                   if (s.active && s.enemyRef && Phaser.Math.Distance.Between(tx, groundY, s.x, s.y) < 35)
-                    s.enemyRef.applyBleed(2, 1500);
+                    s.enemyRef.applyBleed(2, 1500, dt);
                 });
               }
               drop.destroy();
@@ -960,8 +971,8 @@ export default class Player {
               });
               this.scene.spawnCloud(s.x, s.y, 30, 0x33aadd, 800, { blobs: 3, alpha: 0.22 });
               if (s.enemyRef) {
-                s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, 0);
-                s.enemyRef.applyBleed(3, 2000);
+                s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, dt, 0);
+                s.enemyRef.applyBleed(3, 2000, dt);
               }
               drop.destroy();
             },
@@ -973,16 +984,16 @@ export default class Player {
   }
 
   /** Apply a bleed/burn DOT to every active enemy within `radius` of (x, y). */
-  private _bleedInRadius(x: number, y: number, radius: number, perTick: number, ms: number): void {
+  private _bleedInRadius(x: number, y: number, radius: number, perTick: number, ms: number, type: DamageType): void {
     this.scene.enemyGroup.getChildren().forEach((go) => {
       const s = go as EnemySprite;
       if (!s.active || !s.enemyRef) return;
-      if (Phaser.Math.Distance.Between(x, y, s.x, s.y) < radius) s.enemyRef.applyBleed(perTick, ms);
+      if (Phaser.Math.Distance.Between(x, y, s.x, s.y) < radius) s.enemyRef.applyBleed(perTick, ms, type);
     });
   }
 
   // ── Sulfur — brimstone (searing melee → burning cloud → firestorm) ───────────
-  private _specialSulfur(level: number, dir: number): void {
+  private _specialSulfur(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -995,38 +1006,39 @@ export default class Player {
         angle: dir > 0 ? [-45, 45] : [135, 225],
         lifespan: 420,
       });
-      if (this._damageArc(x + dir * 42, y, 112, 64, PLAYER_MELEE_DAMAGE * 1.6, dir, false, 4)) {
+      if (this._damageArc(x + dir * 42, y, 112, 64, PLAYER_MELEE_DAMAGE * 1.6, dir, dt, false, 4)) {
         this._registerHit();
-        this._bleedInRadius(x + dir * 42, y, 112, 2, 2400);
+        this._bleedInRadius(x + dir * 42, y, 112, 2, 2400, dt);
       }
     } else if (level === 2) {
       // Sulfur Burn — a lingering brimstone cloud that scorches over time
       this.scene.spawnCloud(x, y, 150, 0xf2c81e, 1500, { alpha: 0.18 });
       this.scene.spawnHitFlash(x, y, 0xffbb22, 80);
       this.scene.spawnNova(x, y, 0xffcc33, 150, { rings: 1, life: 22 });
-      if (this._damageRadius(x, y, 150, PLAYER_MELEE_DAMAGE * 2)) this._registerHit();
-      this._bleedInRadius(x, y, 150, 3, 3000);
+      if (this._damageRadius(x, y, 150, PLAYER_MELEE_DAMAGE * 2, dt)) this._registerHit();
+      this._bleedInRadius(x, y, 150, 3, 3000, dt);
     } else {
       // Brimstone Storm — a raining firestorm of molten sulfur
       this.scene.shake(320, 0.013);
       this.scene.spawnHitFlash(x, y, 0xffaa22, 160);
       this.scene.spawnNova(x, y, 0xffcc33, 280, { rings: 3, life: 32, lineWidth: 4, fill: true });
       this.scene.spawnBurst(x, y - 20, 0xffbb33, { count: 30, speed: [120, 360], lifespan: 640, scale: 1.3 });
-      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.5)) this._registerHit();
-      this._bleedInRadius(x, y, 280, 4, 3600);
+      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.5, dt)) this._registerHit();
+      this._bleedInRadius(x, y, 280, 4, 3600, dt);
     }
   }
 
   // ── Chlorine — poison gas cloud (lingers and chokes) ─────────────────────────
-  private _specialChlorine(level: number, _dir: number): void {
+  private _specialChlorine(level: number, _dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level < 3) {
       const r = level === 1 ? 110 : 165;
       this.scene.spawnCloud(x, y, r, 0x8fe04a, level === 1 ? 1300 : 1900, { alpha: 0.2, blobs: 6 });
       this.scene.spawnHitFlash(x, y, 0xaaf055, level === 1 ? 55 : 85);
-      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.5 : 2), level === 2)) this._registerHit();
-      this._bleedInRadius(x, y, r, level === 1 ? 2 : 3, level === 1 ? 2600 : 3400);
+      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.5 : 2), dt, level === 2))
+        this._registerHit();
+      this._bleedInRadius(x, y, r, level === 1 ? 2 : 3, level === 1 ? 2600 : 3400, dt);
     } else {
       // Mustard Fog — a choking green haze fills the whole screen
       const haze = this.scene.add
@@ -1045,8 +1057,8 @@ export default class Player {
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
         if (!s.active || !s.enemyRef) return;
-        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, 0);
-        s.enemyRef.applyBleed(4, 4200);
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, dt, 0);
+        s.enemyRef.applyBleed(4, 4200, dt);
         this.scene.spawnCloud(s.x, s.y, 44, 0x8fe04a, 1500, { blobs: 4, alpha: 0.22 });
         hit = true;
       });
@@ -1055,12 +1067,12 @@ export default class Player {
   }
 
   // ── Phosphorus — incendiary (ember bolt → white-hot burst → burning rain) ────
-  private _specialPhosphorus(level: number, dir: number): void {
+  private _specialPhosphorus(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
       // Ember Spark — a small incendiary bolt that ignites on contact
-      this.scene.spawnProjectile(x, y, dir, 0xffcf66, PLAYER_MELEE_DAMAGE * 2, 640, 3);
+      this.scene.spawnProjectile(x, y, dir, 0xffcf66, PLAYER_MELEE_DAMAGE * 2, dt, 640, 3);
       this.scene.spawnHitFlash(x + dir * 26, y, 0xfff0b0, 32);
       this.scene.spawnBurst(x + dir * 24, y, 0xffaa44, {
         count: 8,
@@ -1074,8 +1086,8 @@ export default class Player {
       this.scene.spawnNova(x, y, 0xffe0a0, 170, { rings: 2, life: 26, fill: true });
       this.scene.spawnBurst(x, y, 0xffbb55, { count: 24, speed: [120, 320], lifespan: 560, scale: 1.2 });
       this.scene.shake(180, 0.008);
-      if (this._damageRadius(x, y, 170, PLAYER_MELEE_DAMAGE * 2.5)) this._registerHit();
-      this._bleedInRadius(x, y, 170, 3, 3200);
+      if (this._damageRadius(x, y, 170, PLAYER_MELEE_DAMAGE * 2.5, dt)) this._registerHit();
+      this._bleedInRadius(x, y, 170, 3, 3200, dt);
     } else {
       // Incendiary Rain — burning phosphorus falls on every enemy
       this.scene.shake(340, 0.012);
@@ -1086,8 +1098,8 @@ export default class Player {
           if (!s.active || !s.enemyRef) return;
           this.scene.spawnHitFlash(s.x, s.y, 0xffdd88, 28);
           this.scene.spawnBurst(s.x, s.y, 0xffaa44, { count: 10, speed: [60, 200], angle: [200, 340], lifespan: 420 });
-          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2.5, 0);
-          s.enemyRef.applyBleed(4, 4000);
+          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2.5, dt, 0);
+          s.enemyRef.applyBleed(4, 4000, dt);
         });
       });
       this._registerHit();
@@ -1095,19 +1107,19 @@ export default class Player {
   }
 
   // ── Hydrogen sulfide (H₂S) — a rotten, toxic gas that poisons over time ───────
-  private _specialHydrogenSulfide(level: number, _dir: number): void {
+  private _specialHydrogenSulfide(level: number, _dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const r = level === 1 ? 100 : level === 2 ? 160 : 210;
     this.scene.spawnCloud(x, y, r, 0xc9d94a, level === 1 ? 1300 : 2000, { alpha: 0.2, blobs: 6 });
     this.scene.spawnHitFlash(x, y, 0xd8e85a, level === 1 ? 55 : 90);
-    if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.4 : level === 2 ? 1.9 : 2.4)))
+    if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * (level === 1 ? 1.4 : level === 2 ? 1.9 : 2.4), dt))
       this._registerHit();
-    this._bleedInRadius(x, y, r, level === 1 ? 3 : level === 2 ? 4 : 5, level === 3 ? 4200 : 3200);
+    this._bleedInRadius(x, y, r, level === 1 ? 3 : level === 2 ? 4 : 5, level === 3 ? 4200 : 3200, dt);
   }
 
   // ── Sulfur dioxide (SO₂) — a heavy choking smog that suffocates ───────────────
-  private _specialSulfurDioxide(level: number, _dir: number): void {
+  private _specialSulfurDioxide(level: number, _dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const fogAlpha = level === 1 ? 0.22 : level === 2 ? 0.32 : 0.46;
@@ -1128,7 +1140,7 @@ export default class Player {
       const r = level === 1 ? 110 : 185;
       this.scene.spawnCloud(x, y, r, 0xd8cf88, level === 1 ? 1100 : 1800, { alpha: 0.22 });
       this.scene.spawnNova(x, y, 0xe0d898, r, { rings: 1, life: 22 });
-      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * 2, level === 2)) this._registerHit();
+      if (this._damageRadius(x, y, r, PLAYER_MELEE_DAMAGE * 2, dt, level === 2)) this._registerHit();
     } else {
       // Sulfur Cloudburst — the whole screen chokes
       this.scene.shake(380, 0.012);
@@ -1136,7 +1148,7 @@ export default class Player {
       this.scene.enemyGroup.getChildren().forEach((go) => {
         const s = go as EnemySprite;
         if (!s.active || !s.enemyRef) return;
-        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 3, 0);
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 3, dt, 0);
         this.scene.spawnCloud(s.x, s.y, 50, 0xd8cf88, 1500, { blobs: 4, alpha: 0.25 });
         hit = true;
       });
@@ -1145,7 +1157,7 @@ export default class Player {
   }
 
   // ── Sulfuric acid (H₂SO₄) — the strongest corrosive: eats through everything ──
-  private _specialSulfuricAcid(level: number, dir: number): void {
+  private _specialSulfuricAcid(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -1158,35 +1170,35 @@ export default class Player {
         angle: dir > 0 ? [-45, 45] : [135, 225],
         lifespan: 420,
       });
-      if (this._damageArc(x + dir * 42, y, 116, 66, PLAYER_MELEE_DAMAGE * 2, dir, true)) {
+      if (this._damageArc(x + dir * 42, y, 116, 66, PLAYER_MELEE_DAMAGE * 2, dir, dt, true)) {
         this._registerHit();
-        this._bleedInRadius(x + dir * 42, y, 116, 3, 3000);
+        this._bleedInRadius(x + dir * 42, y, 116, 3, 3000, dt);
       }
     } else if (level === 2) {
       // Oil of Vitriol — a searing corrosive pool
       this.scene.spawnCloud(x, y, 165, 0xf6e61e, 1600, { alpha: 0.2 });
       this.scene.spawnHitFlash(x, y, 0xfff04a, 100);
       this.scene.spawnNova(x, y, 0xf6e61e, 165, { rings: 2, life: 24 });
-      if (this._damageRadius(x, y, 165, PLAYER_MELEE_DAMAGE * 2.8, true)) this._registerHit();
-      this._bleedInRadius(x, y, 165, 4, 3600);
+      if (this._damageRadius(x, y, 165, PLAYER_MELEE_DAMAGE * 2.8, dt, true)) this._registerHit();
+      this._bleedInRadius(x, y, 165, 4, 3600, dt);
     } else {
       // Sulfuric Dissolve — a colossal corrosive blast
       this.scene.shake(360, 0.014);
       this.scene.spawnHitFlash(x, y, 0xf6e61e, 210);
       this.scene.spawnNova(x, y, 0xfff04a, 300, { rings: 3, life: 34, lineWidth: 5, fill: true });
       this.scene.spawnBurst(x, y, 0xf6e61e, { count: 32, speed: [130, 360], lifespan: 640, scale: 1.4 });
-      if (this._damageRadius(x, y, 300, PLAYER_MELEE_DAMAGE * 4, true)) this._registerHit();
-      this._bleedInRadius(x, y, 300, 5, 4200);
+      if (this._damageRadius(x, y, 300, PLAYER_MELEE_DAMAGE * 4, dt, true)) this._registerHit();
+      this._bleedInRadius(x, y, 300, 5, 4200, dt);
     }
   }
 
   // ── Hydrochloric acid (HCl) — a corrosive spit/spray ─────────────────────────
-  private _specialHydrochloricAcid(level: number, dir: number): void {
+  private _specialHydrochloricAcid(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
       // Muriatic Spit — a corrosive bolt
-      this.scene.spawnProjectile(x, y, dir, 0xa8e86a, PLAYER_MELEE_DAMAGE * 2, 680, 3);
+      this.scene.spawnProjectile(x, y, dir, 0xa8e86a, PLAYER_MELEE_DAMAGE * 2, dt, 680, 3);
       this.scene.spawnHitFlash(x + dir * 26, y, 0xc4f088, 30);
     } else if (level === 2) {
       // Hydrochloric Spray — a corrosive fan
@@ -1198,9 +1210,9 @@ export default class Player {
         angle: dir > 0 ? [-40, 40] : [140, 220],
         lifespan: 460,
       });
-      if (this._damageArc(x + dir * 70, y, 200, 110, PLAYER_MELEE_DAMAGE * 2.4, dir, true)) {
+      if (this._damageArc(x + dir * 70, y, 200, 110, PLAYER_MELEE_DAMAGE * 2.4, dir, dt, true)) {
         this._registerHit();
-        this._bleedInRadius(x + dir * 70, y, 200, 3, 2800);
+        this._bleedInRadius(x + dir * 70, y, 200, 3, 2800, dt);
       }
     } else {
       // Chloride Meltdown — a wide corrosive detonation
@@ -1208,13 +1220,13 @@ export default class Player {
       this.scene.spawnHitFlash(x, y, 0xa8e86a, 180);
       this.scene.spawnNova(x, y, 0xc4f088, 260, { rings: 3, life: 30, lineWidth: 4, fill: true });
       this.scene.spawnBurst(x, y, 0xa8e86a, { count: 28, speed: [120, 340], lifespan: 600, scale: 1.3 });
-      if (this._damageRadius(x, y, 260, PLAYER_MELEE_DAMAGE * 3.2, true)) this._registerHit();
-      this._bleedInRadius(x, y, 260, 4, 3400);
+      if (this._damageRadius(x, y, 260, PLAYER_MELEE_DAMAGE * 3.2, dt, true)) this._registerHit();
+      this._bleedInRadius(x, y, 260, 4, 3400, dt);
     }
   }
 
   // ── Phosphine (PH₃) — a flammable gas bolt that detonates into green fire ─────
-  private _specialPhosphine(level: number, dir: number): void {
+  private _specialPhosphine(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     const proj = this.scene.physics.add.sprite(x, y, 'projectile') as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -1248,15 +1260,15 @@ export default class Player {
       this.scene.shake(200, 0.008);
       const dmg =
         level === 1 ? PLAYER_MELEE_DAMAGE * 3 : level === 2 ? PLAYER_MELEE_DAMAGE * 3.5 : PLAYER_MELEE_DAMAGE * 5.5;
-      if (this._damageRadius(ex, ey, r, dmg)) this._registerHit();
-      if (level >= 2) this._bleedInRadius(ex, ey, r, 3, 3200);
+      if (this._damageRadius(ex, ey, r, dmg, dt)) this._registerHit();
+      if (level >= 2) this._bleedInRadius(ex, ey, r, 3, 3200, dt);
     };
     this.scene.time.delayedCall(650, detonate);
     this.scene.physics.add.overlap(proj, this.scene.enemyGroup, () => detonate());
   }
 
   // ── Phosphoric acid (H₃PO₄) — an etching acid rain ───────────────────────────
-  private _specialPhosphoricAcid(level: number, dir: number): void {
+  private _specialPhosphoricAcid(level: number, dir: number, dt: DamageType): void {
     const groundY = this._feetY;
     const drop = (tx: number, extraBleed: boolean) => {
       const g = this.scene.add.graphics().setDepth(88);
@@ -1276,8 +1288,8 @@ export default class Player {
             lifespan: 340,
           });
           this.scene.spawnCloud(tx, groundY, 28, 0xdff0a0, 760, { blobs: 3, alpha: 0.22 });
-          this._damageRadius(tx, groundY, 36, PLAYER_MELEE_DAMAGE * 1.4);
-          if (extraBleed) this._bleedInRadius(tx, groundY, 36, 2, 1800);
+          this._damageRadius(tx, groundY, 36, PLAYER_MELEE_DAMAGE * 1.4, dt);
+          if (extraBleed) this._bleedInRadius(tx, groundY, 36, 2, 1800, dt);
           g.destroy();
         },
       });
@@ -1302,8 +1314,8 @@ export default class Player {
           if (!s.active || !s.enemyRef) return;
           this.scene.spawnHitFlash(s.x, s.y, 0xdff0a0, 24);
           this.scene.spawnBurst(s.x, s.y, 0xeaf6b8, { count: 7, speed: [50, 150], angle: [200, 340], lifespan: 340 });
-          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, 0);
-          s.enemyRef.applyBleed(3, 2200);
+          s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2, dt, 0);
+          s.enemyRef.applyBleed(3, 2200, dt);
         });
       });
       this._registerHit();
@@ -1311,7 +1323,7 @@ export default class Player {
   }
 
   // ── Phosphorus trichloride (PCl₃) — fumes: a corrosive splash + smoking gas ───
-  private _specialPhosphorusTrichloride(level: number, dir: number): void {
+  private _specialPhosphorusTrichloride(level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x,
       y = this.sprite.y;
     if (level === 1) {
@@ -1319,19 +1331,19 @@ export default class Player {
       this.scene.spawnSlashArc(x, y, dir, 0xbfe0a0, 118, 66);
       this.scene.spawnCloud(x + dir * 45, y, 70, 0xbfe0a0, 1000, { alpha: 0.18, blobs: 4 });
       this.scene.spawnHitFlash(x + dir * 55, y, 0xd4f0b8, 45);
-      if (this._damageArc(x + dir * 42, y, 114, 64, PLAYER_MELEE_DAMAGE * 1.8, dir, true)) {
+      if (this._damageArc(x + dir * 42, y, 114, 64, PLAYER_MELEE_DAMAGE * 1.8, dir, dt, true)) {
         this._registerHit();
-        this._bleedInRadius(x + dir * 42, y, 114, 3, 2800);
+        this._bleedInRadius(x + dir * 42, y, 114, 3, 2800, dt);
       }
     } else if (level === 2) {
       // Smoking Corrosive — a bolt that bursts into a choking corrosive cloud
-      this.scene.spawnProjectile(x, y, dir, 0xbfe0a0, PLAYER_MELEE_DAMAGE * 2.2, 560, 3);
+      this.scene.spawnProjectile(x, y, dir, 0xbfe0a0, PLAYER_MELEE_DAMAGE * 2.2, dt, 560, 3);
       this.scene.time.delayedCall(260, () => {
         const cx = x + dir * 150;
         this.scene.spawnCloud(cx, y, 150, 0xbfe0a0, 1700, { alpha: 0.2, blobs: 6 });
         this.scene.spawnNova(cx, y, 0xd4f0b8, 150, { rings: 1, life: 22 });
-        if (this._damageRadius(cx, y, 150, PLAYER_MELEE_DAMAGE * 2, true)) this._registerHit();
-        this._bleedInRadius(cx, y, 150, 3, 3200);
+        if (this._damageRadius(cx, y, 150, PLAYER_MELEE_DAMAGE * 2, dt, true)) this._registerHit();
+        this._bleedInRadius(cx, y, 150, 3, 3200, dt);
       });
     } else {
       // Trichloride Storm — a billowing corrosive detonation
@@ -1340,16 +1352,258 @@ export default class Player {
       this.scene.spawnNova(x, y, 0xd4f0b8, 280, { rings: 3, life: 32, lineWidth: 4, fill: true });
       this.scene.spawnCloud(x, y, 280, 0xbfe0a0, 2000, { alpha: 0.18, blobs: 8 });
       this.scene.spawnBurst(x, y, 0xbfe0a0, { count: 30, speed: [120, 350], lifespan: 620, scale: 1.3 });
-      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.4, true)) this._registerHit();
-      this._bleedInRadius(x, y, 280, 4, 3800);
+      if (this._damageRadius(x, y, 280, PLAYER_MELEE_DAMAGE * 3.4, dt, true)) this._registerHit();
+      this._bleedInRadius(x, y, 280, 4, 3800, dt);
     }
+  }
+
+  // ── Sodium — an alkali-metal pellet that detonates the instant it hits anything ──
+  /** One thrown sodium pellet: arcs out, then blows up on contact, on a wall, or when its fuse runs out. */
+  private _sodiumPellet(vx: number, vy: number, radius: number, dmg: number, bleed: number, dt: DamageType): void {
+    const proj = this.scene.physics.add.sprite(
+      this.sprite.x,
+      this.sprite.y,
+      'projectile',
+    ) as Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+    proj.setTint(0xffb020).setDepth(80).setScale(1.5);
+    proj.body.setAllowGravity(false);
+    proj.body.setVelocity(vx, vy);
+
+    // Sputtering trail — the pellet is already reacting with the moisture in the air.
+    const trail = this.scene.time.addEvent({
+      delay: 40,
+      loop: true,
+      callback: () => {
+        if (proj.active)
+          this.scene.spawnBurst(proj.x, proj.y, 0xffd280, { count: 2, speed: [10, 60], lifespan: 260, scale: 0.7 });
+      },
+    });
+
+    const detonate = (): void => {
+      if (!proj.active) return;
+      trail.remove();
+      const ex = proj.x,
+        ey = proj.y;
+      proj.destroy();
+      // A white-hot flash cored in sodium amber.
+      this.scene.spawnHitFlash(ex, ey, 0xffffff, radius * 0.6);
+      this.scene.spawnNova(ex, ey, 0xffb020, radius, { rings: 2, life: 24, fill: true });
+      this.scene.spawnBurst(ex, ey, 0xffd280, { count: 20, speed: [130, 340], lifespan: 520, scale: 1.2 });
+      this.scene.shake(190, 0.009);
+      if (this._damageRadius(ex, ey, radius, dmg, dt)) this._registerHit();
+      if (bleed > 0) this._bleedInRadius(ex, ey, radius, bleed, 2800, dt);
+    };
+
+    this.scene.time.delayedCall(700, detonate);
+    this.scene.physics.add.overlap(proj, this.scene.enemyGroup, () => detonate());
+  }
+
+  private _specialSodium(level: number, dir: number, dt: DamageType): void {
+    this.scene.spawnHitFlash(this.sprite.x + dir * 24, this.sprite.y, 0xffe0a0, 30);
+    if (level === 1) {
+      // Sodium Spark — a single pellet that pops on contact
+      this._sodiumPellet(dir * 300, 0, 95, PLAYER_MELEE_DAMAGE * 2.5, 0, dt);
+    } else if (level === 2) {
+      // Alkali Burst — a heavier pellet with a wider, burning detonation
+      this._sodiumPellet(dir * 300, 0, 145, PLAYER_MELEE_DAMAGE * 3.2, 3, dt);
+    } else {
+      // Alkali Detonation — a scattered handful, each one going off on its own
+      for (const vy of [-130, 0, 130]) this._sodiumPellet(dir * 300, vy, 165, PLAYER_MELEE_DAMAGE * 3.5, 4, dt);
+    }
+  }
+
+  // ── Sodium chloride (NaCl) — salt crystal shrapnel: the arsenal's piercing solid ──
+  private _specialSodiumChloride(level: number, dir: number, dt: DamageType): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    // A fan of piercing shards — each one rips straight through everything in its lane.
+    const spread = level === 1 ? [0] : level === 2 ? [-90, 0, 90] : [-190, -95, 0, 95, 190];
+    const dmg =
+      level === 1 ? PLAYER_MELEE_DAMAGE * 2.4 : level === 2 ? PLAYER_MELEE_DAMAGE * 2.2 : PLAYER_MELEE_DAMAGE * 2.6;
+    for (const vy of spread) this.scene.spawnPiercingProjectile(x, y, dir, 0xeef2ff, dmg, dt, 700, vy);
+
+    this.scene.spawnHitFlash(x + dir * 26, y, 0xffffff, level === 1 ? 30 : 55);
+    this.scene.spawnBurst(x + dir * 24, y, 0xdbe4ff, {
+      count: level === 1 ? 8 : level === 2 ? 16 : 26,
+      speed: [110, 300],
+      angle: dir > 0 ? [-35, 35] : [145, 215],
+      lifespan: 420,
+      scale: level === 3 ? 1.2 : 1,
+    });
+    if (level === 3) {
+      // Halite Storm — the crystal lattice shatters at the muzzle as the volley leaves
+      this.scene.shake(220, 0.009);
+      this.scene.spawnNova(x + dir * 30, y, 0xeef2ff, 150, { rings: 2, life: 24 });
+    }
+  }
+
+  // ── Sodium hydroxide (NaOH) — lye: a caustic pool that keeps eating whatever stands in it ──
+  private _specialSodiumHydroxide(level: number, dir: number, dt: DamageType): void {
+    const px = this.sprite.x + dir * 60;
+    const py = this._feetY;
+    const radius = level === 1 ? 80 : level === 2 ? 120 : 175;
+    const lifeMs = level === 1 ? 2600 : level === 2 ? 3600 : 4800;
+    const perTick =
+      level === 1 ? PLAYER_MELEE_DAMAGE * 0.5 : level === 2 ? PLAYER_MELEE_DAMAGE * 0.7 : PLAYER_MELEE_DAMAGE;
+
+    this.scene.spawnHitFlash(px, py, 0xe8d8ff, radius * 0.5);
+    this.scene.spawnBurst(px, py, 0xd9c2ff, { count: 14, speed: [60, 190], angle: [200, 340], lifespan: 460 });
+    if (level === 3) this.scene.shake(240, 0.01);
+
+    // The pool itself — a flat slick on the ground that slowly boils away.
+    const pool = this.scene.add.graphics().setDepth(DEPTH.PLAYER - 2);
+    const draw = (alpha: number): void => {
+      pool.clear();
+      pool.fillStyle(0xd9c2ff, alpha * 0.45);
+      pool.fillEllipse(px, py - 4, radius * 2, 26);
+      pool.fillStyle(0xf0e4ff, alpha * 0.35);
+      pool.fillEllipse(px, py - 6, radius * 1.4, 16);
+    };
+    draw(1);
+
+    // Damage ticks for as long as the pool lasts — standing in lye is a commitment.
+    const TICK = 400;
+    const ticks = Math.floor(lifeMs / TICK);
+    let n = 0;
+    this.scene.time.addEvent({
+      delay: TICK,
+      repeat: ticks - 1,
+      callback: () => {
+        n++;
+        draw(1 - n / ticks);
+        this.scene.spawnBurst(px + Phaser.Math.Between(-radius, radius), py - 6, 0xe8d8ff, {
+          count: 3,
+          speed: [20, 70],
+          angle: [240, 300],
+          lifespan: 420,
+          scale: 0.8,
+        });
+        if (this._damageRadius(px, py, radius, perTick, dt)) this._registerHit();
+        this._bleedInRadius(px, py, radius, level === 3 ? 3 : 2, 1600, dt);
+        if (n >= ticks) pool.destroy();
+      },
+    });
+  }
+
+  // ── Sodium carbonate (Na₂CO₃) — washing soda: a smothering foam that shoves enemies away ──
+  private _specialSodiumCarbonate(level: number, dir: number, dt: DamageType): void {
+    const x = this.sprite.x,
+      y = this.sprite.y;
+    const foam = (fx: number, fy: number, r: number): void => {
+      this.scene.spawnCloud(fx, fy, r, 0xbfe4f0, 1400, { alpha: 0.3, blobs: 7 });
+      this.scene.spawnBurst(fx, fy, 0xeaf8ff, { count: 16, speed: [70, 230], lifespan: 560, scale: 1.1 });
+    };
+
+    if (level < 3) {
+      // Soda Foam / Foam Surge — a billowing cone that knocks everything out of the lane
+      const reach = level === 1 ? 170 : 240;
+      const cx = x + dir * (reach / 2);
+      foam(cx, y, reach * 0.55);
+      this.scene.spawnSlashArc(x + dir * 30, y, dir, 0xbfe4f0, reach, level === 1 ? 100 : 130);
+      this.scene.spawnHitFlash(cx, y, 0xeaf8ff, level === 1 ? 60 : 90);
+      // Heavy knockback is the point — this is crowd control, not a damage button.
+      const knock = level === 1 ? 9 : 13;
+      if (this._damageArc(cx, y, reach * 0.6, level === 1 ? 100 : 130, PLAYER_MELEE_DAMAGE * 1.6, dir, dt, true, knock))
+        this._registerHit();
+    } else {
+      // Soda Ash Blast — a radial eruption that clears the whole area around the player
+      this.scene.shake(340, 0.013);
+      foam(x, y, 280);
+      this.scene.spawnHitFlash(x, y, 0xffffff, 170);
+      this.scene.spawnNova(x, y, 0xbfe4f0, 300, { rings: 3, life: 32, lineWidth: 4, fill: true });
+      let hit = false;
+      this.scene.enemyGroup.getChildren().forEach((go) => {
+        const s = go as EnemySprite;
+        if (!s.active || !s.enemyRef) return;
+        if (Phaser.Math.Distance.Between(x, y, s.x, s.y) > 300) return;
+        // Blown away from the player, hard, in whichever direction they happen to be standing.
+        s.enemyRef.takeDamage(PLAYER_MELEE_DAMAGE * 2.6, dt, (s.x < x ? -1 : 1) * 18, true);
+        hit = true;
+      });
+      if (hit) this._registerHit();
+    }
+  }
+
+  // ── Sodium nitrate (NaNO₃) — saltpeter, the oxidiser: sets fires, then sets the fires off ──
+  /** Blow up one burning enemy — the flash a chain deflagration is made of. */
+  private _deflagrate(s: EnemySprite, dmg: number, dt: DamageType): void {
+    this.scene.spawnHitFlash(s.x, s.y, 0xfff0c0, 60);
+    this.scene.spawnNova(s.x, s.y, 0xffd27a, 90, { rings: 2, life: 20, fill: true });
+    this.scene.spawnBurst(s.x, s.y, 0xffb020, { count: 16, speed: [100, 280], lifespan: 480, scale: 1.1 });
+    s.enemyRef?.takeDamage(dmg, dt, 0);
+  }
+
+  private _specialSodiumNitrate(level: number, dir: number, dt: DamageType): void {
+    const x = this.sprite.x + dir * 40,
+      y = this.sprite.y;
+    const radius = level === 1 ? 150 : level === 2 ? 210 : 280;
+    // The oxidiser barely scratches on its own; its job is to make everything flammable...
+    const bleed = level === 1 ? 3 : level === 2 ? 4 : 5;
+    const directDmg =
+      level === 1 ? PLAYER_MELEE_DAMAGE * 1.2 : level === 2 ? PLAYER_MELEE_DAMAGE * 1.6 : PLAYER_MELEE_DAMAGE * 2;
+
+    this.scene.spawnHitFlash(x, y, 0xffd27a, radius * 0.5);
+    this.scene.spawnNova(x, y, 0xffb020, radius, { rings: 2, life: 26 });
+    this.scene.spawnCloud(x, y, radius, 0xffd27a, 1200, { alpha: 0.16, blobs: 6 });
+    this.scene.shake(level === 3 ? 320 : 200, 0.01);
+
+    // ...so anything already burning goes off *now*, and everything else is set alight for next time.
+    // Snapshot first: detonating mutates the group as enemies die.
+    const inRange = this.scene.enemyGroup.getChildren().filter((go) => {
+      const s = go as EnemySprite;
+      return s.active && s.enemyRef && Phaser.Math.Distance.Between(x, y, s.x, s.y) < radius;
+    }) as EnemySprite[];
+
+    const burstDmg =
+      level === 1 ? PLAYER_MELEE_DAMAGE * 3 : level === 2 ? PLAYER_MELEE_DAMAGE * 4 : PLAYER_MELEE_DAMAGE * 5;
+    let hit = false;
+    const detonated = new Set<EnemySprite>();
+    for (const s of inRange) {
+      if (s.enemyRef?.isBleeding) {
+        this._deflagrate(s, burstDmg, dt);
+        detonated.add(s);
+      } else {
+        this.scene.spawnBurst(s.x, s.y, 0xffd27a, { count: 6, speed: [40, 140], lifespan: 380, scale: 0.8 });
+      }
+      s.enemyRef?.applyBleed(bleed, level === 3 ? 4200 : 3200, dt);
+      hit = true;
+    }
+    // A modest direct hit as well, so the button still does something against a bleed-immune boss.
+    if (this._damageRadius(x, y, radius, directDmg, dt)) hit = true;
+
+    // Chain Deflagration — every blast lights off its neighbours, one ring at a time.
+    if (level === 3 && detonated.size > 0) {
+      const CHAIN_R = 160;
+      let frontier = [...detonated];
+      for (let step = 0; step < 3 && frontier.length > 0; step++) {
+        const next: EnemySprite[] = [];
+        for (const src of frontier) {
+          this.scene.enemyGroup.getChildren().forEach((go) => {
+            const s = go as EnemySprite;
+            if (!s.active || !s.enemyRef || detonated.has(s)) return;
+            if (Phaser.Math.Distance.Between(src.x, src.y, s.x, s.y) > CHAIN_R) return;
+            detonated.add(s);
+            next.push(s);
+          });
+        }
+        // Stagger each ring so the chain visibly races outward instead of firing all at once.
+        const delay = (step + 1) * 110;
+        for (const s of next)
+          this.scene.time.delayedCall(delay, () => {
+            if (s.active && s.enemyRef) this._deflagrate(s, burstDmg * 0.7, dt);
+          });
+        frontier = next;
+      }
+    }
+
+    if (hit) this._registerHit();
   }
 
   /**
    * Prismatic Beam (noble-gas super weapon) — a wide, piercing rainbow beam fired in the facing
    * direction that shreds everything in its lane and shoves it back. Single, fixed power tier.
    */
-  private _specialPrismatic(_level: number, dir: number): void {
+  private _specialPrismatic(_level: number, dir: number, dt: DamageType): void {
     const x = this.sprite.x;
     const y = this.sprite.y;
     const x0 = x + dir * 30;
@@ -1390,7 +1644,7 @@ export default class Player {
       if (!s.active || !s.enemyRef) return;
       const ahead = dir > 0 ? s.x >= x0 - 20 : s.x <= x0 + 20;
       if (ahead && Math.abs(s.x - x) < range && Math.abs(s.y - y) < halfH + 12) {
-        s.enemyRef.takeDamage(dmg, dir * 6);
+        s.enemyRef.takeDamage(dmg, dt, dir * 6);
         hit = true;
       }
     });
@@ -1404,6 +1658,7 @@ export default class Player {
     rangeY: number,
     dmg: number,
     dir: number,
+    type: DamageType,
     slow = false,
     knockback = 2,
   ): boolean {
@@ -1414,21 +1669,21 @@ export default class Player {
       const dx = s.x - cx,
         dy = s.y - cy;
       if (Math.abs(dx) < rangeX && Math.abs(dy) < rangeY) {
-        s.enemyRef.takeDamage(dmg, dir * knockback, slow);
+        s.enemyRef.takeDamage(dmg, type, dir * knockback, slow);
         hit = true;
       }
     });
     return hit;
   }
 
-  private _damageRadius(cx: number, cy: number, radius: number, dmg: number, slow = false): boolean {
+  private _damageRadius(cx: number, cy: number, radius: number, dmg: number, type: DamageType, slow = false): boolean {
     let hit = false;
     this.scene.enemyGroup.getChildren().forEach((go) => {
       const s = go as EnemySprite;
       if (!s.active || !s.enemyRef) return;
       const dist = Phaser.Math.Distance.Between(cx, cy, s.x, s.y);
       if (dist < radius) {
-        s.enemyRef.takeDamage(dmg, (s.x < cx ? -1 : 1) * 3, slow);
+        s.enemyRef.takeDamage(dmg, type, (s.x < cx ? -1 : 1) * 3, slow);
         hit = true;
       }
     });

@@ -29,13 +29,38 @@ element/compound at each tier. Sources: [`src/constants.ts`](../../src/constants
 - **REQ-ATK-013** — `_dispatchAttack` shall route each `AttackId` to its `_special*` handler; adding a
   new attack requires a new handler and a new branch here.
 
+## Damage types & elemental affinity
+
+- **REQ-ATK-015** — Every attack shall deal exactly one **damage type** (`ATTACK_TYPE`, keyed by
+  `AttackId`): `impact`, `piercing`, `fire`, `cryo`, `acid`, `caustic`, `gas`, `explosive`, `energy`,
+  or `pure`. The basic melee punch deals `MELEE_DAMAGE_TYPE` (`impact`). The Prismatic super deals
+  `pure`.
+- **REQ-ATK-016** — `_dispatchAttack` shall resolve the cast's damage type **once** and pass it into
+  the special as a parameter, so that every effect the cast spawns — including detonations, pools,
+  rains, and chains that resolve seconds later — is judged by the matchup it was *fired* with, not by
+  whatever the player cast in the meantime. Projectiles shall carry it on the sprite (`dmgType`).
+- **REQ-ATK-017** — `applyAffinity(dmg, type, affinity)` shall scale damage by the target's
+  multiplier for that type (absent = 1.0). WHERE the type is `pure`, no affinity shall ever apply.
+- **REQ-ATK-018** — A bleed/burn DOT shall inherit the damage type of whatever applied it: the
+  per-tick damage is scaled once at `applyBleed` time, so a fire DOT on a flammable target keeps
+  burning hot for its whole duration.
+- **REQ-ATK-019** — WHEN a hit's multiplier is ≥ `WEAK_CUE_THRESHOLD` (1.25) or ≤
+  `RESIST_CUE_THRESHOLD` (0.85), the game shall pop a floating **WEAK!** (gold, with a hit flash) or
+  **RESIST** (dim, smaller) label above the target (`GameScene.spawnAffinityCue`). Cues shall be
+  throttled to one per ~700 ms per coarse position and polarity so a lingering cloud or a DOT cannot
+  stack a wall of text. There is no other in-game readout of the matchup table — it is learned by
+  playing.
+
 ## Damage helpers
 
-- **REQ-ATK-020** — `_damageArc(cx, cy, rangeX, rangeY, dmg, dir, slow?, knockback?)` shall damage
-  every active enemy within the box around (cx,cy), applying knockback `dir × knockback` and an
+- **REQ-ATK-020** — `_damageArc(cx, cy, rangeX, rangeY, dmg, dir, type, slow?, knockback?)` shall
+  damage every active enemy within the box around (cx,cy), applying knockback `dir × knockback` and an
   optional slow; it returns whether anything was hit.
-- **REQ-ATK-021** — `_damageRadius(cx, cy, radius, dmg, slow?)` shall damage every active enemy within
-  `radius`, knocking each away from the centre; it returns whether anything was hit.
+- **REQ-ATK-021** — `_damageRadius(cx, cy, radius, dmg, type, slow?)` shall damage every active enemy
+  within `radius`, knocking each away from the centre; it returns whether anything was hit.
+- **REQ-ATK-021a** — `_bleedInRadius(x, y, radius, perTick, ms, type)` shall apply a typed DOT to every
+  active enemy within `radius`. The damage type is a **required** argument on all three helpers so the
+  compiler, not the author, guarantees every damage path carries a matchup.
 - **REQ-ATK-022** — WHEN any special hits at least one enemy, the player shall register a combo hit
   (REQ-PLAYER-040).
 
@@ -101,6 +126,27 @@ Damage values are multiples of `PLAYER_MELEE_DAMAGE` (12).
   *Fuming Splash* a corrosive arc leaving smoke (~1.8× dmg + bleed); Lv2 *Smoking Corrosive* a bolt
   bursting into a corrosive cloud (r 150, ~2× dmg + bleed, slows); Lv3 *Trichloride Storm* a billowing
   corrosive detonation (r 280, ~3.4× dmg + bleed).
+- **REQ-ATK-291 Sodium** — a reactive alkali pellet: a thrown bolt that detonates on first enemy
+  contact or after 700 ms. Lv1 *Sodium Spark* one pellet (r 95, ~2.5× dmg); Lv2 *Alkali Burst* one
+  pellet with a wider, burning blast (r 145, ~3.2× dmg + bleed); Lv3 *Alkali Detonation* a fanned
+  handful of three pellets (r 165 each, ~3.5× dmg + heavy bleed).
+- **REQ-ATK-292 Sodium Chloride (NaCl)** — salt-crystal shrapnel, the arsenal's **piercing solid**:
+  a volley of piercing shards fanned vertically (`spawnPiercingProjectile` with `vy`). Lv1 *Salt Shot*
+  1 shard (~2.4× dmg); Lv2 *Crystal Shrapnel* 3 shards (~2.2× each); Lv3 *Halite Storm* 5 shards
+  (~2.6× each) plus a shatter nova at the muzzle.
+- **REQ-ATK-293 Sodium Hydroxide (NaOH)** — lye: a **persistent ground pool** placed ahead of the
+  player that ticks damage every 400 ms for its lifetime (r 80/120/175 over 2.6/3.6/4.8 s,
+  ~0.5/0.7/1× dmg per tick plus bleed), fading as it boils away. The only attack that leaves a
+  lasting hazard zone rather than resolving at cast time.
+- **REQ-ATK-294 Sodium Carbonate (Na₂CO₃)** — washing-soda foam, built for **crowd control** rather
+  than damage: Lv1/Lv2 *Soda Foam / Foam Surge* a smothering cone (reach 170/240, ~1.6× dmg, slows,
+  heavy knockback 9/13); Lv3 *Soda Ash Blast* a radial eruption (r 300, ~2.6× dmg) that blows every
+  enemy away from the player at knockback 18.
+- **REQ-ATK-295 Sodium Nitrate (NaNO₃)** — saltpeter, the **oxidiser**: it ignites everything in
+  radius (r 150/210/280, applying bleed) and simultaneously detonates anything *already* bleeding for
+  a burst (~3/4/5× dmg), plus a modest direct hit (~1.2/1.6/2×) so it still does something against a
+  bleed-immune boss. Lv3 *Chain Deflagration* propagates: each detonation ignites enemies within 160px
+  for up to 3 further rings, staggered 110 ms apart, at 0.7× burst damage.
 
 ## Super weapon — Prismatic Beam
 
@@ -123,8 +169,11 @@ firing/effect.
 
 - **REQ-ATK-200** — `GameScene` shall provide colour-parameterized visual helpers used by attacks and
   pickups: `spawnHitFlash`, `spawnBurst`, `spawnNova`, `spawnSlashArc`, `spawnCloud`, `spawnAtomBurst`,
-  `spawnProjectile`, `spawnPiercingProjectile`, `spawnPlasmaBolt`, `spawnTidalWave`,
+  `spawnProjectile`, `spawnPiercingProjectile` (optional `vy` fans a volley vertically),
+  `spawnPlasmaBolt`, `spawnTidalWave`,
   `spawnEnemyProjectile`. These are visual/effect-only except where they carry damage payloads.
 - **REQ-ATK-201** — Player projectiles shall live in `projectileGroup`; WHEN a player projectile
   overlaps an enemy it shall deal its `damage` with knockback and be destroyed unless `piercing`.
-  Projectiles that leave the world horizontally shall be destroyed.
+  Projectiles that leave the world shall be destroyed — horizontally past either world edge, or
+  vertically beyond the stage's climbable extent (`-rise`) plus a 200px margin, so a fanned volley
+  cannot outlive the screen it was fired on.

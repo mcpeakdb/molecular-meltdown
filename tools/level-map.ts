@@ -245,8 +245,15 @@ function solve(s: StageDef, stageNo: number): Solved {
   const pred = new Map<number, { from: number; mode: Mode }>();
   const floorNode = (x: number) => nodes.find((n) => n.kind === 'floor' && x >= n.x1 && x <= n.x2);
 
-  // Start: the floor segment under the spawn point (left edge of the stage).
-  const start = floorNode(100) ?? nodes.find((n) => n.kind === 'floor');
+  // Start: whatever the stage says the player stands on. A raised spawn must land on a real ledge —
+  // if none is listed at that spot the stage would drop the player into the void, so say so loudly.
+  const sp = s.spawn;
+  let start: Node | undefined;
+  if (sp) {
+    start = nodes.find((n) => n.kind !== 'pad' && sp.x >= n.x1 - 20 && sp.x <= n.x2 + 20 && Math.abs(n.top - sp.y) < 6);
+  } else {
+    start = floorNode(100) ?? nodes.find((n) => n.kind === 'floor');
+  }
   if (start) reachable.add(start.id);
 
   const relax = (): boolean => {
@@ -315,6 +322,27 @@ function solve(s: StageDef, stageNo: number): Solved {
 
   // ── Warnings ──────────────────────────────────────────────────────────────
   const warnings: Solved['warnings'] = [];
+  if (sp && !start) {
+    warnings.push({
+      level: 'ERROR',
+      msg: `spawn @[${sp.x},${sp.y}] has no ledge under it — the player would start in mid-air`,
+    });
+  }
+  // The exit has to be somewhere the player can actually get to. A raised exit is the sharper case:
+  // its footing must be reachable, since standing on the floor below no longer clears the stage.
+  if (s.exitX !== undefined) {
+    const ey = s.exitY ?? GROUND_TOP_Y;
+    const support = nodes.find(
+      (n) => reachable.has(n.id) && s.exitX! >= n.x1 - 45 && s.exitX! <= n.x2 + 45 && Math.abs(n.top - ey) < 6,
+    );
+    if (!support) {
+      const kind = s.exitY !== undefined ? 'raised exit' : 'exit';
+      warnings.push({
+        level: 'ERROR',
+        msg: `${kind} @[${s.exitX},${ey}] is UNREACHABLE — no reachable surface stands at that height there`,
+      });
+    }
+  }
   for (const n of nodes) {
     if (reachable.has(n.id)) continue;
     if (n.kind === 'pad') warnings.push({ level: 'WARN', msg: `pad perch @${Math.round((n.x1 + n.x2) / 2)} unreachable — its pad's floor is cut off` });
@@ -427,6 +455,24 @@ function renderStage(s: StageDef, stageNo: number, sol: Solved): string {
 
   // pad domes on the floor
   for (const px of s.pads ?? []) parts.push(`<circle cx="${tx(px).toFixed(1)}" cy="${(g0 - 3).toFixed(1)}" r="4" fill="#b98cff"/>`);
+
+  // Start and finish markers — a green flag where the player is set down, a green ring at the exit
+  // (hollow when raised, so an off-the-floor ending reads at a glance).
+  const spx = s.spawn?.x ?? 120;
+  const spy = s.spawn?.y ?? GROUND_TOP_Y;
+  parts.push(
+    `<g class="ends"><path d="M${tx(spx).toFixed(1)},${ty(spy).toFixed(1)} l0,-14 l9,4 l-9,4" fill="#4ade80" stroke="#4ade80" stroke-width="1.2"/>` +
+      `<text x="${(tx(spx) + 11).toFixed(1)}" y="${(ty(spy) - 9).toFixed(1)}" font-size="6" fill="#4ade80">START</text>`,
+  );
+  if (s.exitX !== undefined) {
+    const ey = s.exitY ?? GROUND_TOP_Y;
+    const raised = s.exitY !== undefined;
+    parts.push(
+      `<circle cx="${tx(s.exitX).toFixed(1)}" cy="${(ty(ey) - 7).toFixed(1)}" r="5.5" fill="${raised ? 'none' : '#55ff99'}" stroke="#55ff99" stroke-width="1.6"/>` +
+        `<text x="${tx(s.exitX).toFixed(1)}" y="${(ty(ey) - 16).toFixed(1)}" font-size="6" fill="#55ff99" text-anchor="middle">EXIT${raised ? '↑' : ''}</text>`,
+    );
+  }
+  parts.push(`</g>`);
 
   // rewards (toggle layer)
   parts.push(`<g class="rewards">`);
